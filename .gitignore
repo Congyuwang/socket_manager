@@ -1,0 +1,6 @@
+/target
+/Cargo.lock
+.idea
+build
+cmake-build-debug
+**/.DS_Store
