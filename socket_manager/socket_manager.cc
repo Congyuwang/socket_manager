@@ -4,9 +4,9 @@
 
 namespace socket_manager {
 
-  SocketManager::SocketManager() {
+  SocketManager::SocketManager(size_t n_threads) {
     char *err = nullptr;
-    inner = socket_manager_init(this, on_conn, on_msg, &err);
+    inner = socket_manager_init(this, on_conn, on_msg, n_threads, &err);
     if (err) {
       const std::string err_str(err);
       free(err);

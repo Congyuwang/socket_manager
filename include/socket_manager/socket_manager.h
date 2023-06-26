@@ -20,7 +20,14 @@ namespace socket_manager {
 
   public:
 
-    SocketManager();
+    /**
+     * Create a socket manager with n threads.
+     *
+     * @param n_threads the number of threads to use. If n_threads is 0, then
+     *                 the number of threads is equal to the number of cores.
+     *                 Default to single-threaded runtime.
+     */
+    explicit SocketManager(size_t n_threads = 1);
 
     /**
      * Listen on the given address.

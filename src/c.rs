@@ -85,6 +85,11 @@ unsafe impl Sync for CallbackObj {}
 
 /// Initialize a new `SocketManager` and return a pointer to it.
 ///
+/// # Number of workers
+/// If `n_threads` is 0, the number of workers will be set to the number of logical cores.
+/// If `n_threads` is 1, uses single-threaded runtime.
+/// `n_threads` is capped at 256.
+///
 /// # Safety
 /// The passed in function pointers must live as long as the `SocketManager` does.
 ///
@@ -99,6 +104,7 @@ pub unsafe extern "C" fn socket_manager_init(
     callback_obj: *mut c_void,
     on_conn: unsafe extern "C" fn(*mut c_void, ConnStates),
     on_msg: unsafe extern "C" fn(*mut c_void, ConnMsg),
+    n_threads: size_t,
     err: *mut *mut c_char,
 ) -> *mut CSocketManager {
     let callback_obj = Arc::new(CallbackObj {
@@ -176,7 +182,7 @@ pub unsafe extern "C" fn socket_manager_init(
             },
         );
     };
-    match CSocketManager::init(on_conn, on_msg) {
+    match CSocketManager::init(on_conn, on_msg, n_threads) {
         Ok(manager) => {
             *err = null_mut();
             Box::into_raw(Box::new(manager))

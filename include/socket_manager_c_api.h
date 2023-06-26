@@ -76,6 +76,11 @@ extern "C" {
 /**
  * Initialize a new `SocketManager` and return a pointer to it.
  *
+ * # Number of workers
+ * If `n_threads` is 0, the number of workers will be set to the number of logical cores.
+ * If `n_threads` is 1, uses single-threaded runtime.
+ * `n_threads` is capped at 256.
+ *
  * # Safety
  * The passed in function pointers must live as long as the `SocketManager` does.
  *
@@ -89,6 +94,7 @@ extern "C" {
 struct CSocketManager *socket_manager_init(void *callback_obj,
                                            void (*on_conn)(void*, struct ConnStates),
                                            void (*on_msg)(void*, struct ConnMsg),
+                                           size_t n_threads,
                                            char **err);
 
 /**

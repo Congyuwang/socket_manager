@@ -9,13 +9,13 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::runtime;
-use tokio::runtime::Handle;
+use tokio::runtime::{Handle, Runtime};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::sync::{mpsc, oneshot};
 use tokio::task::JoinHandle;
 use tracing_subscriber::EnvFilter;
 
-const WORKER_THREADS: usize = 4;
+const MAX_WORKER_THREADS: usize = 256;
 const SOCKET_LOG: &str = "SOCKET_LOG";
 const READ_BUFFER_SIZE: usize = 1024 * 64;
 
@@ -82,6 +82,7 @@ impl CSocketManager {
     >(
         on_conn: OnConn,
         on_msg: OnMsg,
+        n_threads: usize,
     ) -> std::io::Result<CSocketManager> {
         tracing_subscriber::fmt()
             .with_env_filter(
@@ -90,15 +91,12 @@ impl CSocketManager {
                     .from_env_lossy(),
             )
             .init();
-        let run_time = runtime::Builder::new_multi_thread()
-            .enable_all()
-            .worker_threads(WORKER_THREADS)
-            .build()?;
+        let runtime = start_runtime(n_threads)?;
         let (cmd_send, cmd_recv) = mpsc::unbounded_channel::<Command>();
         let connection_state = ConnectionState::new();
         let join_handle = Some(std::thread::spawn(move || {
-            let handle = run_time.handle();
-            run_time.block_on(main(cmd_recv, handle, on_conn, on_msg, connection_state))
+            let handle = runtime.handle();
+            runtime.block_on(main(cmd_recv, handle, on_conn, on_msg, connection_state))
         }));
         Ok(CSocketManager {
             cmd_send,
@@ -210,9 +208,36 @@ async fn main<
     }
 }
 
-/// Thid function connects to a port.
-async fn connect_to_addr<
-    OnConn: Fn(ConnState) + Send + 'static,
+/// Start runtime
+fn start_runtime(n_threads: usize) -> std::io::Result<Runtime> {
+    let n_thread = n_threads.min(MAX_WORKER_THREADS);
+    match n_thread {
+        0 => {
+            let n_cpu =
+                std::thread::available_parallelism().unwrap_or(NonZeroUsize::new(1).unwrap());
+            tracing::info!("socket manager started runtime with {n_cpu} threads");
+            runtime::Builder::new_multi_thread()
+                .enable_all()
+                .worker_threads(n_cpu.get())
+                .build()
+        }
+        1 => {
+            tracing::info!("socket manager started runtime with single thread");
+            runtime::Builder::new_current_thread().enable_all().build()
+        }
+        n => {
+            tracing::info!("socket manager started runtime with {n} threads");
+            runtime::Builder::new_multi_thread()
+                .enable_all()
+                .worker_threads(n)
+                .build()
+        }
+    }
+}
+
+/// This function connects to a port.
+fn connect_to_addr<
+    OnConn: Fn(ConnState) + Send + 'static + Clone,
     OnMsg: Fn(Msg<'_>) + Send + 'static,
 >(
     handle: &Handle,
