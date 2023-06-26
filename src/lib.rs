@@ -337,15 +337,12 @@ async fn handle_reader<OnMsg: Fn(&[u8]) + Send + 'static>(
         let read_n = buf_reader.read(&mut read_buf).await;
         match read_n {
             Ok(n) => {
-                on_msg(&read_buf[0..n]);
                 if n == 0 {
                     return Ok(());
                 }
+                on_msg(&read_buf[0..n]);
             }
-            Err(e) => {
-                on_msg(&read_buf[0..0]);
-                return Err(e);
-            }
+            Err(e) => return Err(e),
         }
     }
 }
@@ -392,6 +389,9 @@ async fn join_reader_writer<OnConn: Fn(ConnState)>(
             }
         }
     }
+    tracing::debug!(
+        "connection close: conn_id={conn_id}, local_addr={local_addr}, peer_addr={peer_addr}"
+    );
     on_conn(ConnState::OnConnectionClose { conn_id });
     connection_state.connection_handles.remove(&conn_id);
 }
