@@ -1,4 +1,6 @@
-# A CXX Library Developed In Rust Tokio To Manage Multiple TCP Connections
+# A C++ Library Developed In Rust Tokio To Manage Multiple TCP Connections
+
+Easily manage multiple socket connections asynchronously in C++. 
 
 ## Installation
 
