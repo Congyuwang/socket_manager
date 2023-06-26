@@ -16,8 +16,13 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
         VERSION ${PROJECT_VERSION}
         IMPORTED_PATH ${CMAKE_CURRENT_BINARY_DIR}/lib${PROJECT_NAME}.a)
 
+set(tokio_obj_dir ${CMAKE_CURRENT_BINARY_DIR}/tokio_obj)
+file(MAKE_DIRECTORY ${tokio_obj_dir})
+
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-        COMMAND libtool -static -o ${CMAKE_CURRENT_BINARY_DIR}/lib${PROJECT_NAME}.a ${CMAKE_CURRENT_BINARY_DIR}/lib${PROJECT_NAME}.a ${CMAKE_BINARY_DIR}/libtokio_socket_manager.a)
+        WORKING_DIRECTORY ${tokio_obj_dir}
+        COMMAND ar -x ${CMAKE_BINARY_DIR}/libtokio_socket_manager.a
+        COMMAND ar -qs ${CMAKE_CURRENT_BINARY_DIR}/lib${PROJECT_NAME}.a *.o)
 
 install(TARGETS ${PROJECT_NAME} DESTINATION ${main_lib_dest})
 install(FILES ${header} DESTINATION ${include_dest})
