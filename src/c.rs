@@ -19,6 +19,8 @@ pub struct ConnMsg {
 
 /// All data is only valid for the duration of the callback
 /// except for the `sender` field of `OnConnect`.
+///
+/// Do not manually free any of the data except `sender`!!
 #[repr(C)]
 pub struct ConnStates {
     code: ConnStateCode,
@@ -81,7 +83,7 @@ struct CallbackObj {
 unsafe impl Send for CallbackObj {}
 unsafe impl Sync for CallbackObj {}
 
-/// Intialize a new `SocketManager` and return a pointer to it.
+/// Initialize a new `SocketManager` and return a pointer to it.
 ///
 /// # Safety
 /// The passed in function pointers must live as long as the `SocketManager` does.
