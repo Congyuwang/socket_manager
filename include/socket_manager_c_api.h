@@ -109,11 +109,17 @@ int socket_manager_listen_on_addr(struct CSocketManager *manager, const char *ad
 /**
  * Connect to the given address.
  *
+ * # Timeout
+ * timeout: 0 means no timeout, and the unit is milliseconds.
+ *
  * # Errors
  * Returns -1 on error, 0 on success.
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
  */
-int socket_manager_connect_to_addr(struct CSocketManager *manager, const char *addr, char **err);
+int socket_manager_connect_to_addr(struct CSocketManager *manager,
+                                   const char *addr,
+                                   unsigned long long timeout,
+                                   char **err);
 
 /**
  * Cancel listening on the given address.

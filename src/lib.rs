@@ -3,8 +3,10 @@ mod c;
 use dashmap::DashMap;
 use futures::FutureExt;
 use std::net::SocketAddr;
+use std::num::NonZeroUsize;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::{TcpListener, TcpStream};
@@ -27,10 +29,19 @@ pub struct CSocketManager {
 
 /// internal commands
 enum Command {
-    ListenOnAddr { addr: SocketAddr },
-    ConnectToAddr { addr: SocketAddr },
-    CancelListenOnAddr { addr: SocketAddr },
-    CancelConnection { conn_id: u64 },
+    ListenOnAddr {
+        addr: SocketAddr,
+    },
+    ConnectToAddr {
+        addr: SocketAddr,
+        timeout: Option<Duration>,
+    },
+    CancelListenOnAddr {
+        addr: SocketAddr,
+    },
+    CancelConnection {
+        conn_id: u64,
+    },
 }
 
 pub enum ConnState {
@@ -110,9 +121,13 @@ impl CSocketManager {
             .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "cmd send failed"))
     }
 
-    pub fn connect_to_addr(&self, addr: SocketAddr) -> std::io::Result<()> {
+    pub fn connect_to_addr(
+        &self,
+        addr: SocketAddr,
+        timeout: Option<Duration>,
+    ) -> std::io::Result<()> {
         self.cmd_send
-            .send(Command::ConnectToAddr { addr })
+            .send(Command::ConnectToAddr { addr, timeout })
             .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "cmd send failed"))
     }
 
@@ -244,6 +259,7 @@ fn connect_to_addr<
     addr: SocketAddr,
     on_conn: OnConn,
     on_msg: OnMsg,
+    timeout: Option<Duration>,
     connection_state: Arc<ConnectionState>,
 ) -> std::io::Result<()> {
     let stream = TcpStream::connect(addr).await?;

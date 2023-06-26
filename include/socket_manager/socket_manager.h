@@ -46,8 +46,10 @@ namespace socket_manager {
      * Throws `std::runtime_error` if the address is invalid.
      *
      * @param addr: the ip address to listen to (support both ipv4 and ipv6).
+     * @param timeout: the timeout in milliseconds. If timeout is 0, then the
+     *                connection will never timeout.
      */
-    void connect_to_addr(const std::string &addr);
+    void connect_to_addr(const std::string &addr, unsigned long long timeout = 0);
 
     /**
      * Abort a connection.
