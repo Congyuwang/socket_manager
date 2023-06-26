@@ -129,7 +129,7 @@ namespace socket_manager {
      * @param data the message received.
      */
     virtual void on_message(unsigned long long id,
-                            const std::string &data) = 0;
+                            std::shared_ptr<std::string> data) = 0;
 
     ~SocketManager();
 
@@ -170,7 +170,7 @@ namespace socket_manager {
 
     static void on_msg(void *manager_ptr, ConnMsg msg) {
       auto manager = static_cast<SocketManager *>(manager_ptr);
-      auto data = std::string(msg.Bytes, msg.Len);
+      auto data = std::make_shared<std::string>(msg.Bytes, msg.Len);
       manager->on_message(msg.ConnId, data);
     }
 
