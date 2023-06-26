@@ -11,3 +11,9 @@ add_subdirectory(${CMAKE_SOURCE_DIR}/corrosion)
 corrosion_import_crate(MANIFEST_PATH Cargo.toml)
 
 add_subdirectory(socket_manager)
+
+option(PACKAGE_TESTS "Build the tests" ON)
+if(PACKAGE_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
