@@ -1,0 +1,34 @@
+# A CXX Library Developed In Rust Tokio To Manage Multiple TCP Connections
+
+## Installation
+
+- Step 1: Install Rust
+
+```shell
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+- Step 2: Pull the source code
+
+```shell
+git clone https://github.com/Congyuwang/socket_manager.git
+cd socket_manager
+```
+
+- Step 3: Build and install
+
+```shell
+mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release ..
+make
+sudo make install
+```
+
+## Usage
+
+In your CMakeLists.txt, add the following lines:
+
+```cmake
+find_package(socket_manager 0.1.0 REQUIRED)
+target_link_libraries(test_socket_manager PUBLIC socket_manager)
+```
