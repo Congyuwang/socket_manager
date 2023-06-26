@@ -170,8 +170,8 @@ namespace socket_manager {
 
     static void on_msg(void *manager_ptr, ConnMsg msg) {
       auto manager = static_cast<SocketManager *>(manager_ptr);
-      auto local_addr = std::string(msg.Bytes);
-      manager->on_message(msg.ConnId, local_addr);
+      auto data = std::string(msg.Bytes, msg.Len);
+      manager->on_message(msg.ConnId, data);
     }
 
     CSocketManager *inner;
