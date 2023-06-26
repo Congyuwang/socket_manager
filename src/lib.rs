@@ -44,6 +44,13 @@ enum Command {
     },
 }
 
+/// Msg struct for the on_msg callback.
+pub struct Msg<'a> {
+    conn_id: u64,
+    bytes: &'a [u8],
+}
+
+/// Connection state changes for the on_conn callback.
 pub enum ConnState {
     OnConnect {
         conn_id: u64,
@@ -64,22 +71,18 @@ pub enum ConnState {
     },
 }
 
+/// Internal connection state.
 struct ConnectionState {
-    connection_handles: DashMap<u64, oneshot::Sender<()>>,
-    listener_map: DashMap<SocketAddr, JoinHandle<()>>,
+    connections: DashMap<u64, oneshot::Sender<()>>,
+    listeners: DashMap<SocketAddr, oneshot::Sender<()>>,
     current_conn_id: AtomicU64,
-}
-
-pub struct Msg<'a> {
-    conn_id: u64,
-    bytes: &'a [u8],
 }
 
 impl ConnectionState {
     fn new() -> Arc<Self> {
         Arc::new(ConnectionState {
-            connection_handles: DashMap::new(),
-            listener_map: DashMap::new(),
+            connections: DashMap::new(),
+            listeners: DashMap::new(),
             current_conn_id: AtomicU64::new(0),
         })
     }
@@ -151,13 +154,14 @@ impl CSocketManager {
         self.join_handle
             .take()
             .map(|h| {
-                h.join().map_err(|_| {
-                    std::io::Error::new(std::io::ErrorKind::Other, "join handle failed")
+                h.join().map_err(|e| {
+                    tracing::error!("error joining socket manager: {:?}", e);
+                    std::io::Error::new(std::io::ErrorKind::Other, format!("join handle failed on err {:?}", e))
                 })
             })
             .unwrap_or(Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
-                "already joined",
+                "cannot join twice",
             )))
     }
 }
@@ -175,48 +179,29 @@ async fn main<
 ) {
     while let Some(cmd) = cmd_recv.recv().await {
         match cmd {
-            Command::ListenOnAddr { addr } => {
-                match listen_on_addr(
-                    handle,
-                    addr,
-                    on_conn.clone(),
-                    on_msg.clone(),
-                    connection_state.clone(),
-                )
-                .await
-                {
-                    Ok(join) => {
-                        connection_state.listener_map.insert(addr, join);
-                    }
-                    Err(e) => {
-                        tracing::debug!("error listening on port: {}", e);
-                        on_conn(ConnState::OnListenError { addr, error: e });
-                    }
-                }
-            }
-            Command::ConnectToAddr { addr } => {
-                if let Err(e) = connect_to_addr(
-                    handle,
-                    addr,
-                    on_conn.clone(),
-                    on_msg.clone(),
-                    connection_state.clone(),
-                )
-                .await
-                {
-                    tracing::error!("error connecting to server: {}", e);
-                    on_conn(ConnState::OnConnectError { addr, error: e });
-                }
-            }
+            Command::ListenOnAddr { addr } => listen_on_addr(
+                handle,
+                addr,
+                on_conn.clone(),
+                on_msg.clone(),
+                connection_state.clone(),
+            ),
+            Command::ConnectToAddr { addr, timeout } => connect_to_addr(
+                handle,
+                addr,
+                on_conn.clone(),
+                on_msg.clone(),
+                timeout,
+                connection_state.clone(),
+            ),
             Command::CancelConnection { conn_id } => {
-                connection_state
-                    .connection_handles
-                    .remove(&conn_id)
-                    .map(|(_, cancel)| cancel.send(()));
+                if let Some((_, cancel)) = connection_state.connections.remove(&conn_id) {
+                    let _ = cancel.send(());
+                }
             }
             Command::CancelListenOnAddr { addr } => {
-                if let Some((_, cancel)) = connection_state.listener_map.remove(&addr) {
-                    cancel.abort()
+                if let Some((_, cancel)) = connection_state.listeners.remove(&addr) {
+                    let _ = cancel.send(());
                 }
             }
         }
@@ -261,13 +246,49 @@ fn connect_to_addr<
     on_msg: OnMsg,
     timeout: Option<Duration>,
     connection_state: Arc<ConnectionState>,
-) -> std::io::Result<()> {
-    let stream = TcpStream::connect(addr).await?;
-    handle_connection(handle, stream, on_conn, on_msg, connection_state)
+) {
+    let handle = handle.clone();
+    let handle_clone = handle.clone();
+    let on_conn_clone = on_conn.clone();
+    // spawn listening task
+    let connect_result = handle.clone().spawn(async move {
+        let stream = match timeout {
+            Some(timeout) => {
+                if timeout.is_zero() {
+                    TcpStream::connect(addr).await?
+                } else {
+                    tokio::time::timeout(timeout, TcpStream::connect(addr))
+                        .await
+                        .map_err(|e| {
+                            std::io::Error::new(
+                                std::io::ErrorKind::TimedOut,
+                                format!("connection to {addr} timed out (elapsed={e})"),
+                            )
+                        })??
+                }
+            }
+            None => TcpStream::connect(addr).await?,
+        };
+        handle_connection(&handle, stream, on_conn_clone, on_msg, connection_state)?;
+        Ok::<(), std::io::Error>(())
+    });
+    // handle connection result
+    handle_clone.spawn(async move {
+        match connect_result.await {
+            Ok(Err(e)) => {
+                tracing::error!("error connecting to addr: {e}");
+                on_conn(ConnState::OnConnectError { addr, error: e });
+            }
+            Err(e) => {
+                tracing::error!("error joining connecting task to addr: {:?}", e);
+            }
+            _ => {}
+        }
+    });
 }
 
 /// This function listens on a port.
-async fn listen_on_addr<
+fn listen_on_addr<
     OnConn: Fn(ConnState) + Send + 'static + Clone,
     OnMsg: Fn(Msg<'_>) + Send + 'static + Clone,
 >(
@@ -276,29 +297,42 @@ async fn listen_on_addr<
     on_conn: OnConn,
     on_msg: OnMsg,
     connection_state: Arc<ConnectionState>,
-) -> std::io::Result<JoinHandle<()>> {
-    let listener = TcpListener::bind(addr).await?;
+) {
     let handle = handle.clone();
-    Ok(handle.clone().spawn(async move {
+    // spawn listening task
+    handle.clone().spawn(async move {
+        let listener = match TcpListener::bind(addr).await {
+            Ok(l) => l,
+            Err(e) => {
+                tracing::error!("error listening on addr: {e}");
+                on_conn(ConnState::OnListenError { addr, error: e });
+                return;
+            }
+        };
+        let (cancel, mut cancel_recv) = oneshot::channel::<()>();
+        connection_state.listeners.insert(addr, cancel);
         loop {
-            match listener.accept().await {
-                Ok((stream, _)) => {
-                    if let Err(e) = handle_connection(
-                        &handle.clone(),
-                        stream,
-                        on_conn.clone(),
-                        on_msg.clone(),
-                        connection_state.clone(),
-                    ) {
-                        tracing::error!("error handling connection local={addr} ({e})");
-                    }
+            let accept = listener.accept().fuse();
+            tokio::select! {
+                _ = &mut cancel_recv => {
+                    tracing::debug!("cancel listening on addr success (addr={addr})");
+                    break;
                 }
-                Err(e) => {
-                    tracing::error!("error accepting connection listening to {addr} ({e})");
+                accept_result = accept => {
+                    match accept_result {
+                        Ok((stream, _)) => {
+                            if let Err(e) = handle_connection(&handle, stream, on_conn.clone(), on_msg.clone(), connection_state.clone()) {
+                                tracing::error!("error handling connection local={addr} ({e})");
+                            }
+                        }
+                        Err(e) => {
+                            tracing::error!("error accepting connection listening to {addr} ({e})");
+                        }
+                    }
                 }
             }
         }
-    }))
+    });
 }
 
 /// This function handles connection from a client.
@@ -322,9 +356,9 @@ fn handle_connection<
     let (cancel, cancel_recv) = oneshot::channel::<()>();
 
     // update connection state
-    connection_state.connection_handles.insert(conn_id, cancel);
+    connection_state.connections.insert(conn_id, cancel);
 
-    tracing::debug!(
+    tracing::info!(
         "new connection: conn_id={conn_id}, local_addr={local_addr}, peer_addr={peer_addr}"
     );
     // call `on_conn` callback
@@ -415,14 +449,22 @@ async fn join_reader_writer<OnConn: Fn(ConnState)>(
                 break;
             }
             w = &mut writer => {
-                tracing::debug!("writer stopped local={local_addr}, peer={peer_addr} ({:?})", w);
+                if let Err(e) = w {
+                    tracing::error!("writer stopped local={local_addr}, peer={peer_addr} on error ({e})");
+                } else {
+                    tracing::debug!("writer stopped local={local_addr}, peer={peer_addr}");
+                }
                 writer_stopped = true;
                 if reader_stopped {
                     break;
                 }
             }
             r = &mut reader => {
-                tracing::debug!("reader stopped local={local_addr}, peer={peer_addr} ({:?})", r);
+                if let Err(e) = r {
+                    tracing::error!("reader stopped local={local_addr}, peer={peer_addr} on error ({e})");
+                } else {
+                    tracing::debug!("reader stopped local={local_addr}, peer={peer_addr}");
+                }
                 reader_stopped = true;
                 if writer_stopped {
                     break;
@@ -430,9 +472,9 @@ async fn join_reader_writer<OnConn: Fn(ConnState)>(
             }
         }
     }
-    tracing::debug!(
-        "connection close: conn_id={conn_id}, local_addr={local_addr}, peer_addr={peer_addr}"
+    tracing::info!(
+        "connection closed: conn_id={conn_id}, local_addr={local_addr}, peer_addr={peer_addr}"
     );
     on_conn(ConnState::OnConnectionClose { conn_id });
-    connection_state.connection_handles.remove(&conn_id);
+    connection_state.connections.remove(&conn_id);
 }
