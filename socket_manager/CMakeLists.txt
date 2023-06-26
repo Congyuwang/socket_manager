@@ -29,3 +29,9 @@ install(FILES ${header} DESTINATION ${include_dest})
 install(FILES ${CMAKE_SOURCE_DIR}/include/socket_manager_c_api.h DESTINATION ${include_dest})
 install(TARGETS ${PROJECT_NAME} tokio-socket-manager EXPORT ${PROJECT_NAME} DESTINATION ${main_lib_dest})
 install(EXPORT ${PROJECT_NAME} DESTINATION ${main_lib_dest})
+
+configure_file(${CMAKE_SOURCE_DIR}/socket_manager-config-version.cmake.in
+        ${CMAKE_CURRENT_BINARY_DIR}/socket_manager-config-version.cmake @ONLY)
+install(FILES ${CMAKE_SOURCE_DIR}/${PROJECT_NAME}-config.cmake
+              ${CMAKE_CURRENT_BINARY_DIR}/socket_manager-config-version.cmake
+        DESTINATION ${main_lib_dest})

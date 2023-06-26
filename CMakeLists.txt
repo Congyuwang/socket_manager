@@ -11,12 +11,3 @@ add_subdirectory(${CMAKE_SOURCE_DIR}/corrosion)
 corrosion_import_crate(MANIFEST_PATH Cargo.toml)
 
 add_subdirectory(socket_manager)
-
-target_include_directories(${PROJECT_NAME} PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/>
-        $<INSTALL_INTERFACE:${include_dest}>
-        $<INSTALL_INTERFACE:${lib_dest}>)
-
-configure_file(socket_manager-config-version.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/socket_manager-config-version.cmake @ONLY)
-install(FILES ${PROJECT_NAME}-config.cmake ${CMAKE_CURRENT_BINARY_DIR}/socket_manager-config-version.cmake
-        DESTINATION ${main_lib_dest})
