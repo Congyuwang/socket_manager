@@ -6,7 +6,6 @@ use std::net::SocketAddr;
 use std::num::NonZeroUsize;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
-use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::{TcpListener, TcpStream};
@@ -29,19 +28,10 @@ pub struct CSocketManager {
 
 /// internal commands
 enum Command {
-    ListenOnAddr {
-        addr: SocketAddr,
-    },
-    ConnectToAddr {
-        addr: SocketAddr,
-        timeout: Option<Duration>,
-    },
-    CancelListenOnAddr {
-        addr: SocketAddr,
-    },
-    CancelConnection {
-        conn_id: u64,
-    },
+    ListenOnAddr { addr: SocketAddr },
+    ConnectToAddr { addr: SocketAddr },
+    CancelListenOnAddr { addr: SocketAddr },
+    CancelConnection { conn_id: u64 },
 }
 
 /// Msg struct for the on_msg callback.
@@ -124,13 +114,9 @@ impl CSocketManager {
             .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "cmd send failed"))
     }
 
-    pub fn connect_to_addr(
-        &self,
-        addr: SocketAddr,
-        timeout: Option<Duration>,
-    ) -> std::io::Result<()> {
+    pub fn connect_to_addr(&self, addr: SocketAddr) -> std::io::Result<()> {
         self.cmd_send
-            .send(Command::ConnectToAddr { addr, timeout })
+            .send(Command::ConnectToAddr { addr })
             .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "cmd send failed"))
     }
 
@@ -156,7 +142,10 @@ impl CSocketManager {
             .map(|h| {
                 h.join().map_err(|e| {
                     tracing::error!("error joining socket manager: {:?}", e);
-                    std::io::Error::new(std::io::ErrorKind::Other, format!("join handle failed on err {:?}", e))
+                    std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        format!("join handle failed on err {:?}", e),
+                    )
                 })
             })
             .unwrap_or(Err(std::io::Error::new(
@@ -186,12 +175,11 @@ async fn main<
                 on_msg.clone(),
                 connection_state.clone(),
             ),
-            Command::ConnectToAddr { addr, timeout } => connect_to_addr(
+            Command::ConnectToAddr { addr } => connect_to_addr(
                 handle,
                 addr,
                 on_conn.clone(),
                 on_msg.clone(),
-                timeout,
                 connection_state.clone(),
             ),
             Command::CancelConnection { conn_id } => {
@@ -244,7 +232,6 @@ fn connect_to_addr<
     addr: SocketAddr,
     on_conn: OnConn,
     on_msg: OnMsg,
-    timeout: Option<Duration>,
     connection_state: Arc<ConnectionState>,
 ) {
     let handle = handle.clone();
@@ -252,23 +239,7 @@ fn connect_to_addr<
     let on_conn_clone = on_conn.clone();
     // spawn listening task
     let connect_result = handle.clone().spawn(async move {
-        let stream = match timeout {
-            Some(timeout) => {
-                if timeout.is_zero() {
-                    TcpStream::connect(addr).await?
-                } else {
-                    tokio::time::timeout(timeout, TcpStream::connect(addr))
-                        .await
-                        .map_err(|e| {
-                            std::io::Error::new(
-                                std::io::ErrorKind::TimedOut,
-                                format!("connection to {addr} timed out (elapsed={e})"),
-                            )
-                        })??
-                }
-            }
-            None => TcpStream::connect(addr).await?,
-        };
+        let stream = TcpStream::connect(addr).await?;
         handle_connection(&handle, stream, on_conn_clone, on_msg, connection_state)?;
         Ok::<(), std::io::Error>(())
     });

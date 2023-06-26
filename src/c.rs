@@ -1,7 +1,6 @@
 use crate::{CSocketManager, Msg};
 use libc::size_t;
 use std::sync::Arc;
-use std::time::Duration;
 use std::{
     ffi::{c_char, c_int, c_ulonglong, c_void, CStr, CString},
     fmt::Display,
@@ -227,9 +226,6 @@ pub unsafe extern "C" fn socket_manager_listen_on_addr(
 
 /// Connect to the given address.
 ///
-/// # Timeout
-/// timeout: 0 means no timeout, and the unit is milliseconds.
-///
 /// # Errors
 /// Returns -1 on error, 0 on success.
 /// On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
@@ -237,17 +233,11 @@ pub unsafe extern "C" fn socket_manager_listen_on_addr(
 pub unsafe extern "C" fn socket_manager_connect_to_addr(
     manager: *mut CSocketManager,
     addr: *const c_char,
-    timeout: c_ulonglong,
     err: *mut *mut c_char,
 ) -> c_int {
     let manager = &*manager;
-    let timeout = if timeout == 0 {
-        None
-    } else {
-        Some(Duration::from_millis(timeout))
-    };
     match socket_addr(addr) {
-        Ok(addr) => match manager.connect_to_addr(addr, timeout) {
+        Ok(addr) => match manager.connect_to_addr(addr) {
             Ok(_) => {
                 *err = null_mut();
                 0

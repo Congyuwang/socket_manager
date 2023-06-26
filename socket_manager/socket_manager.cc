@@ -23,9 +23,9 @@ namespace socket_manager {
     }
   }
 
-  void SocketManager::connect_to_addr(const std::string &addr, const unsigned long long timeout) {
+  void SocketManager::connect_to_addr(const std::string &addr) {
     char *err = nullptr;
-    if (socket_manager_connect_to_addr(inner, addr.c_str(), timeout, &err)) {
+    if (socket_manager_connect_to_addr(inner, addr.c_str(), &err)) {
       const std::string err_str(err);
       free(err);
       throw std::runtime_error(err_str);
