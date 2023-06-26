@@ -63,6 +63,9 @@ namespace socket_manager {
 
     /**
      * Join and wait on the `SocketManager` background runtime.
+     *
+     * # Errors
+     * Throw `std::runtime_error` if failed to join.
      */
     void join();
 
