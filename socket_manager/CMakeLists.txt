@@ -17,12 +17,14 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
         VERSION ${PROJECT_VERSION})
 
 set(tokio_obj_dir ${CMAKE_CURRENT_BINARY_DIR}/tokio_obj)
+file(REMOVE_RECURSE ${tokio_obj_dir})
 file(MAKE_DIRECTORY ${tokio_obj_dir})
 
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         WORKING_DIRECTORY ${tokio_obj_dir}
         COMMAND ar -x ${CMAKE_BINARY_DIR}/libtokio_socket_manager.a
-        COMMAND ar -qs ${CMAKE_CURRENT_BINARY_DIR}/lib${PROJECT_NAME}.a *.o)
+        COMMAND ar -qs ${CMAKE_CURRENT_BINARY_DIR}/lib${PROJECT_NAME}.a *.o
+        COMMAND rm -rf ${tokio_obj_dir})
 
 install(TARGETS ${PROJECT_NAME} DESTINATION ${main_lib_dest})
 install(FILES ${header} DESTINATION ${include_dest})
