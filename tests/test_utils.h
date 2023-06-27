@@ -2,6 +2,7 @@
 #define SOCKET_MANAGER_TEST_UTILS_H
 
 #include <socket_manager/socket_manager.h>
+#include <cassert>
 #include <mutex>
 #include <atomic>
 #include <utility>
