@@ -16,7 +16,7 @@ namespace socket_manager {
     // start the connection.
     char *err = nullptr;
     CMsgSender *sender = connection_start(inner, OnMsgCallback{
-            &receiver,
+            receiver.get(),
             MsgReceiver::on_msg
     }, &err);
     if (sender == nullptr) {
