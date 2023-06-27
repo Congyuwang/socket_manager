@@ -2,8 +2,9 @@ add_library(${PROJECT_NAME} STATIC)
 
 set(header_path ${CMAKE_SOURCE_DIR}/include/${PROJECT_NAME})
 set(header ${header_path}/socket_manager.h
+           ${header_path}/connection.h
            ${header_path}/msg_sender.h)
-set(src socket_manager.cc msg_sender.cc)
+set(src socket_manager.cc msg_sender.cc connection.cc)
 
 target_sources(${PROJECT_NAME} PRIVATE ${src})
 add_dependencies(${PROJECT_NAME} tokio-socket-manager)

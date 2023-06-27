@@ -1,7 +1,8 @@
 #ifndef SOCKET_MANAGER_H
 #define SOCKET_MANAGER_H
 
-#include "msg_sender.h"
+#include "connection.h"
+#include <mutex>
 #include "socket_manager_c_api.h"
 #include <stdexcept>
 #include <string>
@@ -91,13 +92,12 @@ namespace socket_manager {
      * @param id the id of the connection.
      * @param local_addr the local address of the connection.
      * @param peer_addr the peer address of the connection.
-     * @param sender a `MsgSender` object that can be used to send messages to
-     *              the peer.
+     * @param conn a `Connection` object for sending and receiving data.
      */
     virtual void on_connect(unsigned long long id,
                             const std::string &local_addr,
                             const std::string &peer_addr,
-                            std::shared_ptr<MsgSender> sender) = 0;
+                            std::shared_ptr<Connection> conn) = 0;
 
     /**
      * Called when a connection is closed.
@@ -130,17 +130,6 @@ namespace socket_manager {
     virtual void on_connect_error(const std::string &addr,
                                   const std::string &err) = 0;
 
-    /**
-     * Called when a message is received.
-     *
-     * Should be non-blocking.
-     *
-     * @param id the id of the connection.
-     * @param data the message received.
-     */
-    virtual void on_message(unsigned long long id,
-                            std::shared_ptr<std::string> data) = 0;
-
     ~SocketManager();
 
   private:
@@ -152,12 +141,25 @@ namespace socket_manager {
           auto on_connect = states.Data.OnConnect;
           auto local_addr = std::string(on_connect.Local);
           auto peer_addr = std::string(on_connect.Peer);
-          std::shared_ptr<MsgSender> sender(new MsgSender(on_connect.Sender));
-          manager->on_connect(on_connect.ConnId, local_addr, peer_addr, sender);
+
+          std::shared_ptr<Connection> conn(new Connection(on_connect.Conn));
+
+          // keep the connection alive
+          {
+            std::unique_lock<std::mutex> lock(manager->lock);
+            manager->conns[on_connect.ConnId] = conn;
+          }
+          manager->on_connect(on_connect.ConnId, local_addr, peer_addr, conn);
           break;
         }
         case ConnStateCode::ConnectionClose: {
           auto on_connection_close = states.Data.OnConnectionClose;
+
+          // remove the connection from the map
+          {
+            std::unique_lock<std::mutex> lock(manager->lock);
+            manager->conns.erase(on_connection_close.ConnId);
+          }
           manager->on_connection_close(on_connection_close.ConnId);
           break;
         }
@@ -178,11 +180,10 @@ namespace socket_manager {
       }
     }
 
-    static void on_msg(void *manager_ptr, ConnMsg msg) {
-      auto manager = static_cast<SocketManager *>(manager_ptr);
-      auto data = std::make_shared<std::string>(msg.Bytes, msg.Len);
-      manager->on_message(msg.ConnId, data);
-    }
+    // keep the connection object alive before connection closed
+    // to ensure that message listener is alive during connection.
+    std::mutex lock;
+    std::unordered_map<unsigned long long, std::shared_ptr<Connection>> conns;
 
     CSocketManager *inner;
 

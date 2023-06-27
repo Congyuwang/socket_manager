@@ -1,5 +1,5 @@
-#ifndef MSG_SENDER_H
-#define MSG_SENDER_H
+#ifndef SOCKET_MANAGER_MSG_SENDER_H
+#define SOCKET_MANAGER_MSG_SENDER_H
 
 #include "socket_manager_c_api.h"
 #include <string>
@@ -28,7 +28,7 @@ namespace socket_manager {
 
   private:
 
-    friend class SocketManager;
+    friend class Connection;
 
     explicit MsgSender(CMsgSender *inner);
 
@@ -38,4 +38,4 @@ namespace socket_manager {
 
 } // namespace socket_manager
 
-#endif // MSG_SENDER_H
+#endif // SOCKET_MANAGER_MSG_SENDER_H
