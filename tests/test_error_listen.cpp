@@ -14,10 +14,6 @@ int test_error_listen(int argc, char **argv) {
 
   // Wait for the connection to fail
   while (true) {
-    {
-      std::unique_lock<std::mutex> u_lock(lock);
-      cond.wait(u_lock);
-    }
     int load_sig = sig.load(std::memory_order_seq_cst);
     if (load_sig & LISTEN_ERROR) {
       assert(!(load_sig & CONNECTED));
@@ -25,6 +21,10 @@ int test_error_listen(int argc, char **argv) {
       assert(!(load_sig & CONNECT_ERROR));
       assert(buffer.empty());
       return 0;
+    }
+    {
+      std::unique_lock<std::mutex> u_lock(lock);
+      cond.wait(u_lock);
     }
   }
 }

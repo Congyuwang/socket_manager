@@ -83,13 +83,15 @@ public:
     set_sig(CONNECT_ERROR);
   }
 
-private:
+protected:
 
   void set_sig(int flag) {
     std::lock_guard<std::mutex> lock(mutex);
     sig.fetch_or(flag, std::memory_order_seq_cst);
     cond.notify_all();
   }
+
+private:
 
   std::mutex &mutex;
   std::condition_variable &cond;

@@ -5,8 +5,10 @@ use std::ptr::null_mut;
 
 /// Start a connection with the given `OnMsgCallback`, and return a pointer to a `CMsgSender`.
 ///
-/// This function can only be called once per `CConnection`,
-/// otherwise it returns error.
+/// The `start` function must be called exactly once.
+/// Calling it twice will result in runtime error.
+/// Not calling it will result in resource leak
+/// (i.e. the connection will likely hangs).
 ///
 /// # Safety
 /// The passed in callback must live as long as the connection is not closed !!
