@@ -279,7 +279,7 @@ fn listen_on_addr<
         let listener = match TcpListener::bind(addr).await {
             Ok(l) => l,
             Err(e) => {
-                tracing::error!("error listening on addr: {e}");
+                tracing::error!("error listening on addr={addr}: {e}");
                 on_conn(ConnState::OnListenError { addr, error: e });
                 return;
             }
