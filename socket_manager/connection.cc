@@ -31,7 +31,7 @@ namespace socket_manager {
   }
 
   Connection::Connection(CConnection *inner)
-          : inner(inner), started(false) {}
+          : started(false), inner(inner) {}
 
   Connection::~Connection() {
     connection_free(inner);
