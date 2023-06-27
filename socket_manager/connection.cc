@@ -6,8 +6,8 @@ namespace socket_manager {
   std::shared_ptr<MsgSender> Connection::start(std::unique_ptr<MsgReceiver> msg_receiver) {
 
     // ensure that this function is called only once
-    if(started.exchange(true, std::memory_order_seq_cst)) {
-      throw std::runtime_error("Connection already started");
+    if (started.exchange(true, std::memory_order_seq_cst)) {
+      throw std::runtime_error("Cannot call `start` twice on the same connection.");
     }
 
     // keep the msg_receiver alive.
