@@ -6,6 +6,8 @@
 #include <atomic>
 #include <utility>
 #include <iostream>
+#include <vector>
+#include <condition_variable>
 
 using namespace socket_manager;
 
