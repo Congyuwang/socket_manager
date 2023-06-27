@@ -8,9 +8,9 @@ int test_multiple_connections(int argc, char **argv) {
   // and 2 connections from p0 (client) -> p1 (server) port 1
   // and 2 connections from p1 (client) -> p0 (server)
 
-  const std::string p1_addr_0 = "127.0.0.1:8080";
-  const std::string p1_addr_1 = "127.0.0.1:9090";
-  const std::string p0_addr_0 = "127.0.0.1:12345";
+  const std::string p1_addr_0 = "127.0.0.1:12350";
+  const std::string p1_addr_1 = "127.0.0.1:12351";
+  const std::string p0_addr_0 = "127.0.0.1:12352";
 
   StoreAllEventsSocketManager p0;
   StoreAllEventsSocketManager p1;

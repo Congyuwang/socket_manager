@@ -3,7 +3,7 @@
 #include <thread>
 
 int test_error_send_after_closed(int argc, char **argv) {
-  const std::string addr = "127.0.0.1:8080";
+  const std::string addr = "127.0.0.1:12347";
 
   StoreAllEventsSocketManager server;
   StoreAllEventsSocketManager client(false);

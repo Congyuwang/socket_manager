@@ -36,7 +36,7 @@ private:
 };
 
 int test_error_twice_start(int argc, char **argv) {
-  const std::string addr = "127.0.0.1:8080";
+  const std::string addr = "127.0.0.1:12348";
 
   TwiceStartSocketManager bad;
   StoreAllEventsSocketManager good;

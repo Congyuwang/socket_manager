@@ -5,7 +5,7 @@
 
 int test_hello_world_greetings(int argc, char **argv) {
 
-  const std::string addr = "127.0.0.1:8080";
+  const std::string addr = "127.0.0.1:12349";
 
   // create server
   StoreAllEventsSocketManager server;
