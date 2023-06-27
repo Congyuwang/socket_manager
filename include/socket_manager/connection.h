@@ -20,8 +20,10 @@ namespace socket_manager {
     /**
      * Start a connection.
      *
-     * This function can only be called once,
-     * otherwise it will throw runtime_error.
+     * The `start` function must be called exactly once.
+     * Calling it twice will result in runtime error.
+     * Not calling it will result in resource leak
+     * (i.e. the connection will likely hangs).
      *
      * To close the connection, drop the returned
      * MsgSender object.
