@@ -30,7 +30,6 @@ int test_hello_world_greetings(int argc, char **argv) {
       std::cout << "Client connection established: " << std::get<1>(client.events[0]) << std::endl;
       assert(std::get<0>(client.events[0]) == CONNECTED);
       c_conn_id = std::get<1>(client.events[0]);
-      server.cancel_listen_on_addr(addr);
       break;
     }
     client.cond.wait(u_lock);
