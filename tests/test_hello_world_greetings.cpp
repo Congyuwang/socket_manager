@@ -82,13 +82,11 @@ int test_hello_world_greetings(int argc, char **argv) {
 
   // drop sender
   server.drop_connection(s_conn_id);
-  server.send_to(s_conn_id, "hello world");
 
   // wait for connection close
   while (true) {
     std::unique_lock<std::mutex> u_lock(server.mutex);
     if (server.events.size() == 2) {
-      std::cout << "code " << std::get<0>(server.events[1]) << std::endl;
       std::cout << "Connection closed: " << std::get<1>(server.events[1]) << std::endl;
       assert(std::get<0>(server.events[1]) == CONNECTION_CLOSED);
       break;
