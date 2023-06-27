@@ -22,6 +22,7 @@ rustup default nightly
 ```shell
 git clone https://github.com/Congyuwang/socket_manager.git
 cd socket_manager
+git submodule update --init
 ```
 
 - Step 4: Build and install
