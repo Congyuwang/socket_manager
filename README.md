@@ -10,14 +10,21 @@ Easily manage multiple socket connections asynchronously in C++.
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
-- Step 2: Pull the source code
+- Step 2: Install nightly toolchain
+
+```shell
+rustup toolchain install nightly
+rustup default nightly
+```
+
+- Step 3: Pull the source code
 
 ```shell
 git clone https://github.com/Congyuwang/socket_manager.git
 cd socket_manager
 ```
 
-- Step 3: Build and install
+- Step 4: Build and install
 
 ```shell
 mkdir build && cd build

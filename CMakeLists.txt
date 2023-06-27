@@ -7,6 +7,8 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 set(include_dest "include/${PROJECT_NAME}-${PROJECT_VERSION}")
 set(main_lib_dest "lib/${PROJECT_NAME}-${PROJECT_VERSION}")
 
+set(Rust_TOOLCHAIN "nightly" CACHE STRING "requires nightly")
+
 add_subdirectory(${CMAKE_SOURCE_DIR}/corrosion)
 corrosion_import_crate(MANIFEST_PATH Cargo.toml)
 
