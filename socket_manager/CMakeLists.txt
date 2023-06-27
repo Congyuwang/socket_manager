@@ -14,8 +14,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
         $<INSTALL_INTERFACE:${include_dest}>)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
-        VERSION ${PROJECT_VERSION}
-        IMPORTED_PATH ${CMAKE_CURRENT_BINARY_DIR}/lib${PROJECT_NAME}.a)
+        VERSION ${PROJECT_VERSION})
 
 set(tokio_obj_dir ${CMAKE_CURRENT_BINARY_DIR}/tokio_obj)
 file(MAKE_DIRECTORY ${tokio_obj_dir})
