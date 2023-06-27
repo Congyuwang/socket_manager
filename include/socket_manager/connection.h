@@ -2,6 +2,7 @@
 #define SOCKET_MANAGER_CONNECTION_H
 
 #include <atomic>
+#include <memory>
 #include "msg_receiver.h"
 #include "msg_sender.h"
 #include "socket_manager_c_api.h"

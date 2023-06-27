@@ -27,10 +27,9 @@ cd socket_manager
 - Step 4: Build and install
 
 ```shell
-mkdir build && cd build
-cmake -DCMAKE_BUILD_TYPE=Release ..
-make
-sudo make install
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release
+sudo cmake --install build --config Release
 ```
 
 ## Usage

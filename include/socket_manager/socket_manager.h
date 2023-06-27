@@ -2,11 +2,11 @@
 #define SOCKET_MANAGER_H
 
 #include "connection.h"
-#include <mutex>
 #include "socket_manager_c_api.h"
-#include <stdexcept>
 #include <string>
 #include <memory>
+#include <mutex>
+#include <unordered_map>
 
 namespace socket_manager {
 

@@ -1,5 +1,6 @@
 #include "socket_manager/connection.h"
 #include "socket_manager_c_api.h"
+#include <stdexcept>
 
 namespace socket_manager {
 
@@ -30,7 +31,7 @@ namespace socket_manager {
   }
 
   Connection::Connection(CConnection *inner)
-          : inner(inner), started(false) {}
+          : started(false), inner(inner) {}
 
   Connection::~Connection() {
     connection_free(inner);
