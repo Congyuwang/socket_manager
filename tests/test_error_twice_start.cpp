@@ -10,9 +10,10 @@ public:
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
                   std::shared_ptr<Connection> conn) override {
     auto receiver = std::make_unique<DoNothingMsgReceiver>();
+    auto receiver2 = std::make_unique<DoNothingMsgReceiver>();
     conn->start(std::move(receiver));
     try {
-      conn->start(std::move(receiver));
+      conn->start(std::move(receiver2));
     } catch (std::runtime_error &e) {
       std::cout << "Error thrown: " << e.what() << std::endl;
       error_thrown.store(true, std::memory_order_release);
