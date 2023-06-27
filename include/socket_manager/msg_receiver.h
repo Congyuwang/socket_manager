@@ -2,6 +2,7 @@
 #define SOCKET_MANAGER_MSG_RECEIVER_H
 
 #include <string>
+#include <memory>
 #include "socket_manager_c_api.h"
 
 namespace socket_manager {
