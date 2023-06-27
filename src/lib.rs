@@ -122,13 +122,13 @@ impl CSocketManager {
         on_conn: OnConn,
         n_threads: usize,
     ) -> std::io::Result<CSocketManager> {
-        tracing_subscriber::fmt()
+        let _ = tracing_subscriber::fmt()
             .with_env_filter(
                 EnvFilter::builder()
                     .with_env_var(SOCKET_LOG)
                     .from_env_lossy(),
             )
-            .init();
+            .try_init();
         let runtime = start_runtime(n_threads)?;
         let (cmd_send, cmd_recv) = mpsc::unbounded_channel::<Command>();
         let connection_state = ConnectionState::new();
