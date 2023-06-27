@@ -3,7 +3,6 @@
 
 #include "connection.h"
 #include "socket_manager_c_api.h"
-#include <stdexcept>
 #include <string>
 #include <memory>
 #include <mutex>

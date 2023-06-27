@@ -1,5 +1,6 @@
 #include "socket_manager/connection.h"
 #include "socket_manager_c_api.h"
+#include <stdexcept>
 
 namespace socket_manager {
 
