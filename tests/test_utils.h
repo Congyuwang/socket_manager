@@ -104,7 +104,7 @@ class StoreAllEventsSocketManager : public SocketManager {
 public:
 
   explicit StoreAllEventsSocketManager(bool clean_sender_on_close = true)
-          : clean_sender_on_close(clean_sender_on_close), connected_count(0) {}
+          : connected_count(0), clean_sender_on_close(clean_sender_on_close) {}
 
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
                   std::shared_ptr<Connection> conn) override {
