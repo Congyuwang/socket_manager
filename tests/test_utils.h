@@ -101,7 +101,7 @@ class StoreAllEventsSocketManager : public SocketManager {
 public:
 
   explicit StoreAllEventsSocketManager(bool clean_sender_on_close = true)
-          : clean_sender_on_close(clean_sender_on_close) {}
+          : clean_sender_on_close(clean_sender_on_close), connected_count(0) {}
 
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
                   std::shared_ptr<Connection> conn) override {
@@ -111,6 +111,7 @@ public:
     auto msg_storer = std::make_unique<MsgStorerSocketManager>(conn_id, mutex, cond, buffer);
     auto sender = conn->start(std::move(msg_storer));
     senders.emplace(conn_id, sender);
+    connected_count.fetch_add(1, std::memory_order_seq_cst);
     cond.notify_all();
   }
 
@@ -121,6 +122,7 @@ public:
     if (clean_sender_on_close) {
       senders.erase(conn_id);
     }
+    connected_count.fetch_sub(1, std::memory_order_seq_cst);
     cond.notify_all();
   }
 
@@ -151,6 +153,7 @@ public:
   }
 
   std::mutex mutex;
+  std::atomic_int connected_count;
   std::condition_variable cond;
   std::vector<std::tuple<EventType, std::string>> events;
   std::vector<std::tuple<std::string, std::shared_ptr<std::string>>> buffer;
