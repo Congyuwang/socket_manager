@@ -419,6 +419,7 @@ async fn handle_reader<OnMsg: Fn(Msg<'_>) + Send + 'static>(
                 if n == 0 {
                     return Ok(());
                 }
+                tracing::trace!("received {n} bytes from conn_id={conn_id}");
                 on_msg(Msg {
                     conn_id,
                     bytes: &read_buf[0..n],
