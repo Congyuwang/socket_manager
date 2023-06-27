@@ -18,11 +18,9 @@ namespace socket_manager {
      *
      * Should be non-blocking.
      *
-     * @param id the id of the connection.
      * @param data the message received.
      */
-    virtual void on_message(unsigned long long id,
-                            std::shared_ptr<std::string> data) = 0;
+    virtual void on_message(std::shared_ptr<std::string> data) = 0;
 
     virtual ~MsgReceiver() = default;
 
@@ -34,7 +32,7 @@ namespace socket_manager {
                        ConnMsg msg) {
       auto receiver = reinterpret_cast<MsgReceiver *>(receiver_ptr);
       auto data_ptr = std::make_shared<std::string>(msg.Bytes, msg.Len);
-      receiver->on_message(msg.ConnId, data_ptr);
+      receiver->on_message(data_ptr);
     }
 
   };

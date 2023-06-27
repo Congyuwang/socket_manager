@@ -1,11 +1,10 @@
 use libc::size_t;
-use std::ffi::{c_char, c_ulonglong, c_void, CString};
+use std::ffi::{c_char, c_void, CString};
 use tokio::sync::mpsc::UnboundedSender;
 
 /// The data pointer is only valid for the duration of the callback.
 #[repr(C)]
 pub struct ConnMsg {
-    conn_id: c_ulonglong,
     bytes: *const c_char,
     len: size_t,
 }
@@ -65,7 +64,6 @@ pub union ConnStateData {
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct OnConnect {
-    conn_id: c_ulonglong,
     local: *const c_char,
     peer: *const c_char,
     conn: *mut CConnection,
@@ -74,7 +72,8 @@ pub struct OnConnect {
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct OnConnectionClose {
-    conn_id: c_ulonglong,
+    local: *const c_char,
+    peer: *const c_char,
 }
 
 #[repr(C)]
@@ -91,6 +90,7 @@ pub struct OnConnectError {
     err: *const c_char,
 }
 
+/// Drop the sender to close the connection.
 pub struct CMsgSender {
     pub(crate) send: UnboundedSender<Vec<u8>>,
 }
@@ -102,7 +102,6 @@ pub struct CConnection {
 impl OnMsgCallback {
     pub fn call_inner(&self, conn_msg: crate::Msg<'_>) {
         let conn_msg = ConnMsg {
-            conn_id: conn_msg.conn_id,
             bytes: conn_msg.bytes.as_ptr() as *const c_char,
             len: conn_msg.bytes.len(),
         };
@@ -136,7 +135,6 @@ impl OnConnCallback {
         let on_conn = |msg| unsafe { (self.callback)(self.callback_self, msg) };
         match conn_states {
             crate::ConnState::OnConnect {
-                conn_id,
                 local_addr,
                 peer_addr,
                 conn,
@@ -148,7 +146,6 @@ impl OnConnCallback {
                     code: ConnStateCode::Connect,
                     data: ConnStateData {
                         on_connect: OnConnect {
-                            conn_id,
                             local: local.as_ptr(),
                             peer: peer.as_ptr(),
                             conn,
@@ -157,11 +154,19 @@ impl OnConnCallback {
                 };
                 on_conn(conn_msg)
             }
-            crate::ConnState::OnConnectionClose { conn_id } => {
+            crate::ConnState::OnConnectionClose {
+                local_addr,
+                peer_addr,
+            } => {
+                let local = CString::new(local_addr.to_string()).unwrap();
+                let peer = CString::new(peer_addr.to_string()).unwrap();
                 let conn_msg = ConnStates {
                     code: ConnStateCode::ConnectionClose,
                     data: ConnStateData {
-                        on_connection_close: OnConnectionClose { conn_id },
+                        on_connection_close: OnConnectionClose {
+                            local: local.as_ptr(),
+                            peer: peer.as_ptr(),
+                        },
                     },
                 };
                 on_conn(conn_msg)

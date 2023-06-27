@@ -8,6 +8,8 @@ namespace socket_manager {
 
   /**
    * Use MsgSender to send messages to the peer.
+   *
+   * Drop the MsgSender object to close the connection.
    */
   class MsgSender {
 
@@ -24,6 +26,9 @@ namespace socket_manager {
      */
     void send(const std::string &data);
 
+    /**
+     * Drop the sender to close the connection.
+     */
     ~MsgSender();
 
   private:

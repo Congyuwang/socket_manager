@@ -22,7 +22,10 @@ namespace socket_manager {
      * This function can only be called once,
      * otherwise it will throw runtime_error.
      *
-     * @param msg_receiver the message receiver object to
+     * To close the connection, drop the returned
+     * MsgSender object.
+     *
+     * @param msg_receiver the message receiver callback to
      *                    receive messages from the peer.
      */
     std::shared_ptr<MsgSender> start(std::unique_ptr<MsgReceiver> msg_receiver);

@@ -6,7 +6,6 @@ use dashmap::DashMap;
 use futures::FutureExt;
 use std::net::SocketAddr;
 use std::num::NonZeroUsize;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
@@ -30,16 +29,14 @@ pub struct CSocketManager {
 
 /// Msg struct for the on_msg callback.
 pub struct Msg<'a> {
-    conn_id: u64,
     bytes: &'a [u8],
 }
 
 /// internal commands
 enum Command {
-    ListenOnAddr { addr: SocketAddr },
-    ConnectToAddr { addr: SocketAddr },
-    CancelListenOnAddr { addr: SocketAddr },
-    CancelConnection { conn_id: u64 },
+    Listen { addr: SocketAddr },
+    Connect { addr: SocketAddr },
+    CancelListen { addr: SocketAddr },
 }
 
 /// The connection struct for the on_conn callback.
@@ -74,14 +71,14 @@ impl<OnMsg: Fn(Msg<'_>) + Send + 'static + Clone> Conn<OnMsg> {
 pub enum ConnState<OnMsg> {
     /// sent on connection success
     OnConnect {
-        conn_id: u64,
         local_addr: SocketAddr,
         peer_addr: SocketAddr,
         conn: Conn<OnMsg>,
     },
     /// sent on connection closed
     OnConnectionClose {
-        conn_id: u64,
+        local_addr: SocketAddr,
+        peer_addr: SocketAddr,
     },
     /// sent on listen error
     OnListenError {
@@ -98,17 +95,13 @@ pub enum ConnState<OnMsg> {
 
 /// Internal connection state.
 struct ConnectionState {
-    connections: DashMap<u64, oneshot::Sender<()>>,
     listeners: DashMap<SocketAddr, oneshot::Sender<()>>,
-    current_conn_id: AtomicU64,
 }
 
 impl ConnectionState {
     fn new() -> Arc<Self> {
         Arc::new(ConnectionState {
-            connections: DashMap::new(),
             listeners: DashMap::new(),
-            current_conn_id: AtomicU64::new(0),
         })
     }
 }
@@ -144,25 +137,19 @@ impl CSocketManager {
 
     pub fn listen_on_addr(&self, addr: SocketAddr) -> std::io::Result<()> {
         self.cmd_send
-            .send(Command::ListenOnAddr { addr })
+            .send(Command::Listen { addr })
             .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "cmd send failed"))
     }
 
     pub fn connect_to_addr(&self, addr: SocketAddr) -> std::io::Result<()> {
         self.cmd_send
-            .send(Command::ConnectToAddr { addr })
+            .send(Command::Connect { addr })
             .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "cmd send failed"))
     }
 
     pub fn cancel_listen_on_addr(&self, addr: SocketAddr) -> std::io::Result<()> {
         self.cmd_send
-            .send(Command::CancelListenOnAddr { addr })
-            .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "cmd send failed"))
-    }
-
-    pub fn cancel_connection(&self, conn_id: u64) -> std::io::Result<()> {
-        self.cmd_send
-            .send(Command::CancelConnection { conn_id })
+            .send(Command::CancelListen { addr })
             .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "cmd send failed"))
     }
 
@@ -201,20 +188,15 @@ async fn main<
 ) {
     while let Some(cmd) = cmd_recv.recv().await {
         match cmd {
-            Command::ListenOnAddr { addr } => {
+            Command::Listen { addr } => {
                 listen_on_addr(handle, addr, on_conn.clone(), connection_state.clone())
             }
-            Command::ConnectToAddr { addr } => {
-                connect_to_addr(handle, addr, on_conn.clone(), connection_state.clone())
-            }
-            Command::CancelConnection { conn_id } => {
-                if let Some((_, cancel)) = connection_state.connections.remove(&conn_id) {
-                    let _ = cancel.send(());
-                }
-            }
-            Command::CancelListenOnAddr { addr } => {
+            Command::Connect { addr } => connect_to_addr(handle, addr, on_conn.clone()),
+            Command::CancelListen { addr } => {
                 if let Some((_, cancel)) = connection_state.listeners.remove(&addr) {
                     let _ = cancel.send(());
+                } else {
+                    tracing::error!("cancel listening failed: not listening to {addr}");
                 }
             }
         }
@@ -256,7 +238,6 @@ fn connect_to_addr<
     handle: &Handle,
     addr: SocketAddr,
     on_conn: OnConn,
-    connection_state: Arc<ConnectionState>,
 ) {
     let handle = handle.clone();
     let handle_clone = handle.clone();
@@ -264,7 +245,7 @@ fn connect_to_addr<
     // spawn listening task
     let connect_result = handle.clone().spawn(async move {
         let stream = TcpStream::connect(addr).await?;
-        handle_connection(&handle, stream, on_conn_clone, connection_state)?;
+        handle_connection(&handle, stream, on_conn_clone)?;
         Ok::<(), std::io::Error>(())
     });
     // handle connection result
@@ -316,7 +297,7 @@ fn listen_on_addr<
                 accept_result = accept => {
                     match accept_result {
                         Ok((stream, _)) => {
-                            if let Err(e) = handle_connection(&handle, stream, on_conn.clone(), connection_state.clone()) {
+                            if let Err(e) = handle_connection(&handle, stream, on_conn.clone()) {
                                 tracing::error!("error handling connection local={addr} ({e})");
                             }
                         }
@@ -338,28 +319,16 @@ fn handle_connection<
     handle: &Handle,
     stream: TcpStream,
     on_conn: OnConn,
-    connection_state: Arc<ConnectionState>,
 ) -> std::io::Result<()> {
     // generate connection info
     let local_addr = stream.local_addr()?;
     let peer_addr = stream.peer_addr()?;
     let (send, recv) = mpsc::unbounded_channel::<Vec<u8>>();
     let (callback_sender, callback) = oneshot::channel::<OnMsg>();
-    let (cancel, cancel_recv) = oneshot::channel::<()>();
 
-    let conn_id = connection_state
-        .current_conn_id
-        .fetch_add(1, Ordering::SeqCst);
-
-    // update connection state
-    connection_state.connections.insert(conn_id, cancel);
-
-    tracing::info!(
-        "new connection: conn_id={conn_id}, local_addr={local_addr}, peer_addr={peer_addr}"
-    );
+    tracing::info!("new connection: local_addr={local_addr}, peer_addr={peer_addr}");
     // call `on_conn` callback
     on_conn(ConnState::OnConnect {
-        conn_id,
         local_addr,
         peer_addr,
         conn: Conn {
@@ -371,16 +340,13 @@ fn handle_connection<
     // spawn reader and writer
     let (read, write) = stream.into_split();
     let writer = handle.spawn(handle_writer(write, recv));
-    let reader = handle.spawn(handle_reader(read, conn_id, callback));
+    let reader = handle.spawn(handle_reader(read, callback));
 
     // join reader and writer
     handle.spawn(join_reader_writer(
-        conn_id,
-        cancel_recv,
         (writer, reader),
         (local_addr, peer_addr),
         on_conn,
-        connection_state,
     ));
     Ok(())
 }
@@ -394,13 +360,13 @@ async fn handle_writer(
     while let Some(msg) = recv.recv().await {
         write.write_all(&msg).await?;
     }
+    write.shutdown().await?;
     Ok(())
 }
 
 /// Receive bytes ReadHalf of TcpStream and call `on_msg` callback.
 async fn handle_reader<OnMsg: Fn(Msg<'_>) + Send + 'static>(
     read: OwnedReadHalf,
-    conn_id: u64,
     callback: oneshot::Receiver<OnMsg>,
 ) -> std::io::Result<()> {
     read.readable().await?;
@@ -419,9 +385,8 @@ async fn handle_reader<OnMsg: Fn(Msg<'_>) + Send + 'static>(
                 if n == 0 {
                     return Ok(());
                 }
-                tracing::trace!("received {n} bytes from conn_id={conn_id}");
+                tracing::trace!("received {n} bytes", n = n);
                 on_msg(Msg {
-                    conn_id,
                     bytes: &read_buf[0..n],
                 });
             }
@@ -432,40 +397,27 @@ async fn handle_reader<OnMsg: Fn(Msg<'_>) + Send + 'static>(
 
 /// On connection end, remove connection from connection state.
 async fn join_reader_writer<OnConn: Fn(ConnState<OnMsg>), OnMsg>(
-    conn_id: u64,
-    mut cancel_recv: oneshot::Receiver<()>,
     (writer, reader): (
         JoinHandle<std::io::Result<()>>,
         JoinHandle<std::io::Result<()>>,
     ),
     (local_addr, peer_addr): (SocketAddr, SocketAddr),
     on_conn: OnConn,
-    connection_state: Arc<ConnectionState>,
 ) {
-    let mut writer_stopped = false;
-    let mut reader_stopped = false;
     let writer_abort = writer.abort_handle();
     let reader_abort = reader.abort_handle();
     let mut writer = writer.fuse();
     let mut reader = reader.fuse();
     loop {
         tokio::select! {
-            _ = &mut cancel_recv => {
-                writer_abort.abort();
-                reader_abort.abort();
-                tracing::debug!("connection aborted local={local_addr}, peer={peer_addr}");
-                break;
-            }
             w = &mut writer => {
                 if let Err(e) = w {
                     tracing::error!("writer stopped local={local_addr}, peer={peer_addr} on error ({e})");
                 } else {
                     tracing::debug!("writer stopped local={local_addr}, peer={peer_addr}");
                 }
-                writer_stopped = true;
-                if reader_stopped {
-                    break;
-                }
+                reader_abort.abort();
+                break;
             }
             r = &mut reader => {
                 if let Err(e) = r {
@@ -473,16 +425,14 @@ async fn join_reader_writer<OnConn: Fn(ConnState<OnMsg>), OnMsg>(
                 } else {
                     tracing::debug!("reader stopped local={local_addr}, peer={peer_addr}");
                 }
-                reader_stopped = true;
-                if writer_stopped {
-                    break;
-                }
+                writer_abort.abort();
+                break;
             }
         }
     }
-    tracing::info!(
-        "connection closed: conn_id={conn_id}, local_addr={local_addr}, peer_addr={peer_addr}"
-    );
-    on_conn(ConnState::OnConnectionClose { conn_id });
-    connection_state.connections.remove(&conn_id);
+    tracing::info!("connection closed: local_addr={local_addr}, peer_addr={peer_addr}");
+    on_conn(ConnState::OnConnectionClose {
+        local_addr,
+        peer_addr,
+    });
 }

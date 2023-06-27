@@ -2,7 +2,7 @@ use crate::c_api::structs::OnConnCallback;
 use crate::c_api::utils::{socket_addr, write_error_c_str};
 use crate::CSocketManager;
 use libc::size_t;
-use std::ffi::{c_char, c_int, c_ulonglong};
+use std::ffi::{c_char, c_int};
 use std::ptr::null_mut;
 
 /// Initialize a new `SocketManager` and return a pointer to it.
@@ -125,30 +125,6 @@ pub unsafe extern "C" fn socket_manager_cancel_listen_on_addr(
                 -1
             }
         },
-        Err(e) => {
-            write_error_c_str(e, err);
-            -1
-        }
-    }
-}
-
-/// Cancel (abort) a connection.
-///
-/// # Errors
-/// Returns -1 on error, 0 on success.
-/// On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
-#[no_mangle]
-pub unsafe extern "C" fn socket_manager_cancel_connection(
-    manager: *mut CSocketManager,
-    id: c_ulonglong,
-    err: *mut *mut c_char,
-) -> c_int {
-    let manager = &*manager;
-    match manager.cancel_connection(id) {
-        Ok(_) => {
-            *err = null_mut();
-            0
-        }
         Err(e) => {
             write_error_c_str(e, err);
             -1

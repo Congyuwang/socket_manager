@@ -51,15 +51,6 @@ namespace socket_manager {
     void connect_to_addr(const std::string &addr);
 
     /**
-     * Abort a connection.
-     *
-     * Does nothing if the connection is already closed or the id is invalid.
-     *
-     * @param id the id of the connection to abort.
-     */
-    void cancel_connection(unsigned long long id);
-
-    /**
      * Cancel listening on the given address.
      *
      * # Errors
@@ -89,13 +80,11 @@ namespace socket_manager {
      *
      * It should be non-blocking.
      *
-     * @param id the id of the connection.
      * @param local_addr the local address of the connection.
      * @param peer_addr the peer address of the connection.
      * @param conn a `Connection` object for sending and receiving data.
      */
-    virtual void on_connect(unsigned long long id,
-                            const std::string &local_addr,
+    virtual void on_connect(const std::string &local_addr,
                             const std::string &peer_addr,
                             std::shared_ptr<Connection> conn) = 0;
 
@@ -104,9 +93,11 @@ namespace socket_manager {
      *
      * It should be non-blocking.
      *
-     * @param id the id of the connection.
+     * @param local_addr the local address of the connection.
+     * @param peer_addr the peer address of the connection.
      */
-    virtual void on_connection_close(unsigned long long id) = 0;
+    virtual void on_connection_close(const std::string &local_addr,
+                                     const std::string &peer_addr) = 0;
 
     /**
      * Called when an error occurs when listening on the given address.
@@ -147,20 +138,22 @@ namespace socket_manager {
           // keep the connection alive
           {
             std::unique_lock<std::mutex> lock(manager->lock);
-            manager->conns[on_connect.ConnId] = conn;
+            manager->conns[local_addr + peer_addr] = conn;
           }
-          manager->on_connect(on_connect.ConnId, local_addr, peer_addr, conn);
+          manager->on_connect(local_addr, peer_addr, conn);
           break;
         }
         case ConnStateCode::ConnectionClose: {
           auto on_connection_close = states.Data.OnConnectionClose;
+          auto local_addr = std::string(on_connection_close.Local);
+          auto peer_addr = std::string(on_connection_close.Peer);
 
           // remove the connection from the map
           {
             std::unique_lock<std::mutex> lock(manager->lock);
-            manager->conns.erase(on_connection_close.ConnId);
+            manager->conns.erase(local_addr + peer_addr);
           }
-          manager->on_connection_close(on_connection_close.ConnId);
+          manager->on_connection_close(local_addr, peer_addr);
           break;
         }
         case ConnStateCode::ListenError: {
@@ -183,7 +176,7 @@ namespace socket_manager {
     // keep the connection object alive before connection closed
     // to ensure that message listener is alive during connection.
     std::mutex lock;
-    std::unordered_map<unsigned long long, std::shared_ptr<Connection>> conns;
+    std::unordered_map<std::string, std::shared_ptr<Connection>> conns;
 
     CSocketManager *inner;
 

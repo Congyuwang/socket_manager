@@ -16,6 +16,9 @@ typedef enum ConnStateCode {
 
 typedef struct CConnection CConnection;
 
+/**
+ * Drop the sender to close the connection.
+ */
 typedef struct CMsgSender CMsgSender;
 
 /**
@@ -27,7 +30,6 @@ typedef struct CSocketManager CSocketManager;
  * The data pointer is only valid for the duration of the callback.
  */
 typedef struct ConnMsg {
-  unsigned long long ConnId;
   const char *Bytes;
   size_t Len;
 } ConnMsg;
@@ -46,14 +48,14 @@ typedef struct OnMsgCallback {
 } OnMsgCallback;
 
 typedef struct OnConnect {
-  unsigned long long ConnId;
   const char *Local;
   const char *Peer;
   struct CConnection *Conn;
 } OnConnect;
 
 typedef struct OnConnectionClose {
-  unsigned long long ConnId;
+  const char *Local;
+  const char *Peer;
 } OnConnectionClose;
 
 typedef struct OnListenError {
@@ -142,6 +144,7 @@ int msg_sender_send(const struct CMsgSender *sender, const char *msg, size_t len
 
 /**
  * Destructor of `MsgSender`.
+ * Drop sender to actively close the connection.
  */
 void msg_sender_free(struct CMsgSender *sender);
 
@@ -198,17 +201,6 @@ int socket_manager_connect_to_addr(struct CSocketManager *manager, const char *a
 int socket_manager_cancel_listen_on_addr(struct CSocketManager *manager,
                                          const char *addr,
                                          char **err);
-
-/**
- * Cancel (abort) a connection.
- *
- * # Errors
- * Returns -1 on error, 0 on success.
- * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
- */
-int socket_manager_cancel_connection(struct CSocketManager *manager,
-                                     unsigned long long id,
-                                     char **err);
 
 /**
  * Detach the `SocketManager`'s background runtime.

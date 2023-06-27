@@ -35,15 +35,6 @@ namespace socket_manager {
     }
   }
 
-  void SocketManager::cancel_connection(unsigned long long id) {
-    char *err = nullptr;
-    if (socket_manager_cancel_connection(inner, id, &err)) {
-      const std::string err_str(err);
-      free(err);
-      throw std::runtime_error(err_str);
-    }
-  }
-
   void SocketManager::cancel_listen_on_addr(const std::string &addr) {
     char *err = nullptr;
     if (socket_manager_cancel_listen_on_addr(inner, addr.c_str(), &err)) {

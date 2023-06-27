@@ -31,6 +31,7 @@ pub unsafe extern "C" fn msg_sender_send(
 }
 
 /// Destructor of `MsgSender`.
+/// Drop sender to actively close the connection.
 #[no_mangle]
 pub unsafe extern "C" fn msg_sender_free(sender: *mut CMsgSender) {
     drop(Box::from_raw(sender))
