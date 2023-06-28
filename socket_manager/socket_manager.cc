@@ -4,11 +4,14 @@
 
 namespace socket_manager {
 
-  SocketManager::SocketManager(size_t n_threads) {
+  SocketManager::SocketManager(
+          const std::shared_ptr<ConnCallback> &conn_cb,
+          size_t n_threads
+  ) : conn_cb(conn_cb) {
     char *err = nullptr;
     inner = socket_manager_init(OnConnCallback{
-            this,
-            on_conn
+            conn_cb.get(),
+            ConnCallback::on_conn
     }, n_threads, &err);
     if (err) {
       const std::string err_str(err);
@@ -53,15 +56,17 @@ namespace socket_manager {
     }
   }
 
-  void SocketManager::detach() {
+  void SocketManager::abort() {
     char *err = nullptr;
-    if (socket_manager_detach(inner, &err)) {
+    if (socket_manager_abort(inner, &err)) {
       const std::string err_str(err);
       free(err);
       throw std::runtime_error(err_str);
     }
   }
 
-  SocketManager::~SocketManager() { socket_manager_free(inner); }
+  SocketManager::~SocketManager() {
+    socket_manager_free(inner);
+  }
 
 } // namespace socket_manager

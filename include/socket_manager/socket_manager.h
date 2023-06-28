@@ -1,12 +1,11 @@
 #ifndef SOCKET_MANAGER_H
 #define SOCKET_MANAGER_H
 
-#include "connection.h"
+#include "conn_callback.h"
 #include "socket_manager_c_api.h"
 #include <string>
 #include <memory>
 #include <mutex>
-#include <unordered_map>
 
 namespace socket_manager {
 
@@ -16,6 +15,9 @@ namespace socket_manager {
    * Inherit from SocketManager and implement the virtual methods:
    * `on_connect`, `on_connection_close`, `on_listen_error`, `on_connect_error`,
    * `on_message` as callbacks. Note that these callbacks shouldn't block.
+   *
+   * Dropping this object will close all the connections and wait for all the
+   * threads to finish.
    */
   class SocketManager {
 
@@ -28,7 +30,7 @@ namespace socket_manager {
      *                 the number of threads is equal to the number of cores.
      *                 Default to single-threaded runtime.
      */
-    explicit SocketManager(size_t n_threads = 1);
+    explicit SocketManager(const std::shared_ptr<ConnCallback> &conn_cb, size_t n_threads = 1);
 
     /**
      * Listen on the given address.
@@ -63,122 +65,28 @@ namespace socket_manager {
     /**
      * Join and wait on the `SocketManager` background runtime.
      *
-     * # Errors
-     * Throw `std::runtime_error` if failed to join.
+     * Call `abort` in another thread to stop the background runtime.
+     *
+     * Returns error if the background runtime has already been joined
+     * or if the runtime panicked.
      */
     void join();
 
     /**
-     * Detach the `SocketManager`'s background runtime.
+     * Stop all background threads and drop all connections.
+     *
+     * This method does not wait for the background threads to finish.
+     *
+     * Call methods after `aborted` will result in runtime errors.
      */
-    void detach();
-
-    /// virtual methods: must be thread safe
-
-    /**
-     * Called when a new connection is established.
-     *
-     * It should be non-blocking.
-     *
-     * @param local_addr the local address of the connection.
-     * @param peer_addr the peer address of the connection.
-     * @param conn a `Connection` object for sending and receiving data.
-     */
-    virtual void on_connect(const std::string &local_addr,
-                            const std::string &peer_addr,
-                            std::shared_ptr<Connection> conn) = 0;
-
-    /**
-     * Called when a connection is closed.
-     *
-     * It should be non-blocking.
-     *
-     * @param local_addr the local address of the connection.
-     * @param peer_addr the peer address of the connection.
-     */
-    virtual void on_connection_close(const std::string &local_addr,
-                                     const std::string &peer_addr) = 0;
-
-    /**
-     * Called when an error occurs when listening on the given address.
-     *
-     * Should be non-blocking.
-     *
-     * @param addr the address that failed to listen on.
-     * @param err the error message.
-     */
-    virtual void on_listen_error(const std::string &addr,
-                                 const std::string &err) = 0;
-
-    /**
-     * Called when an error occurs when connecting to the given address.
-     *
-     * Should be non-blocking.
-     *
-     * @param addr the address that failed to connect to.
-     * @param err the error message.
-     */
-    virtual void on_connect_error(const std::string &addr,
-                                  const std::string &err) = 0;
+    void abort();
 
     ~SocketManager();
 
   private:
 
-    static void on_conn(void *manager_ptr, ConnStates states) {
-      auto manager = static_cast<SocketManager *>(manager_ptr);
-      switch (states.Code) {
-        case ConnStateCode::Connect: {
-          auto on_connect = states.Data.OnConnect;
-          auto local_addr = std::string(on_connect.Local);
-          auto peer_addr = std::string(on_connect.Peer);
-
-          std::shared_ptr<Connection> conn(new Connection(on_connect.Conn));
-
-          // keep the connection alive
-          {
-            std::unique_lock<std::mutex> lock(manager->lock);
-            manager->conns[local_addr + peer_addr] = conn;
-          }
-          manager->on_connect(local_addr, peer_addr, conn);
-          break;
-        }
-        case ConnStateCode::ConnectionClose: {
-          auto on_connection_close = states.Data.OnConnectionClose;
-          auto local_addr = std::string(on_connection_close.Local);
-          auto peer_addr = std::string(on_connection_close.Peer);
-
-          // remove the connection from the map
-          {
-            std::unique_lock<std::mutex> lock(manager->lock);
-            manager->conns.erase(local_addr + peer_addr);
-          }
-          manager->on_connection_close(local_addr, peer_addr);
-          break;
-        }
-        case ConnStateCode::ListenError: {
-          auto listen_error = states.Data.OnListenError;
-          auto addr = std::string(listen_error.Addr);
-          auto err = std::string(listen_error.Err);
-          manager->on_listen_error(addr, err);
-          break;
-        }
-        case ConnStateCode::ConnectError: {
-          auto connect_error = states.Data.OnConnectError;
-          auto addr = std::string(connect_error.Addr);
-          auto err = std::string(connect_error.Err);
-          manager->on_connect_error(addr, err);
-          break;
-        }
-      }
-    }
-
-    // keep the connection object alive before connection closed
-    // to ensure that message listener is alive during connection.
-    std::mutex lock;
-    std::unordered_map<std::string, std::shared_ptr<Connection>> conns;
-
     CSocketManager *inner;
+    std::shared_ptr<ConnCallback> conn_cb;
 
   };
 

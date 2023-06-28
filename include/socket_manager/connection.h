@@ -37,7 +37,7 @@ namespace socket_manager {
 
   private:
 
-    friend class SocketManager;
+    friend class ConnCallback;
 
     // keep the msg_receiver alive
     std::unique_ptr<MsgReceiver> receiver;

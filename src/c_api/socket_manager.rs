@@ -132,19 +132,35 @@ pub unsafe extern "C" fn socket_manager_cancel_listen_on_addr(
     }
 }
 
-/// Detach the `SocketManager`'s background runtime.
+/// Abort the `SocketManager`'s background runtime.
+///
+/// Does not wait for the runtime to finish.
+///
+/// # Errors
+/// Returns -1 on error, 0 on success.
+/// On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
 #[no_mangle]
-pub unsafe extern "C" fn socket_manager_detach(
+pub unsafe extern "C" fn socket_manager_abort(
     manager: *mut CSocketManager,
     err: *mut *mut c_char,
 ) -> c_int {
     let manager = &mut *manager;
-    manager.detach();
-    *err = null_mut();
-    0
+    match manager.abort() {
+        Ok(()) => {
+            *err = null_mut();
+            0
+        }
+        Err(e) => {
+            write_error_c_str(e, err);
+            -1
+        }
+    }
 }
 
 /// Join and wait on the `SocketManager`.
+///
+/// This function will block until the `SocketManager`'s background runtime finishes,
+/// (i.e., `abort` is called from another thread).
 #[no_mangle]
 pub unsafe extern "C" fn socket_manager_join(
     manager: *mut CSocketManager,
@@ -163,7 +179,8 @@ pub unsafe extern "C" fn socket_manager_join(
     }
 }
 
-/// Destroy a `SocketManager` and free its memory.
+/// Calling this function will abort all background runtime and join on them,
+/// and free the `SocketManager`.
 #[no_mangle]
 pub unsafe extern "C" fn socket_manager_free(manager: *mut CSocketManager) {
     drop(Box::from_raw(manager))

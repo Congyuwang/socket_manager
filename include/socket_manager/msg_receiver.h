@@ -21,7 +21,7 @@ namespace socket_manager {
      *
      * @param data the message received.
      */
-    virtual void on_message(std::shared_ptr<std::string> data) = 0;
+    virtual void on_message(const std::shared_ptr<std::string> &data) = 0;
 
     virtual ~MsgReceiver() = default;
 
