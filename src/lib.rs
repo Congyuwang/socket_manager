@@ -8,7 +8,7 @@ use futures::FutureExt;
 use std::net::SocketAddr;
 use std::num::NonZeroUsize;
 use std::sync::Arc;
-use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader, BufWriter};
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::runtime;
@@ -20,7 +20,7 @@ use tracing_subscriber::EnvFilter;
 
 const MAX_WORKER_THREADS: usize = 256;
 const SOCKET_LOG: &str = "SOCKET_LOG";
-const READ_BUFFER_SIZE: usize = 1024 * 64;
+const BUFFER_SIZE: usize = 1024 * 8;
 
 /// The Main Struct of the Library.
 ///
@@ -28,6 +28,16 @@ const READ_BUFFER_SIZE: usize = 1024 * 64;
 pub struct CSocketManager {
     cmd_send: UnboundedSender<Command>,
     join_handle: std::sync::Mutex<Option<std::thread::JoinHandle<()>>>,
+}
+
+/// Drop the sender to close the connection.
+pub struct CMsgSender {
+    pub(crate) send: UnboundedSender<SendCommand>,
+}
+
+pub enum SendCommand {
+    Send(Vec<u8>),
+    Flush,
 }
 
 /// Msg struct for the on_msg callback.
@@ -50,12 +60,12 @@ pub struct Conn<OnMsg> {
 
 struct ConnInner<OnMsg> {
     callback_setter: oneshot::Sender<OnMsg>,
-    send: UnboundedSender<Vec<u8>>,
+    send: CMsgSender,
 }
 
 impl<OnMsg: Fn(Msg<'_>) + Send + 'static + Clone> Conn<OnMsg> {
     /// This function should be called only once.
-    pub fn start_connection(&mut self, on_msg: OnMsg) -> std::io::Result<UnboundedSender<Vec<u8>>> {
+    pub fn start_connection(&mut self, on_msg: OnMsg) -> std::io::Result<CMsgSender> {
         let inner = {
             self.inner
                 .lock()
@@ -390,8 +400,9 @@ fn handle_connection<
     // generate connection info
     let local_addr = stream.local_addr()?;
     let peer_addr = stream.peer_addr()?;
-    let (send, recv) = mpsc::unbounded_channel::<Vec<u8>>();
+    let (send, recv) = mpsc::unbounded_channel::<SendCommand>();
     let (callback_setter, callback) = oneshot::channel::<OnMsg>();
+    let send = CMsgSender { send };
 
     tracing::info!("new connection: local_addr={local_addr}, peer_addr={peer_addr}");
     // call `on_conn` callback
@@ -423,13 +434,18 @@ fn handle_connection<
 /// Receive bytes from recv and write to WriteHalf of TcpStream.
 async fn handle_writer(
     mut write: OwnedWriteHalf,
-    mut recv: UnboundedReceiver<Vec<u8>>,
+    mut recv: UnboundedReceiver<SendCommand>,
 ) -> std::io::Result<()> {
     write.writable().await?;
-    while let Some(msg) = recv.recv().await {
-        write.write_all(&msg).await?;
+    let mut buf_writer = BufWriter::new(&mut write);
+    while let Some(cmd) = recv.recv().await {
+        match cmd {
+            SendCommand::Send(msg) => buf_writer.write_all(&msg).await?,
+            SendCommand::Flush => buf_writer.flush().await?,
+        }
     }
-    write.shutdown().await?;
+    buf_writer.flush().await?;
+    buf_writer.shutdown().await?;
     Ok(())
 }
 
@@ -446,7 +462,7 @@ async fn handle_reader<OnMsg: Fn(Msg<'_>) + Send + 'static>(
         )
     })?;
     let mut buf_reader = BufReader::new(read);
-    let mut read_buf = [0u8; READ_BUFFER_SIZE];
+    let mut read_buf = [0u8; BUFFER_SIZE];
     loop {
         let read_n = buf_reader.read(&mut read_buf).await;
         match read_n {

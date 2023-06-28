@@ -12,6 +12,15 @@ namespace socket_manager {
     }
   }
 
+  void MsgSender::flush() {
+    char *err = nullptr;
+    if (msg_sender_flush(inner, &err)) {
+      const std::string err_str(err);
+      free(err);
+      throw std::runtime_error(err_str);
+    }
+  }
+
   MsgSender::MsgSender(CMsgSender *inner) : inner(inner) {}
 
   MsgSender::~MsgSender() {

@@ -1,5 +1,5 @@
-use crate::c_api::structs::CMsgSender;
 use crate::c_api::utils::write_error_c_str;
+use crate::{CMsgSender, SendCommand};
 use libc::size_t;
 use std::ffi::{c_char, c_int};
 use std::ptr::null_mut;
@@ -8,6 +8,10 @@ use std::ptr::null_mut;
 ///
 /// # Thread Safety
 /// Thread safe.
+///
+/// # Buffer
+/// The data might be buffered and not sent immediately,
+/// use `msg_sender_flush` to flush the buffer.
 ///
 /// # Errors
 /// Returns -1 on error, 0 on success.
@@ -21,7 +25,33 @@ pub unsafe extern "C" fn msg_sender_send(
 ) -> c_int {
     let sender = &(*sender).send;
     let msg = std::slice::from_raw_parts(msg as *const u8, len).to_vec();
-    match sender.send(msg) {
+    match sender.send(SendCommand::Send(msg)) {
+        Ok(_) => {
+            *err = null_mut();
+            0
+        }
+        Err(e) => {
+            write_error_c_str(e, err);
+            -1
+        }
+    }
+}
+
+/// Flush the message sender.
+///
+/// # Thread Safety
+/// Thread safe.
+///
+/// # Errors
+/// Returns -1 on error, 0 on success.
+/// On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
+#[no_mangle]
+pub unsafe extern "C" fn msg_sender_flush(
+    sender: *const CMsgSender,
+    err: *mut *mut c_char,
+) -> c_int {
+    let sender = &(*sender).send;
+    match sender.send(SendCommand::Flush) {
         Ok(_) => {
             *err = null_mut();
             0

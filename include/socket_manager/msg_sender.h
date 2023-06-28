@@ -18,6 +18,10 @@ namespace socket_manager {
     /**
      * Send a message to the peer.
      *
+     * # Internal buffer
+     * The message can be buffered and not sent immediately,
+     * use `flush` to flush the buffer.
+     *
      * # Thread Safety
      * This method is thread safe.
      * This method does not implement backpressure
@@ -26,6 +30,15 @@ namespace socket_manager {
      * @param data the message to send
      */
     void send(const std::string &data);
+
+    /**
+     * Flush the internal buffer.
+     *
+     * # Thread Safety
+     * This method is thread safe.
+     *
+     */
+    void flush();
 
     /**
      * Drop the sender to close the connection.

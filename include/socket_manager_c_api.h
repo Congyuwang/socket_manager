@@ -153,11 +153,27 @@ void connection_free(struct CConnection *conn);
  * # Thread Safety
  * Thread safe.
  *
+ * # Buffer
+ * The data might be buffered and not sent immediately,
+ * use `msg_sender_flush` to flush the buffer.
+ *
  * # Errors
  * Returns -1 on error, 0 on success.
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
  */
 int msg_sender_send(const struct CMsgSender *sender, const char *msg, size_t len, char **err);
+
+/**
+ * Flush the message sender.
+ *
+ * # Thread Safety
+ * Thread safe.
+ *
+ * # Errors
+ * Returns -1 on error, 0 on success.
+ * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
+ */
+int msg_sender_flush(const struct CMsgSender *sender, char **err);
 
 /**
  * Destructor of `MsgSender`.

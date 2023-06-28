@@ -1,5 +1,6 @@
-use crate::c_api::structs::{CConnection, CMsgSender, OnMsgCallback};
+use crate::c_api::structs::{CConnection, OnMsgCallback};
 use crate::c_api::utils::write_error_c_str;
+use crate::CMsgSender;
 use std::ffi::c_char;
 use std::ptr::null_mut;
 
@@ -37,7 +38,7 @@ pub unsafe extern "C" fn connection_start(
     match conn.start_connection(on_msg) {
         Ok(sender) => {
             *err = null_mut();
-            Box::into_raw(Box::new(CMsgSender { send: sender }))
+            Box::into_raw(Box::new(sender))
         }
         Err(e) => {
             write_error_c_str(e, err);

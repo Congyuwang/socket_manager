@@ -1,6 +1,5 @@
 use libc::size_t;
 use std::ffi::{c_char, c_void, CString};
-use tokio::sync::mpsc::UnboundedSender;
 
 /// The data pointer is only valid for the duration of the callback.
 #[repr(C)]
@@ -95,11 +94,6 @@ pub struct OnListenError {
 pub struct OnConnectError {
     addr: *const c_char,
     err: *const c_char,
-}
-
-/// Drop the sender to close the connection.
-pub struct CMsgSender {
-    pub(crate) send: UnboundedSender<Vec<u8>>,
 }
 
 pub struct CConnection {
