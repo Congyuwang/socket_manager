@@ -13,6 +13,9 @@ use std::ptr::null_mut;
 /// # Safety
 /// The passed in callback must live as long as the connection is not closed !!
 ///
+/// # ThreadSafety
+/// Thread safe, but should be called exactly once.
+///
 /// # Arguments
 /// * `conn` - A pointer to a `CConnection`.
 /// * `on_msg` - A callback function that will be called when a message is received.

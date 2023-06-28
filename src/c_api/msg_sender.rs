@@ -6,6 +6,9 @@ use std::ptr::null_mut;
 
 /// Send a message via the given `CMsgSender`.
 ///
+/// # Thread Safety
+/// Thread safe.
+///
 /// # Errors
 /// Returns -1 on error, 0 on success.
 /// On Error, `err` will be set to a pointer to a C string allocated by `malloc`.

@@ -20,6 +20,10 @@ namespace socket_manager {
     /**
      * Start a connection.
      *
+     * # Thread Safety
+     * Thread safe, but should be called exactly once,
+     * otherwise throws error.
+     *
      * The `start` function must be called exactly once.
      * Calling it twice will result in runtime error.
      * Not calling it will result in resource leak

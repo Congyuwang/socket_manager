@@ -45,23 +45,42 @@ enum Command {
 
 /// The connection struct for the on_conn callback.
 pub struct Conn<OnMsg> {
-    callback_setter: Option<oneshot::Sender<OnMsg>>,
-    send: Option<UnboundedSender<Vec<u8>>>,
+    inner: std::sync::Mutex<Option<ConnInner<OnMsg>>>,
+}
+
+struct ConnInner<OnMsg> {
+    callback_setter: oneshot::Sender<OnMsg>,
+    send: UnboundedSender<Vec<u8>>,
 }
 
 impl<OnMsg: Fn(Msg<'_>) + Send + 'static + Clone> Conn<OnMsg> {
     /// This function should be called only once.
     pub fn start_connection(&mut self, on_msg: OnMsg) -> std::io::Result<UnboundedSender<Vec<u8>>> {
-        match (self.callback_setter.take(), self.send.take()) {
-            (Some(setter), Some(sender)) => {
-                if setter.send(on_msg).is_err() {
+        let inner = {
+            self.inner
+                .lock()
+                .map_err(|e| {
+                    tracing::error!("error locking connection inner: {:?}", e);
+                    std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        format!("error locking connection inner {:?}", e),
+                    )
+                })?
+                .take()
+        };
+        match inner {
+            Some(ConnInner {
+                callback_setter,
+                send,
+            }) => {
+                if callback_setter.send(on_msg).is_err() {
                     tracing::error!("callback setter failed");
                     return Err(std::io::Error::new(
                         std::io::ErrorKind::Other,
                         "callback setter failed on start connection",
                     ));
                 }
-                Ok(sender)
+                Ok(send)
             }
             _ => Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
@@ -372,7 +391,7 @@ fn handle_connection<
     let local_addr = stream.local_addr()?;
     let peer_addr = stream.peer_addr()?;
     let (send, recv) = mpsc::unbounded_channel::<Vec<u8>>();
-    let (callback_sender, callback) = oneshot::channel::<OnMsg>();
+    let (callback_setter, callback) = oneshot::channel::<OnMsg>();
 
     tracing::info!("new connection: local_addr={local_addr}, peer_addr={peer_addr}");
     // call `on_conn` callback
@@ -380,8 +399,10 @@ fn handle_connection<
         local_addr,
         peer_addr,
         conn: Conn {
-            callback_setter: Some(callback_sender),
-            send: Some(send),
+            inner: std::sync::Mutex::new(Some(ConnInner {
+                callback_setter,
+                send,
+            })),
         },
     });
 

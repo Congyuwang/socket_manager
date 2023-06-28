@@ -12,7 +12,8 @@ namespace socket_manager {
   /**
    * The callback object for handling connection events.
    *
-   * All methods must be thread safe.
+   * # Thread Safety
+   * All callback methods must be thread safe and non-blocking.
    *
    * # Note on safety:
    *

@@ -123,6 +123,9 @@ extern "C" {
  * # Safety
  * The passed in callback must live as long as the connection is not closed !!
  *
+ * # ThreadSafety
+ * Thread safe, but should be called exactly once.
+ *
  * # Arguments
  * * `conn` - A pointer to a `CConnection`.
  * * `on_msg` - A callback function that will be called when a message is received.
@@ -146,6 +149,9 @@ void connection_free(struct CConnection *conn);
 
 /**
  * Send a message via the given `CMsgSender`.
+ *
+ * # Thread Safety
+ * Thread safe.
  *
  * # Errors
  * Returns -1 on error, 0 on success.
@@ -187,6 +193,9 @@ struct CSocketManager *socket_manager_init(struct OnConnCallback on_conn,
 /**
  * Listen on the given address.
  *
+ * # ThreadSafety
+ * Thread safe.
+ *
  * # Errors
  * Returns -1 on error, 0 on success.
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
@@ -196,6 +205,9 @@ int socket_manager_listen_on_addr(struct CSocketManager *manager, const char *ad
 /**
  * Connect to the given address.
  *
+ * # Thread Safety
+ * Thread safe.
+ *
  * # Errors
  * Returns -1 on error, 0 on success.
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
@@ -204,6 +216,9 @@ int socket_manager_connect_to_addr(struct CSocketManager *manager, const char *a
 
 /**
  * Cancel listening on the given address.
+ *
+ * # Thread Safety
+ * Thread safe.
  *
  * # Errors
  * Returns -1 on error, 0 on success.
@@ -216,6 +231,9 @@ int socket_manager_cancel_listen_on_addr(struct CSocketManager *manager,
 /**
  * Abort the `SocketManager`'s background runtime.
  *
+ * # Thread Safety
+ * Thread safe.
+ *
  * Does not wait for the runtime to finish.
  *
  * # Errors
@@ -226,6 +244,10 @@ int socket_manager_abort(struct CSocketManager *manager, char **err);
 
 /**
  * Join and wait on the `SocketManager`.
+ *
+ * # Thread Safety
+ * Thread safe. But should be called no more than once,
+ * otherwise throws runtime error.
  *
  * This function will block until the `SocketManager`'s background runtime finishes,
  * (i.e., `abort` is called from another thread).

@@ -44,6 +44,9 @@ pub unsafe extern "C" fn socket_manager_init(
 
 /// Listen on the given address.
 ///
+/// # ThreadSafety
+/// Thread safe.
+///
 /// # Errors
 /// Returns -1 on error, 0 on success.
 /// On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
@@ -73,6 +76,9 @@ pub unsafe extern "C" fn socket_manager_listen_on_addr(
 }
 
 /// Connect to the given address.
+///
+/// # Thread Safety
+/// Thread safe.
 ///
 /// # Errors
 /// Returns -1 on error, 0 on success.
@@ -104,6 +110,9 @@ pub unsafe extern "C" fn socket_manager_connect_to_addr(
 
 /// Cancel listening on the given address.
 ///
+/// # Thread Safety
+/// Thread safe.
+///
 /// # Errors
 /// Returns -1 on error, 0 on success.
 /// On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
@@ -134,6 +143,9 @@ pub unsafe extern "C" fn socket_manager_cancel_listen_on_addr(
 
 /// Abort the `SocketManager`'s background runtime.
 ///
+/// # Thread Safety
+/// Thread safe.
+///
 /// Does not wait for the runtime to finish.
 ///
 /// # Errors
@@ -158,6 +170,10 @@ pub unsafe extern "C" fn socket_manager_abort(
 }
 
 /// Join and wait on the `SocketManager`.
+///
+/// # Thread Safety
+/// Thread safe. But should be called no more than once,
+/// otherwise throws runtime error.
 ///
 /// This function will block until the `SocketManager`'s background runtime finishes,
 /// (i.e., `abort` is called from another thread).

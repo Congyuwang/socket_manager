@@ -35,6 +35,9 @@ namespace socket_manager {
     /**
      * Listen on the given address.
      *
+     * # Thread Safety
+     * Thread safe.
+     *
      * # Errors
      * Throws `std::runtime_error` if the address is invalid.
      *
@@ -44,6 +47,9 @@ namespace socket_manager {
 
     /**
      * Connect to the given address.
+     *
+     * # Thread Safety
+     * Thread safe.
      *
      * # Errors
      * Throws `std::runtime_error` if the address is invalid.
@@ -55,6 +61,9 @@ namespace socket_manager {
     /**
      * Cancel listening on the given address.
      *
+     * # Thread Safety
+     * Thread safe.
+     *
      * # Errors
      * Throw `std::runtime_error` if the address is invalid.
      *
@@ -64,8 +73,10 @@ namespace socket_manager {
 
     /**
      * Join and wait on the `SocketManager` background runtime.
-     *
      * Call `abort` in another thread to stop the background runtime.
+     *
+     * Thread safe. But should be called no more than once,
+     * otherwise throws runtime error.
      *
      * Returns error if the background runtime has already been joined
      * or if the runtime panicked.
@@ -75,9 +86,13 @@ namespace socket_manager {
     /**
      * Stop all background threads and drop all connections.
      *
+     * * # Thread Safety
+     * Thread safe.
+     *
      * This method does not wait for the background threads to finish.
      *
-     * Call methods after `aborted` will result in runtime errors.
+     * Call methods after successful `aborted` will result in runtime errors.
+     *
      */
     void abort();
 

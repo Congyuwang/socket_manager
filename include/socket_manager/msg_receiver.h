@@ -9,6 +9,9 @@ namespace socket_manager {
 
   /**
    * Implement this class to receive messages from Connection.
+   *
+   * # Thread Safety
+   * The callback should be thread safe.
    */
   class MsgReceiver {
 
@@ -17,7 +20,9 @@ namespace socket_manager {
     /**
      * Called when a message is received.
      *
-     * Should be non-blocking.
+     * # Thread Safety
+     * This callback must be thread safe.
+     * It should also be non-blocking.
      *
      * @param data the message received.
      */

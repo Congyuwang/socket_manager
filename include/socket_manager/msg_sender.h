@@ -18,6 +18,7 @@ namespace socket_manager {
     /**
      * Send a message to the peer.
      *
+     * # Thread Safety
      * This method is thread safe.
      * This method does not implement backpressure
      * (i.e., it caches all the messages in memory).
