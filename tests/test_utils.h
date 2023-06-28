@@ -28,12 +28,16 @@ enum EventType {
 /// Message Receivers
 ///
 
-class MsgStorerSocketManager : public MsgReceiver {
+class DoNothingReceiver : public MsgReceiver {
+  void on_message(const std::shared_ptr<std::string> &data) override {}
+};
+
+class MsgStoreReceiver : public MsgReceiver {
 public:
-  MsgStorerSocketManager(std::string conn_id,
-                         std::mutex &mutex,
-                         std::condition_variable &cond,
-                         std::vector<std::tuple<std::string, std::shared_ptr<std::string>>> &buffer)
+  MsgStoreReceiver(std::string conn_id,
+                   std::mutex &mutex,
+                   std::condition_variable &cond,
+                   std::vector<std::tuple<std::string, std::shared_ptr<std::string>>> &buffer)
           : conn_id(std::move(conn_id)), mutex(mutex), cond(cond), buffer(buffer) {}
 
   void on_message(const std::shared_ptr<std::string> &data) override {
@@ -76,7 +80,7 @@ public:
                   const std::shared_ptr<Connection> &conn) override {
     set_sig(CONNECTED);
     auto conn_id = local_addr + "->" + peer_addr;
-    auto msg_storer = std::make_unique<MsgStorerSocketManager>(conn_id, mutex, cond, buffer);
+    auto msg_storer = std::make_unique<MsgStoreReceiver>(conn_id, mutex, cond, buffer);
     conn->start(std::move(msg_storer));
   }
 
@@ -122,7 +126,7 @@ public:
     std::unique_lock<std::mutex> lock(mutex);
     auto conn_id = local_addr + "->" + peer_addr;
     events.emplace_back(CONNECTED, conn_id);
-    auto msg_storer = std::make_unique<MsgStorerSocketManager>(conn_id, mutex, cond, buffer);
+    auto msg_storer = std::make_unique<MsgStoreReceiver>(conn_id, mutex, cond, buffer);
     auto sender = conn->start(std::move(msg_storer));
     senders.emplace(conn_id, sender);
     connected_count.fetch_add(1, std::memory_order_seq_cst);
@@ -155,7 +159,9 @@ public:
   void send_to(std::string &conn_id, const std::string &data) {
     std::unique_lock<std::mutex> lock(mutex);
     try {
-      senders.at(conn_id)->send(data);
+      auto sender = senders.at(conn_id);
+      sender->send(data);
+      sender->flush();
     } catch (std::out_of_range &e) {
       std::cout << "connection " << conn_id << " not found during send" << std::endl;
     }
