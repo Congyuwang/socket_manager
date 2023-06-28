@@ -23,6 +23,9 @@ pub struct ConnStates {
 ///
 /// `callback_self` is feed to the first argument of the callback.
 ///
+/// # Safety
+/// The callback pointer must be valid before connection is closed!!
+///
 /// # Thread Safety
 /// Must be thread safe!
 #[repr(C)]
@@ -35,6 +38,10 @@ pub struct OnMsgCallback {
 /// Callback function for connection state changes.
 ///
 /// `callback_self` is feed to the first argument of the callback.
+///
+/// # Safety
+/// The callback pointer must be valid for the entire runtime lifetime!!
+/// (i.e., before the runtime is aborted and joined).
 ///
 /// # Thread Safety
 /// Must be thread safe!

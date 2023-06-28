@@ -39,6 +39,9 @@ typedef struct ConnMsg {
  *
  * `callback_self` is feed to the first argument of the callback.
  *
+ * # Safety
+ * The callback pointer must be valid before connection is closed!!
+ *
  * # Thread Safety
  * Must be thread safe!
  */
@@ -91,6 +94,10 @@ typedef struct ConnStates {
  *
  * `callback_self` is feed to the first argument of the callback.
  *
+ * # Safety
+ * The callback pointer must be valid for the entire runtime lifetime!!
+ * (i.e., before the runtime is aborted and joined).
+ *
  * # Thread Safety
  * Must be thread safe!
  */
@@ -106,8 +113,10 @@ extern "C" {
 /**
  * Start a connection with the given `OnMsgCallback`, and return a pointer to a `CMsgSender`.
  *
- * This function can only be called once per `CConnection`,
- * otherwise it returns error.
+ * The `start` function must be called exactly once.
+ * Calling it twice will result in runtime error.
+ * Not calling it will result in resource leak
+ * (i.e. the connection will likely hangs).
  *
  * # Safety
  * The passed in callback must live as long as the connection is not closed !!
