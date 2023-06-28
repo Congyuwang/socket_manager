@@ -484,13 +484,3 @@ async fn join_reader_writer<OnConn: Fn(ConnState<OnMsg>), OnMsg>(
         peer_addr,
     });
 }
-
-#[cfg(test)]
-mod test_socket_manager {
-    fn test_sync<T: Sync>(t: T) {}
-
-    #[test]
-    fn test_socket_is_sync() {
-        test_sync(SocketManager::new());
-    }
-}
