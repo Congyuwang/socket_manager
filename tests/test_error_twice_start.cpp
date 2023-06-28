@@ -2,13 +2,13 @@
 #include <chrono>
 #include <thread>
 
-class TwiceStartSocketManager : public DoNothingSocketManager {
+class TwiceStartCallback : public DoNothingConnCallback {
 
 public:
-  TwiceStartSocketManager() : error_thrown(false) {};
+  TwiceStartCallback() : error_thrown(false) {};
 
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  std::shared_ptr<Connection> conn) override {
+                  const std::shared_ptr<Connection> &conn) override {
     auto receiver = std::make_unique<DoNothingMsgReceiver>();
     auto receiver2 = std::make_unique<DoNothingMsgReceiver>();
     conn->start(std::move(receiver));
@@ -31,7 +31,7 @@ private:
 
   class DoNothingMsgReceiver : public MsgReceiver {
   public:
-    void on_message(std::shared_ptr<std::string> data) override {}
+    void on_message(const std::shared_ptr<std::string> &data) override {}
   };
 
 };
@@ -39,8 +39,11 @@ private:
 int test_error_twice_start(int argc, char **argv) {
   const std::string addr = "127.0.0.1:12348";
 
-  TwiceStartSocketManager bad;
-  StoreAllEventsSocketManager good;
+  auto bad_cb = std::make_shared<TwiceStartCallback>();
+  auto good_cb = std::make_shared<StoreAllEventsConnCallback>();
+
+  SocketManager bad(bad_cb);
+  SocketManager good(good_cb);
 
   bad.listen_on_addr(addr);
   // wait 100ms
@@ -49,11 +52,12 @@ int test_error_twice_start(int argc, char **argv) {
 
   // wait for error
   while (true) {
-    std::unique_lock<std::mutex> lock(bad.mutex);
-    if (bad.error_thrown.load(std::memory_order_acquire)) {
+    std::unique_lock<std::mutex> lock(bad_cb->mutex);
+    if (bad_cb->error_thrown.load(std::memory_order_acquire)) {
       break;
     }
-    bad.cond.wait(lock);
+    bad_cb->cond.wait(lock);
   }
+
   return 0;
 }

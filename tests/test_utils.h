@@ -12,19 +12,6 @@
 
 using namespace socket_manager;
 
-/// Do Nothing
-
-class DoNothingSocketManager : public SocketManager {
-public:
-  void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  std::shared_ptr<Connection> conn) override {}
-
-  void on_connection_close(const std::string &local_addr, const std::string &peer_addr) override {}
-
-  void on_listen_error(const std::string &addr, const std::string &err) override {}
-
-  void on_connect_error(const std::string &addr, const std::string &err) override {}
-};
 
 /// Flag Signal
 
@@ -36,6 +23,11 @@ enum EventType {
   SEND_ERROR = 1 << 4
 };
 
+
+///
+/// Message Receivers
+///
+
 class MsgStorerSocketManager : public MsgReceiver {
 public:
   MsgStorerSocketManager(std::string conn_id,
@@ -44,7 +36,7 @@ public:
                          std::vector<std::tuple<std::string, std::shared_ptr<std::string>>> &buffer)
           : conn_id(std::move(conn_id)), mutex(mutex), cond(cond), buffer(buffer) {}
 
-  void on_message(std::shared_ptr<std::string> data) override {
+  void on_message(const std::shared_ptr<std::string> &data) override {
     std::unique_lock<std::mutex> lock(mutex);
     buffer.emplace_back(conn_id, data);
     cond.notify_all();
@@ -57,14 +49,31 @@ private:
   std::vector<std::tuple<std::string, std::shared_ptr<std::string>>> &buffer;
 };
 
-class BitFlagSocketManager : public SocketManager {
+///
+/// Connection Callbacks
+///
+
+/// Do Nothing
+class DoNothingConnCallback : public ConnCallback {
 public:
-  BitFlagSocketManager(std::mutex &mutex, std::condition_variable &cond, std::atomic_int &sig,
-                       std::vector<std::tuple<std::string, std::shared_ptr<std::string>>> &buffer)
+  void on_connect(const std::string &local_addr, const std::string &peer_addr,
+                  const std::shared_ptr<Connection> &conn) override {}
+
+  void on_connection_close(const std::string &local_addr, const std::string &peer_addr) override {}
+
+  void on_listen_error(const std::string &addr, const std::string &err) override {}
+
+  void on_connect_error(const std::string &addr, const std::string &err) override {}
+};
+
+class BitFlagCallback : public ConnCallback {
+public:
+  BitFlagCallback(std::mutex &mutex, std::condition_variable &cond, std::atomic_int &sig,
+                  std::vector<std::tuple<std::string, std::shared_ptr<std::string>>> &buffer)
           : mutex(mutex), cond(cond), sig(sig), buffer(buffer) {}
 
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  std::shared_ptr<Connection> conn) override {
+                  const std::shared_ptr<Connection> &conn) override {
     set_sig(CONNECTED);
     auto conn_id = local_addr + "->" + peer_addr;
     auto msg_storer = std::make_unique<MsgStorerSocketManager>(conn_id, mutex, cond, buffer);
@@ -101,15 +110,15 @@ private:
 
 /// Store all events in order
 
-class StoreAllEventsSocketManager : public SocketManager {
+class StoreAllEventsConnCallback : public ConnCallback {
 
 public:
 
-  explicit StoreAllEventsSocketManager(bool clean_sender_on_close = true)
+  explicit StoreAllEventsConnCallback(bool clean_sender_on_close = true)
           : connected_count(0), clean_sender_on_close(clean_sender_on_close) {}
 
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  std::shared_ptr<Connection> conn) override {
+                  const std::shared_ptr<Connection> &conn) override {
     std::unique_lock<std::mutex> lock(mutex);
     auto conn_id = local_addr + "->" + peer_addr;
     events.emplace_back(CONNECTED, conn_id);

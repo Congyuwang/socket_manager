@@ -1,5 +1,6 @@
 #![feature(unboxed_closures)]
 #![feature(fn_traits)]
+
 mod c_api;
 
 use dashmap::DashMap;
@@ -21,10 +22,12 @@ const MAX_WORKER_THREADS: usize = 256;
 const SOCKET_LOG: &str = "SOCKET_LOG";
 const READ_BUFFER_SIZE: usize = 1024 * 64;
 
-/// The Main Struct of the Library
+/// The Main Struct of the Library.
+///
+/// This struct is thread safe.
 pub struct CSocketManager {
     cmd_send: UnboundedSender<Command>,
-    join_handle: Option<std::thread::JoinHandle<()>>,
+    join_handle: std::sync::Mutex<Option<std::thread::JoinHandle<()>>>,
 }
 
 /// Msg struct for the on_msg callback.
@@ -37,6 +40,7 @@ enum Command {
     Listen { addr: SocketAddr },
     Connect { addr: SocketAddr },
     CancelListen { addr: SocketAddr },
+    Abort,
 }
 
 /// The connection struct for the on_conn callback.
@@ -125,10 +129,10 @@ impl CSocketManager {
         let runtime = start_runtime(n_threads)?;
         let (cmd_send, cmd_recv) = mpsc::unbounded_channel::<Command>();
         let connection_state = ConnectionState::new();
-        let join_handle = Some(std::thread::spawn(move || {
+        let join_handle = std::sync::Mutex::new(Some(std::thread::spawn(move || {
             let handle = runtime.handle();
             runtime.block_on(main(cmd_recv, handle, on_conn, connection_state))
-        }));
+        })));
         Ok(CSocketManager {
             cmd_send,
             join_handle,
@@ -136,43 +140,86 @@ impl CSocketManager {
     }
 
     pub fn listen_on_addr(&self, addr: SocketAddr) -> std::io::Result<()> {
-        self.cmd_send
-            .send(Command::Listen { addr })
-            .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "cmd send failed"))
+        self.cmd_send.send(Command::Listen { addr }).map_err(|_| {
+            std::io::Error::new(std::io::ErrorKind::Other, "socket manager has stopped")
+        })
     }
 
     pub fn connect_to_addr(&self, addr: SocketAddr) -> std::io::Result<()> {
-        self.cmd_send
-            .send(Command::Connect { addr })
-            .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "cmd send failed"))
+        self.cmd_send.send(Command::Connect { addr }).map_err(|_| {
+            std::io::Error::new(std::io::ErrorKind::Other, "socket manager has stopped")
+        })
     }
 
     pub fn cancel_listen_on_addr(&self, addr: SocketAddr) -> std::io::Result<()> {
         self.cmd_send
             .send(Command::CancelListen { addr })
-            .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "cmd send failed"))
+            .map_err(|_| {
+                std::io::Error::new(std::io::ErrorKind::Other, "socket manager has stopped")
+            })
     }
 
-    pub fn detach(&mut self) {
-        drop(self.join_handle.take())
+    /// Calling this function will stop the runtime and all the background threads.
+    ///
+    /// This function will not block the current thread.
+    pub fn abort(&self) -> std::io::Result<()> {
+        self.cmd_send.send(Command::Abort).map_err(|_| {
+            std::io::Error::new(std::io::ErrorKind::Other, "socket manager has stopped")
+        })
     }
 
+    /// Join the socket manager to the current thread.
+    ///
+    /// This function will block the current thread until
+    /// `abort` is called from another thread.
     pub fn join(&mut self) -> std::io::Result<()> {
-        self.join_handle
-            .take()
-            .map(|h| {
-                h.join().map_err(|e| {
-                    tracing::error!("error joining socket manager: {:?}", e);
+        let handle = {
+            self.join_handle
+                .lock()
+                .map_err(|e| {
+                    tracing::error!("error locking join handle: {:?}", e);
                     std::io::Error::new(
                         std::io::ErrorKind::Other,
-                        format!("join handle failed on err {:?}", e),
+                        format!("lock failed on err {:?}", e),
                     )
-                })
-            })
-            .unwrap_or(Err(std::io::Error::new(
+                })?
+                .take()
+        };
+        handle.map_or(
+            Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
                 "cannot join twice",
-            )))
+            )),
+            |handle| {
+                handle.join().map_err(|e| {
+                    tracing::error!("socket manager join returned error: {:?}", e);
+                    std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        format!("socket manager join returned error: {:?}", e),
+                    )
+                })
+            },
+        )
+    }
+}
+
+impl Drop for CSocketManager {
+    fn drop(&mut self) {
+        let _ = self.abort();
+        let handle = {
+            match self.join_handle.lock() {
+                Ok(mut handle) => handle.take(),
+                Err(e) => {
+                    tracing::error!("error locking join handle on drop: {:?}", e);
+                    None
+                }
+            }
+        };
+        if let Some(handle) = handle {
+            if let Err(e) = handle.join() {
+                tracing::error!("error joining socket manager on drop: {:?}", e);
+            }
+        }
     }
 }
 
@@ -199,6 +246,7 @@ async fn main<
                     tracing::error!("cancel listening failed: not listening to {addr}");
                 }
             }
+            Command::Abort => break,
         }
     }
 }
@@ -435,4 +483,14 @@ async fn join_reader_writer<OnConn: Fn(ConnState<OnMsg>), OnMsg>(
         local_addr,
         peer_addr,
     });
+}
+
+#[cfg(test)]
+mod test_socket_manager {
+    fn test_sync<T: Sync>(t: T) {}
+
+    #[test]
+    fn test_socket_is_sync() {
+        test_sync(SocketManager::new());
+    }
 }

@@ -5,8 +5,11 @@
 int test_error_send_after_closed(int argc, char **argv) {
   const std::string addr = "127.0.0.1:12347";
 
-  StoreAllEventsSocketManager server;
-  StoreAllEventsSocketManager client(false);
+  auto server_cb = std::make_shared<StoreAllEventsConnCallback>();
+  auto client_cb = std::make_shared<StoreAllEventsConnCallback>(false);
+
+  SocketManager server(server_cb);
+  SocketManager client(client_cb);
 
   server.listen_on_addr(addr);
 
@@ -18,30 +21,30 @@ int test_error_send_after_closed(int argc, char **argv) {
   // wait for connection success (server)
   std::string s_conn_id;
   while (true) {
-    std::unique_lock<std::mutex> u_lock(server.mutex);
-    if (server.events.size() == 1) {
-      assert(std::get<0>(server.events[0]) == CONNECTED);
-      s_conn_id = std::get<1>(server.events[0]);
+    std::unique_lock<std::mutex> u_lock(server_cb->mutex);
+    if (server_cb->events.size() == 1) {
+      assert(std::get<0>(server_cb->events[0]) == CONNECTED);
+      s_conn_id = std::get<1>(server_cb->events[0]);
       break;
     }
-    server.cond.wait(u_lock);
+    server_cb->cond.wait(u_lock);
   }
 
   // close connection from server (by dropping sender)
-  server.drop_connection(s_conn_id);
+  server_cb->drop_connection(s_conn_id);
 
   // wait for connection closed (client)
   std::string c_conn_id;
   while (true) {
-    std::unique_lock<std::mutex> u_lock(client.mutex);
-    if (client.events.size() == 2) {
-      assert(std::get<0>(client.events[0]) == CONNECTED);
-      assert(std::get<0>(client.events[1]) == CONNECTION_CLOSED);
-      c_conn_id = std::get<1>(client.events[0]);
-      assert(std::get<1>(client.events[1]) == c_conn_id);
+    std::unique_lock<std::mutex> u_lock(client_cb->mutex);
+    if (client_cb->events.size() == 2) {
+      assert(std::get<0>(client_cb->events[0]) == CONNECTED);
+      assert(std::get<0>(client_cb->events[1]) == CONNECTION_CLOSED);
+      c_conn_id = std::get<1>(client_cb->events[0]);
+      assert(std::get<1>(client_cb->events[1]) == c_conn_id);
       break;
     }
-    client.cond.wait(u_lock);
+    client_cb->cond.wait(u_lock);
   }
 
   // Wait for 100ms
@@ -49,7 +52,7 @@ int test_error_send_after_closed(int argc, char **argv) {
 
   // should emit runtime error if attempt to send from client after closed
   try {
-    client.send_to(c_conn_id, "hello world");
+    client_cb->send_to(c_conn_id, "hello world");
   } catch (std::runtime_error &e) {
     std::cout << "Caught runtime error: " << e.what() << std::endl;
     return 0;

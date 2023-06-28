@@ -7,10 +7,10 @@ int test_error_listen(int argc, char **argv) {
   std::atomic_int sig(0);
   std::vector<std::tuple<std::string, std::shared_ptr<std::string>>> buffer;
 
-  BitFlagSocketManager test(lock, cond, sig, buffer);
+  auto test_cb = std::make_shared<BitFlagCallback>(lock, cond, sig, buffer);
+  SocketManager test(test_cb);
   test.listen_on_addr("127.0.0.1:12346");
   test.listen_on_addr("127.0.0.1:12346");
-  test.detach();
 
   // Wait for the connection to fail
   while (true) {
