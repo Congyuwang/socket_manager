@@ -12,9 +12,12 @@ int test_drop_sender(int argc, char **argv) {
   std::atomic_int sig(0);
   std::vector<std::tuple<std::string, std::shared_ptr<std::string>>> buffer;
 
-  StoreAllEventsSocketManager server;
+  auto server_cb = std::make_shared<StoreAllEventsConnCallback>();
   // bit flag socket drop sender directly, which should close the connection.
-  BitFlagSocketManager test(lock, cond, sig, buffer);
+  auto test_cb = std::make_unique<BitFlagCallback>(lock, cond, sig, buffer);
+
+  SocketManager server(server_cb);
+  SocketManager test(std::move(test_cb));
 
   server.listen_on_addr(local_addr);
   // wait 100ms for server to start listening
@@ -23,13 +26,13 @@ int test_drop_sender(int argc, char **argv) {
 
   // Wait for the connection to close
   while (true) {
-    std::unique_lock<std::mutex> u_lock(server.mutex);
-    if (server.events.size() == 2) {
-      assert(std::get<0>(server.events[0]) == CONNECTED);
-      assert(std::get<0>(server.events[1]) == CONNECTION_CLOSED);
+    std::unique_lock<std::mutex> u_lock(server_cb->mutex);
+    if (server_cb->events.size() == 2) {
+      assert(std::get<0>(server_cb->events[0]) == CONNECTED);
+      assert(std::get<0>(server_cb->events[1]) == CONNECTION_CLOSED);
       break;
     }
-    server.cond.wait(u_lock);
+    server_cb->cond.wait(u_lock);
   }
 
   while (true) {

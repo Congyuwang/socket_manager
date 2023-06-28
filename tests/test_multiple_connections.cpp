@@ -12,8 +12,11 @@ int test_multiple_connections(int argc, char **argv) {
   const std::string p1_addr_1 = "127.0.0.1:12351";
   const std::string p0_addr_0 = "127.0.0.1:12352";
 
-  StoreAllEventsSocketManager p0;
-  StoreAllEventsSocketManager p1;
+  auto p0_cb = std::make_shared<StoreAllEventsConnCallback>();
+  auto p1_cb = std::make_shared<StoreAllEventsConnCallback>();
+
+  SocketManager p0(p0_cb);
+  SocketManager p1(p1_cb);
 
   // listen
   p1.listen_on_addr(p1_addr_0);
@@ -36,67 +39,67 @@ int test_multiple_connections(int argc, char **argv) {
 
   // wait for all connections established (7 in total)
   while (true) {
-    std::unique_lock<std::mutex> u_lock(p0.mutex);
-    if (p0.events.size() == 7) {
-      for (auto &e: p0.events) {
+    std::unique_lock<std::mutex> u_lock(p0_cb->mutex);
+    if (p0_cb->events.size() == 7) {
+      for (auto &e: p0_cb->events) {
         std::cout << "p0 connection established: " << std::get<1>(e) << std::endl;
         assert(std::get<0>(e) == CONNECTED);
       }
       break;
     }
-    p0.cond.wait(u_lock);
+    p0_cb->cond.wait(u_lock);
   }
   while (true) {
-    std::unique_lock<std::mutex> u_lock(p1.mutex);
-    if (p1.events.size() == 7) {
-      for (auto &e: p1.events) {
+    std::unique_lock<std::mutex> u_lock(p1_cb->mutex);
+    if (p1_cb->events.size() == 7) {
+      for (auto &e: p1_cb->events) {
         std::cout << "p0 connection established: " << std::get<1>(e) << std::endl;
         assert(std::get<0>(e) == CONNECTED);
       }
       break;
     }
-    p1.cond.wait(u_lock);
+    p1_cb->cond.wait(u_lock);
   }
 
   // send messages from p0 to p1 and vice versa
-  for (auto &e: p0.events) {
-    p0.send_to(std::get<1>(e), "hello world");
+  for (auto &e: p0_cb->events) {
+    p0_cb->send_to(std::get<1>(e), "hello world");
   }
-  for (auto &e: p1.events) {
-    p1.send_to(std::get<1>(e), "hello world");
+  for (auto &e: p1_cb->events) {
+    p1_cb->send_to(std::get<1>(e), "hello world");
   }
 
   // check messages received in buffer
   while (true) {
-    std::unique_lock<std::mutex> u_lock(p0.mutex);
-    if (p0.buffer.size() == 7) {
-      for (auto &m: p0.buffer) {
+    std::unique_lock<std::mutex> u_lock(p0_cb->mutex);
+    if (p0_cb->buffer.size() == 7) {
+      for (auto &m: p0_cb->buffer) {
         std::cout << "p0 received from connection " << std::get<0>(m)
                   << ": " << *std::get<1>(m) << std::endl;
         assert(*std::get<1>(m) == "hello world");
       }
       break;
     }
-    p0.cond.wait(u_lock);
+    p0_cb->cond.wait(u_lock);
   }
   while (true) {
-    std::unique_lock<std::mutex> u_lock(p1.mutex);
-    if (p1.buffer.size() == 7) {
-      for (auto &m: p1.buffer) {
+    std::unique_lock<std::mutex> u_lock(p1_cb->mutex);
+    if (p1_cb->buffer.size() == 7) {
+      for (auto &m: p1_cb->buffer) {
         std::cout << "p1 received from connection " << std::get<0>(m)
                   << ": " << *std::get<1>(m) << std::endl;
         assert(*std::get<1>(m) == "hello world");
       }
       break;
     }
-    p1.cond.wait(u_lock);
+    p1_cb->cond.wait(u_lock);
   }
 
   // shutdown all connections from p0
   std::vector<std::string> connections;
   {
-    std::unique_lock<std::mutex> u_lock(p0.mutex);
-    for (auto &e: p0.events) {
+    std::unique_lock<std::mutex> u_lock(p0_cb->mutex);
+    for (auto &e: p0_cb->events) {
       if (std::get<0>(e) == CONNECTED) {
         connections.push_back(std::get<1>(e));
       }
@@ -104,31 +107,30 @@ int test_multiple_connections(int argc, char **argv) {
   }
   assert(connections.size() == 7);
   for (auto &c: connections) {
-    p0.drop_connection(c);
+    p0_cb->drop_connection(c);
   }
 
   // confirm all connections from p1 are closed
   while (true) {
-    std::cout << "p1 connected count: " << p1.connected_count.load() << std::endl;
-    if (p1.connected_count.load() == 0) {
+    std::cout << "p1 connected count: " << p1_cb->connected_count.load() << std::endl;
+    if (p1_cb->connected_count.load() == 0) {
       break;
     }
     {
-      std::unique_lock<std::mutex> u_lock(p1.mutex);
-      p1.cond.wait(u_lock);
+      std::unique_lock<std::mutex> u_lock(p1_cb->mutex);
+      p1_cb->cond.wait(u_lock);
     }
   }
   while (true) {
-    std::cout << "p0 connected count: " << p0.connected_count.load() << std::endl;
-    if (p0.connected_count.load() == 0) {
+    std::cout << "p0 connected count: " << p0_cb->connected_count.load() << std::endl;
+    if (p0_cb->connected_count.load() == 0) {
       break;
     }
     {
-      std::unique_lock<std::mutex> u_lock(p0.mutex);
-      p0.cond.wait(u_lock);
+      std::unique_lock<std::mutex> u_lock(p0_cb->mutex);
+      p0_cb->cond.wait(u_lock);
     }
   }
-
 
   return 0;
 }

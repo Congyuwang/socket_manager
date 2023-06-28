@@ -22,7 +22,9 @@ typedef struct CConnection CConnection;
 typedef struct CMsgSender CMsgSender;
 
 /**
- * The Main Struct of the Library
+ * The Main Struct of the Library.
+ *
+ * This struct is thread safe.
  */
 typedef struct CSocketManager CSocketManager;
 
@@ -212,17 +214,27 @@ int socket_manager_cancel_listen_on_addr(struct CSocketManager *manager,
                                          char **err);
 
 /**
- * Detach the `SocketManager`'s background runtime.
+ * Abort the `SocketManager`'s background runtime.
+ *
+ * Does not wait for the runtime to finish.
+ *
+ * # Errors
+ * Returns -1 on error, 0 on success.
+ * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
  */
-int socket_manager_detach(struct CSocketManager *manager, char **err);
+int socket_manager_abort(struct CSocketManager *manager, char **err);
 
 /**
  * Join and wait on the `SocketManager`.
+ *
+ * This function will block until the `SocketManager`'s background runtime finishes,
+ * (i.e., `abort` is called from another thread).
  */
 int socket_manager_join(struct CSocketManager *manager, char **err);
 
 /**
- * Destroy a `SocketManager` and free its memory.
+ * Calling this function will abort all background runtime and join on them,
+ * and free the `SocketManager`.
  */
 void socket_manager_free(struct CSocketManager *manager);
 
