@@ -141,7 +141,7 @@ pub enum ConnState<OnMsg> {
 
 /// Internal connection state.
 struct ConnectionState {
-    listeners: DashMap<SocketAddr, oneshot::Sender<()>>,
+    listeners: DashMap<SocketAddr, oneshot::Receiver<()>>,
 }
 
 impl ConnectionState {
@@ -282,9 +282,7 @@ async fn main<
             }
             Command::Connect { addr } => connect_to_addr(handle, addr, on_conn.clone()),
             Command::CancelListen { addr } => {
-                if let Some((_, cancel)) = connection_state.listeners.remove(&addr) {
-                    let _ = cancel.send(());
-                } else {
+                if connection_state.listeners.remove(&addr).is_none() {
                     tracing::error!("cancel listening failed: not listening to {addr}");
                 }
             }
@@ -375,16 +373,12 @@ fn listen_on_addr<
             }
         };
         tracing::info!("listening on addr={addr}");
-        let (cancel, mut cancel_recv) = oneshot::channel::<()>();
+        let (mut canceled, cancel) = oneshot::channel::<()>();
         connection_state.listeners.insert(addr, cancel);
         loop {
             let accept = listener.accept().fuse();
             tokio::select! {
                 biased;
-                _ = &mut cancel_recv => {
-                    tracing::info!("cancel listening on addr success (addr={addr})");
-                    break;
-                }
                 accept_result = accept => {
                     match accept_result {
                         Ok((stream, _)) => {
@@ -397,6 +391,10 @@ fn listen_on_addr<
                             tracing::error!("error accepting connection listening to {addr} ({e})");
                         }
                     }
+                }
+                _ = canceled.closed() => {
+                    tracing::info!("cancel listening on addr success (addr={addr})");
+                    break;
                 }
             }
         }
