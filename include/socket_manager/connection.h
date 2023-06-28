@@ -9,6 +9,8 @@
 
 namespace socket_manager {
 
+  static unsigned long long DEFAULT_WRITE_FLUSH_MILLI_SEC = 10;
+
   /**
    * Use Connection to send and receive messages from
    * established connections.
@@ -34,8 +36,13 @@ namespace socket_manager {
      *
      * @param msg_receiver the message receiver callback to
      *                    receive messages from the peer.
+     * @param write_flush_interval The interval in `milliseconds`
+     * of write buffer auto flushing. Set to 0 to disable auto flush.
+     * Default to 20 milliseconds.
      */
-    std::shared_ptr<MsgSender> start(std::unique_ptr<MsgReceiver> msg_receiver);
+    std::shared_ptr<MsgSender> start(
+            std::unique_ptr<MsgReceiver> msg_receiver,
+            unsigned long long write_flush_interval = DEFAULT_WRITE_FLUSH_MILLI_SEC);
 
     ~Connection();
 

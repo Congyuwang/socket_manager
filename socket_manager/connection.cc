@@ -4,7 +4,9 @@
 
 namespace socket_manager {
 
-  std::shared_ptr<MsgSender> Connection::start(std::unique_ptr<MsgReceiver> msg_receiver) {
+  std::shared_ptr<MsgSender> Connection::start(
+          std::unique_ptr<MsgReceiver> msg_receiver,
+          unsigned long long write_flush_interval) {
 
     // ensure that this function is called only once
     if (started.exchange(true, std::memory_order_seq_cst)) {
@@ -19,7 +21,7 @@ namespace socket_manager {
     CMsgSender *sender = connection_start(inner, OnMsgCallback{
             receiver.get(),
             MsgReceiver::on_msg
-    }, &err);
+    }, write_flush_interval, &err);
     if (sender == nullptr) {
       const std::string err_str(err);
       free(err);

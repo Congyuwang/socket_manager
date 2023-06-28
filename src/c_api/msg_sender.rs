@@ -9,10 +9,6 @@ use std::ptr::null_mut;
 /// # Thread Safety
 /// Thread safe.
 ///
-/// # Buffer
-/// The data might be buffered and not sent immediately,
-/// use `msg_sender_flush` to flush the buffer.
-///
 /// # Errors
 /// Returns -1 on error, 0 on success.
 /// On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
@@ -37,7 +33,7 @@ pub unsafe extern "C" fn msg_sender_send(
     }
 }
 
-/// Flush the message sender.
+/// Manually flush the message sender.
 ///
 /// # Thread Safety
 /// Thread safe.
