@@ -24,7 +24,7 @@ int test_multiple_connections(int argc, char **argv) {
   p0.listen_on_addr(p0_addr_0);
 
   // wait for 100ms
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
   // establish connections
   for (int i = 0; i < 3; i++) {

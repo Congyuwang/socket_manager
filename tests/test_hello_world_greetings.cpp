@@ -16,7 +16,7 @@ int test_hello_world_greetings(int argc, char **argv) {
 
   server.listen_on_addr(addr);
   // Wait for 100ms
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  std::this_thread::sleep_for(std::chrono::milliseconds(10));
   // create client
   client.connect_to_addr(addr);
 

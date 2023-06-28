@@ -47,7 +47,7 @@ int test_error_twice_start(int argc, char **argv) {
 
   bad.listen_on_addr(addr);
   // wait 100ms
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  std::this_thread::sleep_for(std::chrono::milliseconds(10));
   good.connect_to_addr(addr);
 
   // wait for error

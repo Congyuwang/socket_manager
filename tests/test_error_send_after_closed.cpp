@@ -14,7 +14,7 @@ int test_error_send_after_closed(int argc, char **argv) {
   server.listen_on_addr(addr);
 
   // Wait for 100ms
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
   client.connect_to_addr(addr);
 
@@ -48,7 +48,7 @@ int test_error_send_after_closed(int argc, char **argv) {
   }
 
   // Wait for 100ms
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
   // should emit runtime error if attempt to send from client after closed
   try {
