@@ -15,7 +15,7 @@ debug:
 build:
     cmake -B build -DCMAKE_BUILD_TYPE=Release
     cmake --build build --config Release
-    cd build && ctest --output-on-failure && cd ..
+    just test
 
 install:
     just clean
