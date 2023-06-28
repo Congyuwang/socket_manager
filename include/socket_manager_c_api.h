@@ -129,6 +129,8 @@ extern "C" {
  * # Arguments
  * * `conn` - A pointer to a `CConnection`.
  * * `on_msg` - A callback function that will be called when a message is received.
+ * * `write_flush_interval` - The interval in `milliseconds` of write buffer auto flushing.
+ *    Set to 0 to disable auto flush.
  * * `err` - A pointer to a pointer to a C string allocated by `malloc` on error.
  *
  * # Returns
@@ -140,6 +142,7 @@ extern "C" {
  */
 struct CMsgSender *connection_start(struct CConnection *conn,
                                     struct OnMsgCallback on_msg,
+                                    unsigned long long write_flush_interval,
                                     char **err);
 
 /**

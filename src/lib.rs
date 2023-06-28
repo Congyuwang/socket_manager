@@ -8,6 +8,7 @@ use futures::FutureExt;
 use std::net::SocketAddr;
 use std::num::NonZeroUsize;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader, BufWriter};
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::{TcpListener, TcpStream};
@@ -16,6 +17,7 @@ use tokio::runtime::{Handle, Runtime};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::sync::{mpsc, oneshot};
 use tokio::task::JoinHandle;
+use tokio::time::MissedTickBehavior;
 use tracing_subscriber::EnvFilter;
 
 const MAX_WORKER_THREADS: usize = 256;
@@ -59,13 +61,22 @@ pub struct Conn<OnMsg> {
 }
 
 struct ConnInner<OnMsg> {
-    callback_setter: oneshot::Sender<OnMsg>,
+    conn_config_setter: oneshot::Sender<(OnMsg, ConnConfig)>,
     send: CMsgSender,
+}
+
+/// Connection configuration
+pub struct ConnConfig {
+    write_flush_interval: Option<Duration>,
 }
 
 impl<OnMsg: Fn(Msg<'_>) + Send + 'static + Clone> Conn<OnMsg> {
     /// This function should be called only once.
-    pub fn start_connection(&mut self, on_msg: OnMsg) -> std::io::Result<CMsgSender> {
+    pub fn start_connection(
+        &mut self,
+        on_msg: OnMsg,
+        config: ConnConfig,
+    ) -> std::io::Result<CMsgSender> {
         let inner = {
             self.inner
                 .lock()
@@ -80,14 +91,16 @@ impl<OnMsg: Fn(Msg<'_>) + Send + 'static + Clone> Conn<OnMsg> {
         };
         match inner {
             Some(ConnInner {
-                callback_setter,
+                conn_config_setter,
                 send,
             }) => {
-                if callback_setter.send(on_msg).is_err() {
-                    tracing::error!("callback setter failed");
+                if conn_config_setter.send((on_msg, config)).is_err() {
+                    tracing::error!(
+                        "callback config setter failed (likely remote connection closed)"
+                    );
                     return Err(std::io::Error::new(
                         std::io::ErrorKind::Other,
-                        "callback setter failed on start connection",
+                        "callback config setter failed (likely remote connection closed)",
                     ));
                 }
                 Ok(send)
@@ -322,7 +335,7 @@ fn connect_to_addr<
     // spawn listening task
     let connect_result = handle.clone().spawn(async move {
         let stream = TcpStream::connect(addr).await?;
-        handle_connection(&handle, stream, on_conn_clone)?;
+        handle_connection(&handle, stream, on_conn_clone).await?;
         Ok::<(), std::io::Error>(())
     });
     // handle connection result
@@ -367,6 +380,7 @@ fn listen_on_addr<
         loop {
             let accept = listener.accept().fuse();
             tokio::select! {
+                biased;
                 _ = &mut cancel_recv => {
                     tracing::info!("cancel listening on addr success (addr={addr})");
                     break;
@@ -374,7 +388,8 @@ fn listen_on_addr<
                 accept_result = accept => {
                     match accept_result {
                         Ok((stream, _)) => {
-                            if let Err(e) = handle_connection(&handle, stream, on_conn.clone()) {
+                            let on_conn = on_conn.clone();
+                            if let Err(e) = handle_connection(&handle, stream, on_conn).await {
                                 tracing::error!("error handling connection local={addr} ({e})");
                             }
                         }
@@ -389,7 +404,7 @@ fn listen_on_addr<
 }
 
 /// This function handles connection from a client.
-fn handle_connection<
+async fn handle_connection<
     OnConn: Fn(ConnState<OnMsg>) + Send + 'static,
     OnMsg: Fn(Msg<'_>) + Send + 'static,
 >(
@@ -401,7 +416,7 @@ fn handle_connection<
     let local_addr = stream.local_addr()?;
     let peer_addr = stream.peer_addr()?;
     let (send, recv) = mpsc::unbounded_channel::<SendCommand>();
-    let (callback_setter, callback) = oneshot::channel::<OnMsg>();
+    let (conn_config_setter, conn_config) = oneshot::channel::<(OnMsg, ConnConfig)>();
     let send = CMsgSender { send };
 
     tracing::info!("new connection: local_addr={local_addr}, peer_addr={peer_addr}");
@@ -411,16 +426,27 @@ fn handle_connection<
         peer_addr,
         conn: Conn {
             inner: std::sync::Mutex::new(Some(ConnInner {
-                callback_setter,
+                conn_config_setter,
                 send,
             })),
         },
     });
 
+    // note: this returns error only if conn_config_setter is dropped
+    // without sending a value, which should never happen.
+    let (on_msg, conn_config) = conn_config.await.map_err(|e| {
+        std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("conn_config_setter is dropped ({:?})", e),
+        )
+    })?;
+
+    let write_flush_interval = conn_config.write_flush_interval;
+
     // spawn reader and writer
     let (read, write) = stream.into_split();
-    let writer = handle.spawn(handle_writer(write, recv));
-    let reader = handle.spawn(handle_reader(read, callback));
+    let writer = handle.spawn(handle_writer(write, recv, write_flush_interval));
+    let reader = handle.spawn(handle_reader(read, on_msg));
 
     // join reader and writer
     handle.spawn(join_reader_writer(
@@ -433,6 +459,56 @@ fn handle_connection<
 
 /// Receive bytes from recv and write to WriteHalf of TcpStream.
 async fn handle_writer(
+    write: OwnedWriteHalf,
+    recv: UnboundedReceiver<SendCommand>,
+    write_flush_interval: Option<Duration>,
+) -> std::io::Result<()> {
+    match write_flush_interval {
+        None => handle_writer_no_auto_flush(write, recv).await,
+        Some(duration) => {
+            if duration.is_zero() {
+                handle_writer_no_auto_flush(write, recv).await
+            } else {
+                handle_writer_auto_flush(write, recv, duration).await
+            }
+        }
+    }
+}
+
+async fn handle_writer_auto_flush(
+    mut write: OwnedWriteHalf,
+    mut recv: UnboundedReceiver<SendCommand>,
+    duration: Duration,
+) -> std::io::Result<()> {
+    debug_assert!(!duration.is_zero());
+    write.writable().await?;
+    let mut buf_writer = BufWriter::new(&mut write);
+    let mut flush_tick = tokio::time::interval(duration);
+    flush_tick.set_missed_tick_behavior(MissedTickBehavior::Skip);
+    loop {
+        tokio::select! {
+            // biased towards recv, skip flush tick if missed.
+            // remove the usage of random generator to improve efficiency.
+            biased;
+            cmd = recv.recv() => {
+                match cmd {
+                    Some(SendCommand::Send(msg)) => buf_writer.write_all(&msg).await?,
+                    Some(SendCommand::Flush) => buf_writer.flush().await?,
+                    None => break,
+                }
+            }
+            _ = flush_tick.tick() => {
+                buf_writer.flush().await?;
+            }
+        }
+    }
+    // flush and close
+    buf_writer.flush().await?;
+    buf_writer.shutdown().await?;
+    Ok(())
+}
+
+async fn handle_writer_no_auto_flush(
     mut write: OwnedWriteHalf,
     mut recv: UnboundedReceiver<SendCommand>,
 ) -> std::io::Result<()> {
@@ -444,6 +520,7 @@ async fn handle_writer(
             SendCommand::Flush => buf_writer.flush().await?,
         }
     }
+    // flush and close
     buf_writer.flush().await?;
     buf_writer.shutdown().await?;
     Ok(())
@@ -452,15 +529,9 @@ async fn handle_writer(
 /// Receive bytes ReadHalf of TcpStream and call `on_msg` callback.
 async fn handle_reader<OnMsg: Fn(Msg<'_>) + Send + 'static>(
     read: OwnedReadHalf,
-    callback: oneshot::Receiver<OnMsg>,
+    on_msg: OnMsg,
 ) -> std::io::Result<()> {
     read.readable().await?;
-    let on_msg = callback.await.map_err(|e| {
-        std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("error receiving callback for connection ({e})"),
-        )
-    })?;
     let mut buf_reader = BufReader::new(read);
     let mut read_buf = [0u8; BUFFER_SIZE];
     loop {

@@ -1,8 +1,10 @@
 use crate::c_api::structs::{CConnection, OnMsgCallback};
 use crate::c_api::utils::write_error_c_str;
-use crate::CMsgSender;
+use crate::{CMsgSender, ConnConfig};
 use std::ffi::c_char;
+use std::os::raw::c_ulonglong;
 use std::ptr::null_mut;
+use std::time::Duration;
 
 /// Start a connection with the given `OnMsgCallback`, and return a pointer to a `CMsgSender`.
 ///
@@ -20,6 +22,8 @@ use std::ptr::null_mut;
 /// # Arguments
 /// * `conn` - A pointer to a `CConnection`.
 /// * `on_msg` - A callback function that will be called when a message is received.
+/// * `write_flush_interval` - The interval in `milliseconds` of write buffer auto flushing.
+///    Set to 0 to disable auto flush.
 /// * `err` - A pointer to a pointer to a C string allocated by `malloc` on error.
 ///
 /// # Returns
@@ -32,10 +36,21 @@ use std::ptr::null_mut;
 pub unsafe extern "C" fn connection_start(
     conn: *mut CConnection,
     on_msg: OnMsgCallback,
+    write_flush_interval: c_ulonglong,
     err: *mut *mut c_char,
 ) -> *mut CMsgSender {
     let conn = &mut (*conn).conn;
-    match conn.start_connection(on_msg) {
+    let write_flush_interval = if write_flush_interval == 0 {
+        None
+    } else {
+        Some(Duration::from_millis(write_flush_interval))
+    };
+    match conn.start_connection(
+        on_msg,
+        ConnConfig {
+            write_flush_interval,
+        },
+    ) {
         Ok(sender) => {
             *err = null_mut();
             Box::into_raw(Box::new(sender))
