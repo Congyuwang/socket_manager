@@ -2,6 +2,8 @@
 
 enable_testing()
 
+find_package(Threads REQUIRED)
+
 # all files named test*.cpp are included
 set(test_files)
 file(GLOB test_file_paths test*.cpp)
@@ -15,8 +17,7 @@ create_test_sourcelist(Tests CommonCxxTests.cxx ${test_files})
 
 # build test driver
 add_executable(CommonCxxTests ${Tests})
-target_link_libraries(CommonCxxTests PUBLIC socket_manager)
-target_include_directories(CommonCxxTests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(CommonCxxTests PUBLIC socket_manager ${CMAKE_THREAD_LIBS_INIT})
 
 # Add all the ADD_TEST for each test
 set(TestsToRun ${Tests})
