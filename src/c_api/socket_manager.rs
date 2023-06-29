@@ -172,11 +172,13 @@ pub unsafe extern "C" fn socket_manager_abort(
 /// Join and wait on the `SocketManager`.
 ///
 /// # Thread Safety
-/// Thread safe. But should be called no more than once,
-/// otherwise throws runtime error.
+/// Thread safe. Calling a second time will return immediately.
 ///
 /// This function will block until the `SocketManager`'s background runtime finishes,
 /// (i.e., `abort` is called from another thread).
+///
+/// # Errors
+/// Join returns error if the runtime panicked.
 #[no_mangle]
 pub unsafe extern "C" fn socket_manager_join(
     manager: *mut CSocketManager,

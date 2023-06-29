@@ -75,8 +75,10 @@ namespace socket_manager {
      * Join and wait on the `SocketManager` background runtime.
      * Call `abort` in another thread to stop the background runtime.
      *
-     * Thread safe. But should be called no more than once,
-     * otherwise throws runtime error.
+     * # Thread Safety
+     * Thread safe.
+     *
+     * Returns immediately on the second call.
      *
      * Returns error if the background runtime has already been joined
      * or if the runtime panicked.
