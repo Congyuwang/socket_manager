@@ -7,6 +7,7 @@ use dashmap::DashMap;
 use futures::FutureExt;
 use std::net::SocketAddr;
 use std::num::NonZeroUsize;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader, BufWriter};
@@ -29,7 +30,11 @@ const BUFFER_SIZE: usize = 1024 * 8;
 /// This struct is thread safe.
 pub struct CSocketManager {
     cmd_send: UnboundedSender<Command>,
-    join_handle: std::sync::Mutex<Option<std::thread::JoinHandle<()>>>,
+
+    // use has_joined to fence the join_handle,
+    // both should only be accessed by the `join` method.
+    has_joined: AtomicBool,
+    join_handle: Option<std::thread::JoinHandle<()>>,
 }
 
 /// Drop the sender to close the connection.
@@ -57,7 +62,8 @@ enum Command {
 
 /// The connection struct for the on_conn callback.
 pub struct Conn<OnMsg> {
-    inner: std::sync::Mutex<Option<ConnInner<OnMsg>>>,
+    has_started: AtomicBool,
+    inner: Option<ConnInner<OnMsg>>,
 }
 
 struct ConnInner<OnMsg> {
@@ -77,39 +83,21 @@ impl<OnMsg: Fn(Msg<'_>) + Send + 'static + Clone> Conn<OnMsg> {
         on_msg: OnMsg,
         config: ConnConfig,
     ) -> std::io::Result<CMsgSender> {
-        let inner = {
-            self.inner
-                .lock()
-                .map_err(|e| {
-                    tracing::error!("error locking connection inner: {:?}", e);
-                    std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        format!("error locking connection inner {:?}", e),
-                    )
-                })?
-                .take()
-        };
-        match inner {
-            Some(ConnInner {
-                conn_config_setter,
-                send,
-            }) => {
-                if conn_config_setter.send((on_msg, config)).is_err() {
-                    tracing::error!(
-                        "callback config setter failed (likely remote connection closed)"
-                    );
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        "callback config setter failed (likely remote connection closed)",
-                    ));
-                }
-                Ok(send)
-            }
-            _ => Err(std::io::Error::new(
+        if self.has_started.swap(true, Ordering::SeqCst) {
+            return Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
                 "connection already started",
-            )),
+            ));
         }
+        let conn = self.inner.take().unwrap();
+        if conn.conn_config_setter.send((on_msg, config)).is_err() {
+            tracing::error!("callback config setter failed (likely remote connection closed)");
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "callback config setter failed (likely remote connection closed)",
+            ));
+        }
+        Ok(conn.send)
     }
 }
 
@@ -171,12 +159,13 @@ impl CSocketManager {
         let runtime = start_runtime(n_threads)?;
         let (cmd_send, cmd_recv) = mpsc::unbounded_channel::<Command>();
         let connection_state = ConnectionState::new();
-        let join_handle = std::sync::Mutex::new(Some(std::thread::spawn(move || {
+        let join_handle = Some(std::thread::spawn(move || {
             let handle = runtime.handle();
             runtime.block_on(main(cmd_recv, handle, on_conn, connection_state))
-        })));
+        }));
         Ok(CSocketManager {
             cmd_send,
+            has_joined: AtomicBool::new(false),
             join_handle,
         })
     }
@@ -214,34 +203,19 @@ impl CSocketManager {
     ///
     /// This function will block the current thread until
     /// `abort` is called from another thread.
+    ///
+    /// It returns immediately if called a second time.
     pub fn join(&mut self) -> std::io::Result<()> {
-        let handle = {
-            self.join_handle
-                .lock()
-                .map_err(|e| {
-                    tracing::error!("error locking join handle: {:?}", e);
-                    std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        format!("lock failed on err {:?}", e),
-                    )
-                })?
-                .take()
-        };
-        handle.map_or(
-            Err(std::io::Error::new(
+        if self.has_joined.swap(true, Ordering::SeqCst) {
+            return Ok(());
+        }
+        self.join_handle.take().unwrap().join().map_err(|e| {
+            tracing::error!("socket manager join returned error: {:?}", e);
+            std::io::Error::new(
                 std::io::ErrorKind::Other,
-                "cannot join twice",
-            )),
-            |handle| {
-                handle.join().map_err(|e| {
-                    tracing::error!("socket manager join returned error: {:?}", e);
-                    std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        format!("socket manager join returned error: {:?}", e),
-                    )
-                })
-            },
-        )
+                format!("socket manager join returned error: {:?}", e),
+            )
+        })
     }
 }
 
@@ -423,10 +397,11 @@ async fn handle_connection<
         local_addr,
         peer_addr,
         conn: Conn {
-            inner: std::sync::Mutex::new(Some(ConnInner {
+            has_started: AtomicBool::new(false),
+            inner: Some(ConnInner {
                 conn_config_setter,
                 send,
-            })),
+            }),
         },
     });
 
