@@ -29,8 +29,11 @@ namespace socket_manager {
      * The `start` function must be called exactly once.
      * Calling it twice will result in runtime error.
      *
-     * Dropping it directly will close the connection,
-     * evoking `on_connection_close`.
+     * Dropping `Connection` without calling `start` results
+     * in an established connection being constantly in wait,
+     * which is resource leak. (dev note: because a shared
+     * pointer of `Connection` will continue to be stored
+     * in `ConnCallback` object until connection close signal).
      *
      * To close the connection, drop the returned
      * MsgSender object.
