@@ -190,6 +190,10 @@ namespace socket_manager {
           }
           return nullptr;
         }
+        default: {
+          // should never reach here
+          return nullptr;
+        }
       }
     }
 
