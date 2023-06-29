@@ -39,6 +39,13 @@ namespace socket_manager {
 
     friend class Connection;
 
+    static char* string_dup(const std::string &str) {
+      auto size = str.size();
+      char *buffer = new char[size + 1];
+      memcpy(buffer, str.c_str(), size + 1);
+      return buffer;
+    }
+
     static char *on_msg(void *receiver_ptr,
                         ConnMsg msg) {
       auto receiver = reinterpret_cast<MsgReceiver *>(receiver_ptr);
@@ -46,9 +53,9 @@ namespace socket_manager {
       try {
         receiver->on_message(data_ptr);
       } catch (std::runtime_error &e) {
-        return strdup(e.what());
+        return string_dup(e.what());
       } catch (...) {
-        return strdup("unknown error");
+        return string_dup("unknown error");
       }
       return nullptr;
     }

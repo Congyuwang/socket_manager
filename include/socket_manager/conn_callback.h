@@ -112,6 +112,13 @@ namespace socket_manager {
 
     friend class SocketManager;
 
+    static char* string_dup(const std::string &str) {
+      auto size = str.size();
+      char *buffer = new char[size + 1];
+      memcpy(buffer, str.c_str(), size + 1);
+      return buffer;
+    }
+
     static char* on_conn(void *conn_cb_ptr, ConnStates states) {
       auto conn_cb = static_cast<ConnCallback *>(conn_cb_ptr);
       switch (states.Code) {
@@ -130,9 +137,9 @@ namespace socket_manager {
           try {
             conn_cb->on_connect(local_addr, peer_addr, conn);
           } catch (std::runtime_error &e) {
-            return strdup(e.what());
+            return string_dup(e.what());
           } catch (...) {
-            return strdup("unknown error");
+            return string_dup("unknown error");
           }
           return nullptr;
         }
@@ -149,9 +156,9 @@ namespace socket_manager {
           try {
             conn_cb->on_connection_close(local_addr, peer_addr);
           } catch (std::runtime_error &e) {
-            return strdup(e.what());
+            return string_dup(e.what());
           } catch (...) {
-            return strdup("unknown error");
+            return string_dup("unknown error");
           }
           return nullptr;
         }
@@ -162,9 +169,9 @@ namespace socket_manager {
           try {
             conn_cb->on_listen_error(addr, err);
           } catch (std::runtime_error &e) {
-            return strdup(e.what());
+            return string_dup(e.what());
           } catch (...) {
-            return strdup("unknown error");
+            return string_dup("unknown error");
           }
           return nullptr;
         }
@@ -175,9 +182,9 @@ namespace socket_manager {
           try{
             conn_cb->on_connect_error(addr, err);
           } catch (std::runtime_error &e) {
-            return strdup(e.what());
+            return string_dup(e.what());
           } catch (...) {
-            return strdup("unknown error");
+            return string_dup("unknown error");
           }
           return nullptr;
         }
