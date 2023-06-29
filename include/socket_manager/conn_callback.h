@@ -5,8 +5,9 @@
 #include <mutex>
 #include <string>
 #include <unordered_map>
-#include "connection.h"
 #include <stdexcept>
+#include <cstring>
+#include "connection.h"
 
 namespace socket_manager {
 
@@ -112,14 +113,14 @@ namespace socket_manager {
 
     friend class SocketManager;
 
-    static char* string_dup(const std::string &str) {
+    static char *string_dup(const std::string &str) {
       auto size = str.size();
       char *buffer = new char[size + 1];
       memcpy(buffer, str.c_str(), size + 1);
       return buffer;
     }
 
-    static char* on_conn(void *conn_cb_ptr, ConnStates states) {
+    static char *on_conn(void *conn_cb_ptr, ConnStates states) {
       auto conn_cb = static_cast<ConnCallback *>(conn_cb_ptr);
       switch (states.Code) {
         case ConnStateCode::Connect: {
@@ -179,7 +180,7 @@ namespace socket_manager {
           auto connect_error = states.Data.OnConnectError;
           auto addr = std::string(connect_error.Addr);
           auto err = std::string(connect_error.Err);
-          try{
+          try {
             conn_cb->on_connect_error(addr, err);
           } catch (std::runtime_error &e) {
             return string_dup(e.what());

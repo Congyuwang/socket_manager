@@ -4,6 +4,7 @@
 #include <string>
 #include <stdexcept>
 #include <memory>
+#include <cstring>
 #include "socket_manager_c_api.h"
 
 namespace socket_manager {
@@ -39,7 +40,7 @@ namespace socket_manager {
 
     friend class Connection;
 
-    static char* string_dup(const std::string &str) {
+    static char *string_dup(const std::string &str) {
       auto size = str.size();
       char *buffer = new char[size + 1];
       memcpy(buffer, str.c_str(), size + 1);
