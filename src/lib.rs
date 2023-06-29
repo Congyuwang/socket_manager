@@ -76,7 +76,7 @@ pub struct ConnConfig {
     write_flush_interval: Option<Duration>,
 }
 
-impl<OnMsg: Fn(Msg<'_>) + Send + 'static + Clone> Conn<OnMsg> {
+impl<OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + 'static + Clone> Conn<OnMsg> {
     /// This function should be called only once.
     pub fn start_connection(
         &mut self,
@@ -91,10 +91,12 @@ impl<OnMsg: Fn(Msg<'_>) + Send + 'static + Clone> Conn<OnMsg> {
         }
         let conn = self.inner.take().unwrap();
         if conn.conn_config_setter.send((on_msg, config)).is_err() {
-            tracing::error!("callback config setter failed (likely remote connection closed)");
+            // if 'OnConnect' callback throws error before calling start_connection,
+            // might result in conn_config receiver being dropped before this.
+            tracing::error!("callback config setter send failed");
             return Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
-                "callback config setter failed (likely remote connection closed)",
+                "callback config setter send failed",
             ));
         }
         Ok(conn.send)
@@ -110,6 +112,8 @@ pub enum ConnState<OnMsg> {
         conn: Conn<OnMsg>,
     },
     /// sent on connection closed
+    /// `OnConnection` and `OnConnectionClose` are
+    /// sent within `handle connection`.
     OnConnectionClose {
         local_addr: SocketAddr,
         peer_addr: SocketAddr,
@@ -119,8 +123,9 @@ pub enum ConnState<OnMsg> {
         addr: SocketAddr,
         error: std::io::Error,
     },
-    /// sent on connection error.
-    /// won't sent if connection successfully established.
+    /// sent on connection error
+    /// `OnConnect` and `OnConnectError`
+    /// are mutually exclusive.
     OnConnectError {
         addr: SocketAddr,
         error: std::io::Error,
@@ -143,8 +148,8 @@ impl ConnectionState {
 impl CSocketManager {
     /// start background threads to run the runtime
     pub fn init<
-        OnConn: Fn(ConnState<OnMsg>) + Send + 'static + Clone,
-        OnMsg: Fn(Msg<'_>) + Send + 'static + Clone,
+        OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + 'static + Clone,
+        OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + 'static + Clone,
     >(
         on_conn: OnConn,
         n_threads: usize,
@@ -231,8 +236,8 @@ impl Drop for CSocketManager {
 
 /// The main loop running in the background.
 async fn main<
-    OnConn: Fn(ConnState<OnMsg>) + Send + 'static + Clone,
-    OnMsg: Fn(Msg<'_>) + Send + 'static + Clone,
+    OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + 'static + Clone,
+    OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + 'static + Clone,
 >(
     mut cmd_recv: UnboundedReceiver<Command>,
     handle: &Handle,
@@ -247,7 +252,7 @@ async fn main<
             Command::Connect { addr } => connect_to_addr(handle, addr, on_conn.clone()),
             Command::CancelListen { addr } => {
                 if connection_state.listeners.remove(&addr).is_none() {
-                    tracing::error!("cancel listening failed: not listening to {addr}");
+                    tracing::warn!("cancel listening failed: not listening to {addr}");
                 }
             }
             Command::Abort => break,
@@ -284,140 +289,169 @@ fn start_runtime(n_threads: usize) -> std::io::Result<Runtime> {
 
 /// This function connects to a port.
 fn connect_to_addr<
-    OnConn: Fn(ConnState<OnMsg>) + Send + 'static + Clone,
-    OnMsg: Fn(Msg<'_>) + Send + 'static,
+    OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + 'static + Clone,
+    OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + 'static,
 >(
     handle: &Handle,
     addr: SocketAddr,
     on_conn: OnConn,
 ) {
     let handle = handle.clone();
-    let handle_clone = handle.clone();
-    let on_conn_clone = on_conn.clone();
-    // spawn listening task
-    let connect_result = handle.clone().spawn(async move {
+
+    // attempt to connect to address, and obtain connection info
+    let connect_result = async move {
         let stream = TcpStream::connect(addr).await?;
-        handle_connection(&handle, stream, on_conn_clone).await?;
-        Ok::<(), std::io::Error>(())
-    });
-    // handle connection result
-    handle_clone.spawn(async move {
+        let (local, peer) = get_address_from_stream(&stream)?;
+        Ok::<(TcpStream, SocketAddr, SocketAddr), std::io::Error>((stream, local, peer))
+    };
+
+    // spawn connecting task
+    handle.clone().spawn(async move {
+        // trying to connect to address
         match connect_result.await {
-            Ok(Err(e)) => {
-                tracing::error!("error connecting to addr: {e}");
-                on_conn(ConnState::OnConnectError { addr, error: e });
+            Ok((stream, local_addr, peer_addr)) => {
+                handle_connection(local_addr, peer_addr, handle, stream, on_conn);
             }
-            Err(e) => {
-                tracing::error!("error joining connecting task to addr: {:?}", e);
+            Err(error) => {
+                tracing::warn!("error connecting tp addr={addr}: {error}");
+                let _ = on_conn(ConnState::OnConnectError { addr, error });
             }
-            _ => {}
         }
     });
 }
 
 /// This function listens on a port.
 fn listen_on_addr<
-    OnConn: Fn(ConnState<OnMsg>) + Send + 'static + Clone,
-    OnMsg: Fn(Msg<'_>) + Send + 'static + Clone,
+    OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + 'static + Clone,
+    OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + 'static + Clone,
 >(
     handle: &Handle,
     addr: SocketAddr,
     on_conn: OnConn,
     connection_state: Arc<ConnectionState>,
 ) {
-    let handle = handle.clone();
     // spawn listening task
+    let handle = handle.clone();
+    let on_conn_clone = on_conn.clone();
     handle.clone().spawn(async move {
+        // bind to address
         let listener = match TcpListener::bind(addr).await {
             Ok(l) => l,
             Err(e) => {
-                tracing::error!("error listening on addr={addr}: {e}");
-                on_conn(ConnState::OnListenError { addr, error: e });
+                tracing::warn!("error listening on addr={addr}: {e}");
+                let _ = on_conn(ConnState::OnListenError { addr, error: e });
                 return;
             }
         };
+
+        // insert a cancel handle
         tracing::info!("listening on addr={addr}");
-        let (mut canceled, cancel) = oneshot::channel::<()>();
+        let (canceled, cancel) = oneshot::channel::<()>();
         connection_state.listeners.insert(addr, cancel);
-        loop {
-            let accept = listener.accept().fuse();
-            tokio::select! {
-                biased;
-                accept_result = accept => {
-                    match accept_result {
-                        Ok((stream, _)) => {
-                            let on_conn = on_conn.clone();
-                            if let Err(e) = handle_connection(&handle, stream, on_conn).await {
-                                tracing::error!("error handling connection local={addr} ({e})");
-                            }
-                        }
-                        Err(e) => {
-                            tracing::error!("error accepting connection listening to {addr} ({e})");
-                        }
-                    }
-                }
-                _ = canceled.closed() => {
-                    tracing::info!("cancel listening on addr success (addr={addr})");
-                    break;
-                }
-            }
-        }
+
+        // async loop to accept connections
+        accept_connections(addr, listener, &handle, canceled, on_conn_clone).await;
     });
 }
 
-/// This function handles connection from a client.
-async fn handle_connection<
-    OnConn: Fn(ConnState<OnMsg>) + Send + 'static,
-    OnMsg: Fn(Msg<'_>) + Send + 'static,
+async fn accept_connections<
+    OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + 'static + Clone,
+    OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + 'static + Clone,
 >(
+    addr: SocketAddr,
+    listener: TcpListener,
     handle: &Handle,
+    mut canceled: oneshot::Sender<()>,
+    on_conn: OnConn,
+) {
+    loop {
+        tokio::select! {
+            biased;
+            Ok((stream, _)) = listener.accept() => {
+                let on_conn = on_conn.clone();
+                match get_address_from_stream(&stream) {
+                    Err(e) => {
+                        tracing::error!("failed to read address from stream: {e}");
+                    }
+                    Ok((local_addr, peer_addr)) => {
+                        handle_connection(local_addr, peer_addr, handle.clone(), stream, on_conn);
+                    }
+                }
+            }
+            _ = canceled.closed() => {
+                tracing::info!("cancel listening on addr success (addr={addr})");
+                break;
+            }
+            else => {
+                tracing::error!("error accepting connection listening to {addr}");
+            }
+        }
+    }
+}
+
+/// This function handles connection from a client.
+fn handle_connection<
+    OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + 'static + Clone,
+    OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + 'static,
+>(
+    local_addr: SocketAddr,
+    peer_addr: SocketAddr,
+    handle: Handle,
     stream: TcpStream,
     on_conn: OnConn,
-) -> std::io::Result<()> {
-    // generate connection info
-    let local_addr = stream.local_addr()?;
-    let peer_addr = stream.peer_addr()?;
+) {
     let (send, recv) = mpsc::unbounded_channel::<SendCommand>();
     let (conn_config_setter, conn_config) = oneshot::channel::<(OnMsg, ConnConfig)>();
     let send = CMsgSender { send };
 
-    tracing::info!("new connection: local_addr={local_addr}, peer_addr={peer_addr}");
-    // call `on_conn` callback
-    on_conn(ConnState::OnConnect {
-        local_addr,
-        peer_addr,
-        conn: Conn {
-            has_started: AtomicBool::new(false),
-            inner: Some(ConnInner {
-                conn_config_setter,
-                send,
-            }),
-        },
+    let on_conn_clone = on_conn.clone();
+    // Call `on_conn` callback, and wait for user to call `start` on connection.
+    // Return the OnMsg callback and conn_config.
+    let wait_for_start = async move {
+        on_conn(ConnState::OnConnect {
+            local_addr,
+            peer_addr,
+            conn: Conn {
+                has_started: AtomicBool::new(false),
+                inner: Some(ConnInner {
+                    conn_config_setter,
+                    send,
+                }),
+            },
+        })
+        .map_err(|_| ())?;
+
+        // Try to wait for connection start signal.
+        // note: this returns error only if conn_config_setter is dropped
+        // without sending a value (connection dropped without calling start).
+        let (on_msg, conn_config) = conn_config.await.map_err(|_| {
+            tracing::warn!("connection dropped (local={local_addr}, peer={peer_addr})");
+        })?;
+
+        Ok::<(OnMsg, ConnConfig), ()>((on_msg, conn_config))
+    };
+
+    handle.clone().spawn(async move {
+        tracing::info!("new connection: local_addr={local_addr}, peer_addr={peer_addr}");
+
+        if let Ok((on_msg, conn_config)) = wait_for_start.await {
+            let write_flush_interval = conn_config.write_flush_interval;
+
+            // spawn reader and writer
+            let (read, write) = stream.into_split();
+            let writer = handle.spawn(handle_writer(write, recv, write_flush_interval));
+            let reader = handle.spawn(handle_reader(read, on_msg));
+
+            // join reader and writer
+            join_reader_writer((writer, reader), (local_addr, peer_addr)).await
+        }
+
+        tracing::info!("connection closed: local_addr={local_addr}, peer_addr={peer_addr}");
+        let _ = on_conn_clone(ConnState::OnConnectionClose {
+            local_addr,
+            peer_addr,
+        });
     });
-
-    // note: this returns error only if conn_config_setter is dropped
-    // without sending a value, which should never happen.
-    let (on_msg, conn_config) = conn_config.await.map_err(|e| {
-        std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("conn_config_setter is dropped ({:?})", e),
-        )
-    })?;
-
-    let write_flush_interval = conn_config.write_flush_interval;
-
-    // spawn reader and writer
-    let (read, write) = stream.into_split();
-    let writer = handle.spawn(handle_writer(write, recv, write_flush_interval));
-    let reader = handle.spawn(handle_reader(read, on_msg));
-
-    // join reader and writer
-    handle.spawn(join_reader_writer(
-        (writer, reader),
-        (local_addr, peer_addr),
-        on_conn,
-    ));
-    Ok(())
 }
 
 /// Receive bytes from recv and write to WriteHalf of TcpStream.
@@ -490,7 +524,7 @@ async fn handle_writer_no_auto_flush(
 }
 
 /// Receive bytes ReadHalf of TcpStream and call `on_msg` callback.
-async fn handle_reader<OnMsg: Fn(Msg<'_>) + Send + 'static>(
+async fn handle_reader<OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + 'static>(
     read: OwnedReadHalf,
     on_msg: OnMsg,
 ) -> std::io::Result<()> {
@@ -505,9 +539,11 @@ async fn handle_reader<OnMsg: Fn(Msg<'_>) + Send + 'static>(
                     return Ok(());
                 }
                 tracing::trace!("received {n} bytes", n = n);
-                on_msg(Msg {
+                if let Err(e) = on_msg(Msg {
                     bytes: &read_buf[0..n],
-                });
+                }) {
+                    return Err(std::io::Error::new(std::io::ErrorKind::Other, e));
+                }
             }
             Err(e) => return Err(e),
         }
@@ -515,13 +551,12 @@ async fn handle_reader<OnMsg: Fn(Msg<'_>) + Send + 'static>(
 }
 
 /// On connection end, remove connection from connection state.
-async fn join_reader_writer<OnConn: Fn(ConnState<OnMsg>), OnMsg>(
+async fn join_reader_writer(
     (writer, reader): (
         JoinHandle<std::io::Result<()>>,
         JoinHandle<std::io::Result<()>>,
     ),
     (local_addr, peer_addr): (SocketAddr, SocketAddr),
-    on_conn: OnConn,
 ) {
     let writer_abort = writer.abort_handle();
     let reader_abort = reader.abort_handle();
@@ -531,7 +566,7 @@ async fn join_reader_writer<OnConn: Fn(ConnState<OnMsg>), OnMsg>(
         tokio::select! {
             w = &mut writer => {
                 if let Err(e) = w {
-                    tracing::error!("writer stopped local={local_addr}, peer={peer_addr} on error ({e})");
+                    tracing::error!("writer stopped on error ({e}), local={local_addr}, peer={peer_addr}");
                 } else {
                     tracing::debug!("writer stopped local={local_addr}, peer={peer_addr}");
                 }
@@ -540,7 +575,7 @@ async fn join_reader_writer<OnConn: Fn(ConnState<OnMsg>), OnMsg>(
             }
             r = &mut reader => {
                 if let Err(e) = r {
-                    tracing::error!("reader stopped local={local_addr}, peer={peer_addr} on error ({e})");
+                    tracing::error!("reader stopped on error ({e}), local={local_addr}, peer={peer_addr}");
                 } else {
                     tracing::debug!("reader stopped local={local_addr}, peer={peer_addr}");
                 }
@@ -549,9 +584,10 @@ async fn join_reader_writer<OnConn: Fn(ConnState<OnMsg>), OnMsg>(
             }
         }
     }
-    tracing::info!("connection closed: local_addr={local_addr}, peer_addr={peer_addr}");
-    on_conn(ConnState::OnConnectionClose {
-        local_addr,
-        peer_addr,
-    });
+}
+
+fn get_address_from_stream(stream: &TcpStream) -> std::io::Result<(SocketAddr, SocketAddr)> {
+    let local = stream.local_addr()?;
+    let peer = stream.peer_addr()?;
+    Ok((local, peer))
 }

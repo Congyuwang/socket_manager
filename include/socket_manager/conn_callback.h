@@ -6,11 +6,16 @@
 #include <string>
 #include <unordered_map>
 #include "connection.h"
+#include <stdexcept>
 
 namespace socket_manager {
 
   /**
    * The callback object for handling connection events.
+   *
+   * # Error Handling
+   * Throwing error in the callback will cause the runtime
+   * to abort.
    *
    * # Thread Safety
    * All callback methods must be thread safe and non-blocking.
@@ -42,6 +47,10 @@ namespace socket_manager {
     /**
      * Called when a new connection is established.
      *
+     * # Error handling
+     * Throwing error in `on_connect` callback will close the connection
+     * and a `on_connection_close` callback will be evoked.
+     *
      * It should be non-blocking.
      *
      * @param local_addr the local address of the connection.
@@ -55,6 +64,10 @@ namespace socket_manager {
     /**
      * Called when a connection is closed.
      *
+     * # Error handling
+     * Throwing error in `on_connection_close` callback is logged as error,
+     * but ignored.
+     *
      * It should be non-blocking.
      *
      * @param local_addr the local address of the connection.
@@ -66,6 +79,10 @@ namespace socket_manager {
     /**
      * Called when an error occurs when listening on the given address.
      *
+     * # Error handling
+     * Throwing error in `on_listen_error` callback is logged as error,
+     * but ignored.
+     *
      * Should be non-blocking.
      *
      * @param addr the address that failed to listen on.
@@ -76,6 +93,10 @@ namespace socket_manager {
 
     /**
      * Called when an error occurs when connecting to the given address.
+     *
+     * # Error handling
+     * Throwing error in `on_connect_error` callback is logged as error,
+     * but ignored.
      *
      * Should be non-blocking.
      *
@@ -91,7 +112,7 @@ namespace socket_manager {
 
     friend class SocketManager;
 
-    static void on_conn(void *conn_cb_ptr, ConnStates states) {
+    static char* on_conn(void *conn_cb_ptr, ConnStates states) {
       auto conn_cb = static_cast<ConnCallback *>(conn_cb_ptr);
       switch (states.Code) {
         case ConnStateCode::Connect: {
@@ -106,8 +127,14 @@ namespace socket_manager {
             std::unique_lock<std::mutex> lock(conn_cb->lock);
             conn_cb->conns[local_addr + peer_addr] = conn;
           }
-          conn_cb->on_connect(local_addr, peer_addr, conn);
-          break;
+          try {
+            conn_cb->on_connect(local_addr, peer_addr, conn);
+          } catch (std::runtime_error &e) {
+            return strdup(e.what());
+          } catch (...) {
+            return strdup("unknown error");
+          }
+          return nullptr;
         }
         case ConnStateCode::ConnectionClose: {
           auto on_connection_close = states.Data.OnConnectionClose;
@@ -119,22 +146,40 @@ namespace socket_manager {
             std::unique_lock<std::mutex> lock(conn_cb->lock);
             conn_cb->conns.erase(local_addr + peer_addr);
           }
-          conn_cb->on_connection_close(local_addr, peer_addr);
-          break;
+          try {
+            conn_cb->on_connection_close(local_addr, peer_addr);
+          } catch (std::runtime_error &e) {
+            return strdup(e.what());
+          } catch (...) {
+            return strdup("unknown error");
+          }
+          return nullptr;
         }
         case ConnStateCode::ListenError: {
           auto listen_error = states.Data.OnListenError;
           auto addr = std::string(listen_error.Addr);
           auto err = std::string(listen_error.Err);
-          conn_cb->on_listen_error(addr, err);
-          break;
+          try {
+            conn_cb->on_listen_error(addr, err);
+          } catch (std::runtime_error &e) {
+            return strdup(e.what());
+          } catch (...) {
+            return strdup("unknown error");
+          }
+          return nullptr;
         }
         case ConnStateCode::ConnectError: {
           auto connect_error = states.Data.OnConnectError;
           auto addr = std::string(connect_error.Addr);
           auto err = std::string(connect_error.Err);
-          conn_cb->on_connect_error(addr, err);
-          break;
+          try{
+            conn_cb->on_connect_error(addr, err);
+          } catch (std::runtime_error &e) {
+            return strdup(e.what());
+          } catch (...) {
+            return strdup("unknown error");
+          }
+          return nullptr;
         }
       }
     }

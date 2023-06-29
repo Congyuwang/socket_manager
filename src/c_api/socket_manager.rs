@@ -1,4 +1,4 @@
-use crate::c_api::structs::OnConnCallback;
+use crate::c_api::callbacks::OnConnCallback;
 use crate::c_api::utils::{socket_addr, write_error_c_str};
 use crate::CSocketManager;
 use libc::size_t;

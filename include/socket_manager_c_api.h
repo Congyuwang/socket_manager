@@ -41,6 +41,11 @@ typedef struct ConnMsg {
  *
  * `callback_self` is feed to the first argument of the callback.
  *
+ * # Error Handling
+ * Returns null_ptr on success, otherwise returns a pointer to a malloced
+ * C string containing the error message (the c string should be freed by the
+ * caller).
+ *
  * # Safety
  * The callback pointer must be valid before connection is closed!!
  *
@@ -49,7 +54,7 @@ typedef struct ConnMsg {
  */
 typedef struct OnMsgCallback {
   void *CallbackSelf;
-  void (*Callback)(void*, struct ConnMsg);
+  char *(*Callback)(void*, struct ConnMsg);
 } OnMsgCallback;
 
 typedef struct OnConnect {
@@ -96,6 +101,11 @@ typedef struct ConnStates {
  *
  * `callback_self` is feed to the first argument of the callback.
  *
+ * # Error Handling
+ * Returns null_ptr on success, otherwise returns a pointer to a malloced
+ * C string containing the error message (the c string should be freed by the
+ * caller).
+ *
  * # Safety
  * The callback pointer must be valid for the entire runtime lifetime!!
  * (i.e., before the runtime is aborted and joined).
@@ -105,7 +115,7 @@ typedef struct ConnStates {
  */
 typedef struct OnConnCallback {
   void *CallbackSelf;
-  void (*Callback)(void*, struct ConnStates);
+  char *(*Callback)(void*, struct ConnStates);
 } OnConnCallback;
 
 #ifdef __cplusplus

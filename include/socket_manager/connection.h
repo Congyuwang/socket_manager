@@ -28,8 +28,9 @@ namespace socket_manager {
      *
      * The `start` function must be called exactly once.
      * Calling it twice will result in runtime error.
-     * Not calling it will result in resource leak
-     * (i.e. the connection will likely hangs).
+     *
+     * Dropping it directly will close the connection,
+     * evoking `on_connection_close`.
      *
      * To close the connection, drop the returned
      * MsgSender object.
