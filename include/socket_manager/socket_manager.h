@@ -39,6 +39,7 @@ namespace socket_manager {
      * Thread safe.
      *
      * # Errors
+     * Throws `std::runtime_error` if socket manager runtime has been aborted.
      * Throws `std::runtime_error` if the address is invalid.
      *
      * @param addr: the ip address to listen to (support both ipv4 and ipv6).
@@ -52,6 +53,7 @@ namespace socket_manager {
      * Thread safe.
      *
      * # Errors
+     * Throws `std::runtime_error` if socket manager runtime has been aborted.
      * Throws `std::runtime_error` if the address is invalid.
      *
      * @param addr: the ip address to listen to (support both ipv4 and ipv6).
@@ -65,6 +67,7 @@ namespace socket_manager {
      * Thread safe.
      *
      * # Errors
+     * Throws `std::runtime_error` if socket manager runtime has been aborted.
      * Throw `std::runtime_error` if the address is invalid.
      *
      * @param addr cancel listening on this address.
@@ -77,6 +80,9 @@ namespace socket_manager {
      *
      * # Thread Safety
      * Thread safe.
+     *
+     * # Errors
+     * Throws `std::runtime_error` if socket manager runtime has been aborted.
      *
      * Returns immediately on the second call.
      *
