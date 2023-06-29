@@ -71,6 +71,18 @@ struct ConnInner<OnMsg> {
     send: CMsgSender,
 }
 
+impl<OnMsg> Conn<OnMsg> {
+    fn new(conn_config_setter: oneshot::Sender<(OnMsg, ConnConfig)>, send: CMsgSender) -> Self {
+        Self {
+            has_started: AtomicBool::new(false),
+            inner: Some(ConnInner {
+                conn_config_setter,
+                send,
+            }),
+        }
+    }
+}
+
 /// Connection configuration
 pub struct ConnConfig {
     write_flush_interval: Option<Duration>,
@@ -411,13 +423,7 @@ fn handle_connection<
         on_conn(ConnState::OnConnect {
             local_addr,
             peer_addr,
-            conn: Conn {
-                has_started: AtomicBool::new(false),
-                inner: Some(ConnInner {
-                    conn_config_setter,
-                    send,
-                }),
-            },
+            conn: Conn::new(conn_config_setter, send),
         })
         .map_err(|_| ())?;
 
