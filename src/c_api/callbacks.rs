@@ -218,6 +218,4 @@ impl Fn<(crate::ConnState<OnMsgCallback>,)> for OnConnCallback {
 }
 
 unsafe impl Send for OnMsgCallback {}
-unsafe impl Sync for OnMsgCallback {}
 unsafe impl Send for OnConnCallback {}
-unsafe impl Sync for OnConnCallback {}
