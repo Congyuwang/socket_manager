@@ -110,6 +110,8 @@ namespace socket_manager {
 
     ~SocketManager();
 
+    SocketManager(const SocketManager&) = delete;
+
   private:
 
     CSocketManager *inner;

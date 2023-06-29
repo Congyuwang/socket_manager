@@ -41,6 +41,8 @@ namespace socket_manager {
      */
     ~MsgSender();
 
+    MsgSender(const MsgSender&) = delete;
+
   private:
 
     friend class Connection;

@@ -44,6 +44,8 @@ namespace socket_manager {
             std::unique_ptr<MsgReceiver> msg_receiver,
             unsigned long long write_flush_interval = DEFAULT_WRITE_FLUSH_MILLI_SEC);
 
+    Connection(const Connection&) = delete;
+
     ~Connection();
 
   private:
