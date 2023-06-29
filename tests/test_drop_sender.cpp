@@ -20,7 +20,7 @@ int test_drop_sender(int argc, char **argv) {
   SocketManager test(std::move(test_cb));
 
   server.listen_on_addr(local_addr);
-  // wait 100ms for server to start listening
+  // wait 10ms for server to start listening
   std::this_thread::sleep_for(std::chrono::milliseconds(10));
   test.connect_to_addr(local_addr);
 
@@ -30,6 +30,10 @@ int test_drop_sender(int argc, char **argv) {
     if (server_cb->events.size() == 2) {
       assert(std::get<0>(server_cb->events[0]) == CONNECTED);
       assert(std::get<0>(server_cb->events[1]) == CONNECTION_CLOSED);
+      assert(std::get<0>(server_cb->events[2]) == CONNECTED);
+      assert(std::get<0>(server_cb->events[3]) == CONNECTION_CLOSED);
+      assert(std::get<0>(server_cb->events[4]) == CONNECTED);
+      assert(std::get<0>(server_cb->events[5]) == CONNECTION_CLOSED);
       break;
     }
     server_cb->cond.wait(u_lock);
