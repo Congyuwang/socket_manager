@@ -2,7 +2,10 @@
 #define SOCKET_MANAGER_MSG_RECEIVER_H
 
 #include <string>
+#include <stdexcept>
 #include <memory>
+#include <cstdlib>
+#include <cstring>
 #include "socket_manager_c_api.h"
 
 namespace socket_manager {
@@ -24,6 +27,10 @@ namespace socket_manager {
      * This callback must be thread safe.
      * It should also be non-blocking.
      *
+     * # Error Handling
+     * Throwing error in `on_message` callback will cause
+     * the connection to close.
+     *
      * @param data the message received.
      */
     virtual void on_message(const std::shared_ptr<std::string> &data) = 0;
@@ -34,11 +41,25 @@ namespace socket_manager {
 
     friend class Connection;
 
-    static void on_msg(void *receiver_ptr,
-                       ConnMsg msg) {
+    static char *string_dup(const std::string &str) {
+      auto size = str.size();
+      char *buffer = (char *) malloc(size + 1);
+      memcpy(buffer, str.c_str(), size + 1);
+      return buffer;
+    }
+
+    static char *on_msg(void *receiver_ptr,
+                        ConnMsg msg) {
       auto receiver = reinterpret_cast<MsgReceiver *>(receiver_ptr);
       auto data_ptr = std::make_shared<std::string>(msg.Bytes, msg.Len);
-      receiver->on_message(data_ptr);
+      try {
+        receiver->on_message(data_ptr);
+      } catch (std::runtime_error &e) {
+        return string_dup(e.what());
+      } catch (...) {
+        return string_dup("unknown error");
+      }
+      return nullptr;
     }
 
   };

@@ -39,6 +39,7 @@ namespace socket_manager {
      * Thread safe.
      *
      * # Errors
+     * Throws `std::runtime_error` if socket manager runtime has been aborted.
      * Throws `std::runtime_error` if the address is invalid.
      *
      * @param addr: the ip address to listen to (support both ipv4 and ipv6).
@@ -52,6 +53,7 @@ namespace socket_manager {
      * Thread safe.
      *
      * # Errors
+     * Throws `std::runtime_error` if socket manager runtime has been aborted.
      * Throws `std::runtime_error` if the address is invalid.
      *
      * @param addr: the ip address to listen to (support both ipv4 and ipv6).
@@ -65,6 +67,7 @@ namespace socket_manager {
      * Thread safe.
      *
      * # Errors
+     * Throws `std::runtime_error` if socket manager runtime has been aborted.
      * Throw `std::runtime_error` if the address is invalid.
      *
      * @param addr cancel listening on this address.
@@ -75,8 +78,13 @@ namespace socket_manager {
      * Join and wait on the `SocketManager` background runtime.
      * Call `abort` in another thread to stop the background runtime.
      *
-     * Thread safe. But should be called no more than once,
-     * otherwise throws runtime error.
+     * # Thread Safety
+     * Thread safe.
+     *
+     * # Errors
+     * Throws `std::runtime_error` if socket manager runtime has been aborted.
+     *
+     * Returns immediately on the second call.
      *
      * Returns error if the background runtime has already been joined
      * or if the runtime panicked.
@@ -86,7 +94,11 @@ namespace socket_manager {
     /**
      * Stop all background threads and drop all connections.
      *
-     * * # Thread Safety
+     * # Argument
+     * - `wait`: if true, wait for all the background threads to finish.
+     *     Default to true.
+     *
+     * # Thread Safety
      * Thread safe.
      *
      * This method does not wait for the background threads to finish.
@@ -94,9 +106,11 @@ namespace socket_manager {
      * Call methods after successful `aborted` will result in runtime errors.
      *
      */
-    void abort();
+    void abort(bool wait = true);
 
     ~SocketManager();
+
+    SocketManager(const SocketManager&) = delete;
 
   private:
 

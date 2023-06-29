@@ -1,4 +1,4 @@
-use crate::c_api::structs::OnConnCallback;
+use crate::c_api::callbacks::OnConnCallback;
 use crate::c_api::utils::{socket_addr, write_error_c_str};
 use crate::CSocketManager;
 use libc::size_t;
@@ -146,7 +146,8 @@ pub unsafe extern "C" fn socket_manager_cancel_listen_on_addr(
 /// # Thread Safety
 /// Thread safe.
 ///
-/// Does not wait for the runtime to finish.
+/// # Arguments
+/// - `wait`: if true, wait for the background runtime to finish.
 ///
 /// # Errors
 /// Returns -1 on error, 0 on success.
@@ -154,10 +155,11 @@ pub unsafe extern "C" fn socket_manager_cancel_listen_on_addr(
 #[no_mangle]
 pub unsafe extern "C" fn socket_manager_abort(
     manager: *mut CSocketManager,
+    wait: bool,
     err: *mut *mut c_char,
 ) -> c_int {
     let manager = &mut *manager;
-    match manager.abort() {
+    match manager.abort(wait) {
         Ok(()) => {
             *err = null_mut();
             0
@@ -172,11 +174,13 @@ pub unsafe extern "C" fn socket_manager_abort(
 /// Join and wait on the `SocketManager`.
 ///
 /// # Thread Safety
-/// Thread safe. But should be called no more than once,
-/// otherwise throws runtime error.
+/// Thread safe. Calling a second time will return immediately.
 ///
 /// This function will block until the `SocketManager`'s background runtime finishes,
 /// (i.e., `abort` is called from another thread).
+///
+/// # Errors
+/// Join returns error if the runtime panicked.
 #[no_mangle]
 pub unsafe extern "C" fn socket_manager_join(
     manager: *mut CSocketManager,

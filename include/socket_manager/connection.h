@@ -28,8 +28,12 @@ namespace socket_manager {
      *
      * The `start` function must be called exactly once.
      * Calling it twice will result in runtime error.
-     * Not calling it will result in resource leak
-     * (i.e. the connection will likely hangs).
+     *
+     * Dropping `Connection` without calling `start` results
+     * in an established connection being constantly in wait,
+     * which is resource leak. (dev note: because a shared
+     * pointer of `Connection` will continue to be stored
+     * in `ConnCallback` object until connection close signal).
      *
      * To close the connection, drop the returned
      * MsgSender object.
@@ -43,6 +47,8 @@ namespace socket_manager {
     std::shared_ptr<MsgSender> start(
             std::unique_ptr<MsgReceiver> msg_receiver,
             unsigned long long write_flush_interval = DEFAULT_WRITE_FLUSH_MILLI_SEC);
+
+    Connection(const Connection&) = delete;
 
     ~Connection();
 

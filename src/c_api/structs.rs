@@ -1,11 +1,12 @@
+use crate::c_api::callbacks::OnMsgCallback;
 use libc::size_t;
-use std::ffi::{c_char, c_void, CString};
+use std::ffi::c_char;
 
 /// The data pointer is only valid for the duration of the callback.
 #[repr(C)]
 pub struct ConnMsg {
-    bytes: *const c_char,
-    len: size_t,
+    pub(crate) bytes: *const c_char,
+    pub(crate) len: size_t,
 }
 
 /// All data is only valid for the duration of the callback
@@ -14,41 +15,8 @@ pub struct ConnMsg {
 /// Do not manually free any of the data except `sender`!!
 #[repr(C)]
 pub struct ConnStates {
-    code: ConnStateCode,
-    data: ConnStateData,
-}
-
-/// Callback function for receiving messages.
-///
-/// `callback_self` is feed to the first argument of the callback.
-///
-/// # Safety
-/// The callback pointer must be valid before connection is closed!!
-///
-/// # Thread Safety
-/// Must be thread safe!
-#[repr(C)]
-#[derive(Clone)]
-pub struct OnMsgCallback {
-    callback_self: *mut c_void,
-    callback: unsafe extern "C" fn(*mut c_void, ConnMsg),
-}
-
-/// Callback function for connection state changes.
-///
-/// `callback_self` is feed to the first argument of the callback.
-///
-/// # Safety
-/// The callback pointer must be valid for the entire runtime lifetime!!
-/// (i.e., before the runtime is aborted and joined).
-///
-/// # Thread Safety
-/// Must be thread safe!
-#[repr(C)]
-#[derive(Clone)]
-pub struct OnConnCallback {
-    callback_self: *mut c_void,
-    callback: unsafe extern "C" fn(*mut c_void, ConnStates),
+    pub(crate) code: ConnStateCode,
+    pub(crate) data: ConnStateData,
 }
 
 #[repr(C)]
@@ -61,176 +29,41 @@ pub enum ConnStateCode {
 
 #[repr(C)]
 pub union ConnStateData {
-    on_connect: OnConnect,
-    on_connection_close: OnConnectionClose,
-    on_listen_error: OnListenError,
-    on_connect_error: OnConnectError,
+    pub(crate) on_connect: OnConnect,
+    pub(crate) on_connection_close: OnConnectionClose,
+    pub(crate) on_listen_error: OnListenError,
+    pub(crate) on_connect_error: OnConnectError,
 }
 
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct OnConnect {
-    local: *const c_char,
-    peer: *const c_char,
-    conn: *mut CConnection,
+    pub(crate) local: *const c_char,
+    pub(crate) peer: *const c_char,
+    pub(crate) conn: *mut CConnection,
 }
 
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct OnConnectionClose {
-    local: *const c_char,
-    peer: *const c_char,
+    pub(crate) local: *const c_char,
+    pub(crate) peer: *const c_char,
 }
 
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct OnListenError {
-    addr: *const c_char,
-    err: *const c_char,
+    pub(crate) addr: *const c_char,
+    pub(crate) err: *const c_char,
 }
 
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct OnConnectError {
-    addr: *const c_char,
-    err: *const c_char,
+    pub(crate) addr: *const c_char,
+    pub(crate) err: *const c_char,
 }
 
 pub struct CConnection {
     pub(crate) conn: crate::Conn<OnMsgCallback>,
 }
-
-impl OnMsgCallback {
-    pub fn call_inner(&self, conn_msg: crate::Msg<'_>) {
-        let conn_msg = ConnMsg {
-            bytes: conn_msg.bytes.as_ptr() as *const c_char,
-            len: conn_msg.bytes.len(),
-        };
-        unsafe { (self.callback)(self.callback_self, conn_msg) }
-    }
-}
-
-impl FnMut<(crate::Msg<'_>,)> for OnMsgCallback {
-    extern "rust-call" fn call_mut(&mut self, conn_msg: (crate::Msg<'_>,)) -> Self::Output {
-        self.call_inner(conn_msg.0)
-    }
-}
-
-impl FnOnce<(crate::Msg<'_>,)> for OnMsgCallback {
-    type Output = ();
-
-    extern "rust-call" fn call_once(self, conn_msg: (crate::Msg<'_>,)) -> Self::Output {
-        self.call_inner(conn_msg.0)
-    }
-}
-
-impl Fn<(crate::Msg<'_>,)> for OnMsgCallback {
-    extern "rust-call" fn call(&self, conn_msg: (crate::Msg<'_>,)) {
-        self.call_inner(conn_msg.0)
-    }
-}
-
-impl OnConnCallback {
-    /// connection callback
-    pub(crate) fn call_inner(&self, conn_states: crate::ConnState<OnMsgCallback>) {
-        let on_conn = |msg| unsafe { (self.callback)(self.callback_self, msg) };
-        match conn_states {
-            crate::ConnState::OnConnect {
-                local_addr,
-                peer_addr,
-                conn,
-            } => {
-                let local = CString::new(local_addr.to_string()).unwrap();
-                let peer = CString::new(peer_addr.to_string()).unwrap();
-                let conn = Box::into_raw(Box::new(CConnection { conn }));
-                let conn_msg = ConnStates {
-                    code: ConnStateCode::Connect,
-                    data: ConnStateData {
-                        on_connect: OnConnect {
-                            local: local.as_ptr(),
-                            peer: peer.as_ptr(),
-                            conn,
-                        },
-                    },
-                };
-                on_conn(conn_msg)
-            }
-            crate::ConnState::OnConnectionClose {
-                local_addr,
-                peer_addr,
-            } => {
-                let local = CString::new(local_addr.to_string()).unwrap();
-                let peer = CString::new(peer_addr.to_string()).unwrap();
-                let conn_msg = ConnStates {
-                    code: ConnStateCode::ConnectionClose,
-                    data: ConnStateData {
-                        on_connection_close: OnConnectionClose {
-                            local: local.as_ptr(),
-                            peer: peer.as_ptr(),
-                        },
-                    },
-                };
-                on_conn(conn_msg)
-            }
-            crate::ConnState::OnListenError { addr, error } => {
-                let addr = CString::new(addr.to_string()).unwrap();
-                let error = CString::new(error.to_string()).unwrap();
-                let conn_msg = ConnStates {
-                    code: ConnStateCode::ListenError,
-                    data: ConnStateData {
-                        on_listen_error: OnListenError {
-                            addr: addr.as_ptr(),
-                            err: error.as_ptr(),
-                        },
-                    },
-                };
-                on_conn(conn_msg)
-            }
-            crate::ConnState::OnConnectError { addr, error } => {
-                let addr = CString::new(addr.to_string()).unwrap();
-                let error = CString::new(error.to_string()).unwrap();
-                let conn_msg = ConnStates {
-                    code: ConnStateCode::ConnectError,
-                    data: ConnStateData {
-                        on_connect_error: OnConnectError {
-                            addr: addr.as_ptr(),
-                            err: error.as_ptr(),
-                        },
-                    },
-                };
-                on_conn(conn_msg)
-            }
-        }
-    }
-}
-
-impl FnMut<(crate::ConnState<OnMsgCallback>,)> for OnConnCallback {
-    extern "rust-call" fn call_mut(
-        &mut self,
-        conn_msg: (crate::ConnState<OnMsgCallback>,),
-    ) -> Self::Output {
-        self.call_inner(conn_msg.0)
-    }
-}
-
-impl FnOnce<(crate::ConnState<OnMsgCallback>,)> for OnConnCallback {
-    type Output = ();
-
-    extern "rust-call" fn call_once(
-        self,
-        conn_msg: (crate::ConnState<OnMsgCallback>,),
-    ) -> Self::Output {
-        self.call_inner(conn_msg.0)
-    }
-}
-
-impl Fn<(crate::ConnState<OnMsgCallback>,)> for OnConnCallback {
-    extern "rust-call" fn call(&self, conn_msg: (crate::ConnState<OnMsgCallback>,)) {
-        self.call_inner(conn_msg.0)
-    }
-}
-
-unsafe impl Send for OnMsgCallback {}
-unsafe impl Sync for OnMsgCallback {}
-unsafe impl Send for OnConnCallback {}
-unsafe impl Sync for OnConnCallback {}

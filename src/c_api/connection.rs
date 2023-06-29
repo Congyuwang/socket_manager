@@ -1,4 +1,5 @@
-use crate::c_api::structs::{CConnection, OnMsgCallback};
+use crate::c_api::callbacks::OnMsgCallback;
+use crate::c_api::structs::CConnection;
 use crate::c_api::utils::write_error_c_str;
 use crate::{CMsgSender, ConnConfig};
 use std::ffi::c_char;

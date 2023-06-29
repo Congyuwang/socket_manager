@@ -56,9 +56,9 @@ namespace socket_manager {
     }
   }
 
-  void SocketManager::abort() {
+  void SocketManager::abort(bool wait) {
     char *err = nullptr;
-    if (socket_manager_abort(inner, &err)) {
+    if (socket_manager_abort(inner, wait, &err)) {
       const std::string err_str(err);
       free(err);
       throw std::runtime_error(err_str);

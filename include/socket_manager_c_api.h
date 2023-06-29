@@ -41,6 +41,11 @@ typedef struct ConnMsg {
  *
  * `callback_self` is feed to the first argument of the callback.
  *
+ * # Error Handling
+ * Returns null_ptr on success, otherwise returns a pointer to a malloced
+ * C string containing the error message (the c string should be freed by the
+ * caller).
+ *
  * # Safety
  * The callback pointer must be valid before connection is closed!!
  *
@@ -49,7 +54,7 @@ typedef struct ConnMsg {
  */
 typedef struct OnMsgCallback {
   void *CallbackSelf;
-  void (*Callback)(void*, struct ConnMsg);
+  char *(*Callback)(void*, struct ConnMsg);
 } OnMsgCallback;
 
 typedef struct OnConnect {
@@ -96,6 +101,11 @@ typedef struct ConnStates {
  *
  * `callback_self` is feed to the first argument of the callback.
  *
+ * # Error Handling
+ * Returns null_ptr on success, otherwise returns a pointer to a malloced
+ * C string containing the error message (the c string should be freed by the
+ * caller).
+ *
  * # Safety
  * The callback pointer must be valid for the entire runtime lifetime!!
  * (i.e., before the runtime is aborted and joined).
@@ -105,7 +115,7 @@ typedef struct ConnStates {
  */
 typedef struct OnConnCallback {
   void *CallbackSelf;
-  void (*Callback)(void*, struct ConnStates);
+  char *(*Callback)(void*, struct ConnStates);
 } OnConnCallback;
 
 #ifdef __cplusplus
@@ -249,23 +259,26 @@ int socket_manager_cancel_listen_on_addr(struct CSocketManager *manager,
  * # Thread Safety
  * Thread safe.
  *
- * Does not wait for the runtime to finish.
+ * # Arguments
+ * - `wait`: if true, wait for the background runtime to finish.
  *
  * # Errors
  * Returns -1 on error, 0 on success.
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
  */
-int socket_manager_abort(struct CSocketManager *manager, char **err);
+int socket_manager_abort(struct CSocketManager *manager, bool wait, char **err);
 
 /**
  * Join and wait on the `SocketManager`.
  *
  * # Thread Safety
- * Thread safe. But should be called no more than once,
- * otherwise throws runtime error.
+ * Thread safe. Calling a second time will return immediately.
  *
  * This function will block until the `SocketManager`'s background runtime finishes,
  * (i.e., `abort` is called from another thread).
+ *
+ * # Errors
+ * Join returns error if the runtime panicked.
  */
 int socket_manager_join(struct CSocketManager *manager, char **err);
 
