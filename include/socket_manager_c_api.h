@@ -249,13 +249,14 @@ int socket_manager_cancel_listen_on_addr(struct CSocketManager *manager,
  * # Thread Safety
  * Thread safe.
  *
- * Does not wait for the runtime to finish.
+ * # Arguments
+ * - `wait`: if true, wait for the background runtime to finish.
  *
  * # Errors
  * Returns -1 on error, 0 on success.
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
  */
-int socket_manager_abort(struct CSocketManager *manager, char **err);
+int socket_manager_abort(struct CSocketManager *manager, bool wait, char **err);
 
 /**
  * Join and wait on the `SocketManager`.

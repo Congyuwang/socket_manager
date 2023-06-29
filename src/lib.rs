@@ -193,10 +193,14 @@ impl CSocketManager {
     /// Calling this function will stop the runtime and all the background threads.
     ///
     /// This function will not block the current thread.
-    pub fn abort(&self) -> std::io::Result<()> {
+    pub fn abort(&mut self, wait: bool) -> std::io::Result<()> {
         self.cmd_send.send(Command::Abort).map_err(|_| {
             std::io::Error::new(std::io::ErrorKind::Other, "socket manager has stopped")
-        })
+        })?;
+        if wait {
+            self.join()?;
+        }
+        Ok(())
     }
 
     /// Join the socket manager to the current thread.
@@ -221,21 +225,7 @@ impl CSocketManager {
 
 impl Drop for CSocketManager {
     fn drop(&mut self) {
-        let _ = self.abort();
-        let handle = {
-            match self.join_handle.lock() {
-                Ok(mut handle) => handle.take(),
-                Err(e) => {
-                    tracing::error!("error locking join handle on drop: {:?}", e);
-                    None
-                }
-            }
-        };
-        if let Some(handle) = handle {
-            if let Err(e) = handle.join() {
-                tracing::error!("error joining socket manager on drop: {:?}", e);
-            }
-        }
+        let _ = self.abort(true);
     }
 }
 

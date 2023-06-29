@@ -88,7 +88,11 @@ namespace socket_manager {
     /**
      * Stop all background threads and drop all connections.
      *
-     * * # Thread Safety
+     * # Argument
+     * - `wait`: if true, wait for all the background threads to finish.
+     *     Default to true.
+     *
+     * # Thread Safety
      * Thread safe.
      *
      * This method does not wait for the background threads to finish.
@@ -96,7 +100,7 @@ namespace socket_manager {
      * Call methods after successful `aborted` will result in runtime errors.
      *
      */
-    void abort();
+    void abort(bool wait = true);
 
     ~SocketManager();
 

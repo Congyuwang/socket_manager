@@ -146,7 +146,8 @@ pub unsafe extern "C" fn socket_manager_cancel_listen_on_addr(
 /// # Thread Safety
 /// Thread safe.
 ///
-/// Does not wait for the runtime to finish.
+/// # Arguments
+/// - `wait`: if true, wait for the background runtime to finish.
 ///
 /// # Errors
 /// Returns -1 on error, 0 on success.
@@ -154,10 +155,11 @@ pub unsafe extern "C" fn socket_manager_cancel_listen_on_addr(
 #[no_mangle]
 pub unsafe extern "C" fn socket_manager_abort(
     manager: *mut CSocketManager,
+    wait: bool,
     err: *mut *mut c_char,
 ) -> c_int {
     let manager = &mut *manager;
-    match manager.abort() {
+    match manager.abort(wait) {
         Ok(()) => {
             *err = null_mut();
             0
