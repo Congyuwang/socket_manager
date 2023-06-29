@@ -6,6 +6,7 @@
 #include <string>
 #include <unordered_map>
 #include <stdexcept>
+#include <cstdlib>
 #include <cstring>
 #include "connection.h"
 
@@ -115,7 +116,7 @@ namespace socket_manager {
 
     static char *string_dup(const std::string &str) {
       auto size = str.size();
-      char *buffer = new char[size + 1];
+      char *buffer = (char *) malloc(size + 1);
       memcpy(buffer, str.c_str(), size + 1);
       return buffer;
     }

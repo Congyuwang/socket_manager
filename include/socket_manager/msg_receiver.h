@@ -4,6 +4,7 @@
 #include <string>
 #include <stdexcept>
 #include <memory>
+#include <cstdlib>
 #include <cstring>
 #include "socket_manager_c_api.h"
 
@@ -42,7 +43,7 @@ namespace socket_manager {
 
     static char *string_dup(const std::string &str) {
       auto size = str.size();
-      char *buffer = new char[size + 1];
+      char *buffer = (char *) malloc(size + 1);
       memcpy(buffer, str.c_str(), size + 1);
       return buffer;
     }
