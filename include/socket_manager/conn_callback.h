@@ -44,7 +44,11 @@ namespace socket_manager {
   class ConnCallback {
   public:
 
-    /// virtual methods: must be thread safe
+    virtual ~ConnCallback() = default;
+
+  private:
+
+    friend class SocketManager;
 
     /**
      * Called when a new connection is established.
@@ -107,12 +111,6 @@ namespace socket_manager {
      */
     virtual void on_connect_error(const std::string &addr,
                                   const std::string &err) = 0;
-
-    virtual ~ConnCallback() = default;
-
-  private:
-
-    friend class SocketManager;
 
     static char *string_dup(const std::string &str) {
       auto size = str.size();
