@@ -41,7 +41,9 @@ namespace socket_manager {
      */
     ~MsgSender();
 
-    MsgSender(const MsgSender&) = delete;
+    MsgSender(const MsgSender &) = delete;
+
+    void operator=(const MsgSender &) = delete;
 
   private:
 
