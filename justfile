@@ -5,7 +5,7 @@ clean:
     rm -rf build
 
 test:
-    cd build && ctest --output-on-failure && cd ..
+    cd build && SOCKET_LOG=debug ctest --output-on-failure && cd ..
 
 debug:
     cmake -B build -DCMAKE_BUILD_TYPE=Debug

@@ -125,10 +125,8 @@ extern "C" {
 /**
  * Start a connection with the given `OnMsgCallback`, and return a pointer to a `CMsgSender`.
  *
- * The `start` function must be called exactly once.
- * Calling it twice will result in runtime error.
- * Not calling it will result in resource leak
- * (i.e. the connection will likely hangs).
+ * Only one of `connection_start` or `connection_close` should be called,
+ * or it will result in runtime error.
  *
  * # Safety
  * The passed in callback must live as long as the connection is not closed !!
@@ -154,6 +152,21 @@ struct CMsgSender *connection_start(struct CConnection *conn,
                                     struct OnMsgCallback on_msg,
                                     unsigned long long write_flush_interval,
                                     char **err);
+
+/**
+ * Close the connection without using it.
+ *
+ * Only one of `connection_start` or `connection_close` should be called,
+ * or it will result in runtime error.
+ *
+ * # Thread Safety
+ * Thread safe.
+ *
+ * # Errors
+ * Returns -1 on error, 0 on success.
+ * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
+ */
+int connection_close(struct CConnection *conn, char **err);
 
 /**
  * Destructor of `Connection`.

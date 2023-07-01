@@ -17,6 +17,7 @@ namespace socket_manager {
     receiver = std::move(msg_receiver);
 
     // start the connection.
+    // calling twice `connection_start` will throw exception.
     char *err = nullptr;
     CMsgSender *sender = connection_start(inner, OnMsgCallback{
             receiver.get(),
@@ -32,8 +33,16 @@ namespace socket_manager {
     return std::shared_ptr<MsgSender>(new MsgSender(sender));
   }
 
-  Connection::Connection(CConnection *inner)
-          : started(false), inner(inner) {}
+  void Connection::close() {
+    char *err = nullptr;
+    if (connection_close(inner, &err)) {
+      const std::string err_str(err);
+      free(err);
+      throw std::runtime_error(err_str);
+    }
+  }
+
+  Connection::Connection(CConnection *inner) : inner(inner) {}
 
   Connection::~Connection() {
     connection_free(inner);

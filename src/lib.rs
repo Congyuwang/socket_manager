@@ -62,7 +62,7 @@ enum Command {
 
 /// The connection struct for the on_conn callback.
 pub struct Conn<OnMsg> {
-    has_started: AtomicBool,
+    consumed: AtomicBool,
     inner: Option<ConnInner<OnMsg>>,
 }
 
@@ -74,7 +74,7 @@ struct ConnInner<OnMsg> {
 impl<OnMsg> Conn<OnMsg> {
     fn new(conn_config_setter: oneshot::Sender<(OnMsg, ConnConfig)>, send: CMsgSender) -> Self {
         Self {
-            has_started: AtomicBool::new(false),
+            consumed: AtomicBool::new(false),
             inner: Some(ConnInner {
                 conn_config_setter,
                 send,
@@ -95,10 +95,13 @@ impl<OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + 'static + Clone> Conn<OnM
         on_msg: OnMsg,
         config: ConnConfig,
     ) -> std::io::Result<CMsgSender> {
-        self.has_started
+        self.consumed
             .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
             .map_err(|_| {
-                std::io::Error::new(std::io::ErrorKind::Other, "connection already started")
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "calling `start_connection` after connection consumed",
+                )
             })?;
         let conn = self.inner.take().unwrap();
         if conn.conn_config_setter.send((on_msg, config)).is_err() {
@@ -111,6 +114,20 @@ impl<OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + 'static + Clone> Conn<OnM
             ));
         }
         Ok(conn.send)
+    }
+
+    /// close the connection without using it.
+    pub fn close(&mut self) -> std::io::Result<()> {
+        self.consumed
+            .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+            .map_err(|_| {
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "calling `close` after connection consumed",
+                )
+            })?;
+        drop(self.inner.take().unwrap());
+        Ok(())
     }
 }
 

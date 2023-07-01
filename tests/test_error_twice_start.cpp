@@ -5,7 +5,7 @@
 class TwiceStartCallback : public DoNothingConnCallback {
 
 public:
-  TwiceStartCallback() : error_thrown(false) {};
+  TwiceStartCallback() : error_thrown(0) {};
 
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
                   const std::shared_ptr<Connection> &conn) override {
@@ -16,14 +16,20 @@ public:
       conn->start(std::move(receiver2));
     } catch (std::runtime_error &e) {
       std::cout << "Error thrown: " << e.what() << std::endl;
-      error_thrown.store(true, std::memory_order_release);
+      error_thrown.fetch_add(1, std::memory_order_release);
+    }
+    try {
+      conn->close();
+    } catch (std::runtime_error &e) {
+      std::cout << "Error thrown: " << e.what() << std::endl;
+      error_thrown.fetch_add(1, std::memory_order_release);
     }
     // notify the main thread
     std::unique_lock<std::mutex> lock(mutex);
     cond.notify_all();
   }
 
-  std::atomic_bool error_thrown;
+  std::atomic_int error_thrown;
   std::mutex mutex;
   std::condition_variable cond;
 
@@ -53,7 +59,7 @@ int test_error_twice_start(int argc, char **argv) {
   // wait for error
   while (true) {
     std::unique_lock<std::mutex> lock(bad_cb->mutex);
-    if (bad_cb->error_thrown.load(std::memory_order_acquire)) {
+    if (bad_cb->error_thrown.load(std::memory_order_acquire) == 2) {
       break;
     }
     bad_cb->cond.wait(lock);
