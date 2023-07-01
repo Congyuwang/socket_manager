@@ -72,7 +72,6 @@ namespace socket_manager {
 
     // keep the msg_receiver alive
     std::unique_ptr<MsgReceiver> receiver;
-    std::atomic_bool started;
 
     explicit Connection(CConnection *inner);
 
