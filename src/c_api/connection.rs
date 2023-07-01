@@ -2,17 +2,15 @@ use crate::c_api::callbacks::OnMsgCallback;
 use crate::c_api::structs::CConnection;
 use crate::c_api::utils::write_error_c_str;
 use crate::{CMsgSender, ConnConfig};
-use std::ffi::c_char;
+use std::ffi::{c_char, c_int};
 use std::os::raw::c_ulonglong;
 use std::ptr::null_mut;
 use std::time::Duration;
 
 /// Start a connection with the given `OnMsgCallback`, and return a pointer to a `CMsgSender`.
 ///
-/// The `start` function must be called exactly once.
-/// Calling it twice will result in runtime error.
-/// Not calling it will result in resource leak
-/// (i.e. the connection will likely hangs).
+/// Only one of `connection_start` or `connection_close` should be called,
+/// or it will result in runtime error.
 ///
 /// # Safety
 /// The passed in callback must live as long as the connection is not closed !!
@@ -59,6 +57,32 @@ pub unsafe extern "C" fn connection_start(
         Err(e) => {
             write_error_c_str(e, err);
             null_mut()
+        }
+    }
+}
+
+/// Close the connection without using it.
+///
+/// Only one of `connection_start` or `connection_close` should be called,
+/// or it will result in runtime error.
+///
+/// # Thread Safety
+/// Thread safe.
+///
+/// # Errors
+/// Returns -1 on error, 0 on success.
+/// On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
+#[no_mangle]
+pub unsafe extern "C" fn connection_close(conn: *mut CConnection, err: *mut *mut c_char) -> c_int {
+    let conn = &mut (*conn).conn;
+    match conn.close() {
+        Ok(_) => {
+            *err = null_mut();
+            0
+        }
+        Err(e) => {
+            write_error_c_str(e, err);
+            -1
         }
     }
 }

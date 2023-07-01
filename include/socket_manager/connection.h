@@ -22,18 +22,18 @@ namespace socket_manager {
     /**
      * Start a connection.
      *
+     * # Start / Close
+     * Exactly one of `start` or `close` should be called!
+     * Calling more than once will throw runtime exception.
+     * Not calling any of them might result in resource leak.
+     *
+     * # Close started connection
+     * Drop the returned MsgSender object to close the connection
+     * after starting it.
+     *
      * # Thread Safety
      * Thread safe, but should be called exactly once,
      * otherwise throws error.
-     *
-     * The `start` function must be called exactly once.
-     * Calling it twice will result in runtime error.
-     *
-     * Dropping `Connection` without calling `start` results
-     * in an established connection being constantly in wait,
-     * which is resource leak. (dev note: because a shared
-     * pointer of `Connection` will continue to be stored
-     * in `ConnCallback` object until connection close signal).
      *
      * To close the connection, drop the returned
      * MsgSender object.
@@ -48,6 +48,18 @@ namespace socket_manager {
             std::unique_ptr<MsgReceiver> msg_receiver,
             unsigned long long write_flush_interval = DEFAULT_WRITE_FLUSH_MILLI_SEC);
 
+    /**
+     * Close the connection without using it.
+     *
+     * `on_connection_close` callback will be called.
+     *
+     * # Start / Close
+     * Exactly one of `start` or `close` should be called!
+     * Calling more than once will throw runtime exception.
+     * Not calling any of them might result in resource leak.
+     */
+    void close();
+
     Connection(const Connection &) = delete;
 
     void operator=(const Connection &) = delete;
@@ -60,7 +72,6 @@ namespace socket_manager {
 
     // keep the msg_receiver alive
     std::unique_ptr<MsgReceiver> receiver;
-    std::atomic_bool started;
 
     explicit Connection(CConnection *inner);
 

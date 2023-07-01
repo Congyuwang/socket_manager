@@ -61,7 +61,9 @@ private:
 class DoNothingConnCallback : public ConnCallback {
 public:
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  const std::shared_ptr<Connection> &conn) override {}
+                  const std::shared_ptr<Connection> &conn) override {
+    conn->close();
+  }
 
   void on_connection_close(const std::string &local_addr, const std::string &peer_addr) override {}
 
