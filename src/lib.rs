@@ -95,12 +95,11 @@ impl<OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + 'static + Clone> Conn<OnM
         on_msg: OnMsg,
         config: ConnConfig,
     ) -> std::io::Result<CMsgSender> {
-        if self.has_started.swap(true, Ordering::SeqCst) {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "connection already started",
-            ));
-        }
+        self.has_started
+            .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+            .map_err(|_| {
+                std::io::Error::new(std::io::ErrorKind::Other, "connection already started")
+            })?;
         let conn = self.inner.take().unwrap();
         if conn.conn_config_setter.send((on_msg, config)).is_err() {
             // if 'OnConnect' callback throws error before calling start_connection,
@@ -227,16 +226,19 @@ impl CSocketManager {
     ///
     /// It returns immediately if called a second time.
     pub fn join(&mut self) -> std::io::Result<()> {
-        if self.has_joined.swap(true, Ordering::SeqCst) {
-            return Ok(());
+        match self
+            .has_joined
+            .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+        {
+            Ok(_) => self.join_handle.take().unwrap().join().map_err(|e| {
+                tracing::error!("socket manager join returned error: {:?}", e);
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!("socket manager join returned error: {:?}", e),
+                )
+            }),
+            Err(_) => Ok(()),
         }
-        self.join_handle.take().unwrap().join().map_err(|e| {
-            tracing::error!("socket manager join returned error: {:?}", e);
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("socket manager join returned error: {:?}", e),
-            )
-        })
     }
 }
 
