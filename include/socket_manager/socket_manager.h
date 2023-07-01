@@ -75,23 +75,6 @@ namespace socket_manager {
     void cancel_listen_on_addr(const std::string &addr);
 
     /**
-     * Join and wait on the `SocketManager` background runtime.
-     * Call `abort` in another thread to stop the background runtime.
-     *
-     * # Thread Safety
-     * Thread safe.
-     *
-     * # Errors
-     * Throws `std::runtime_error` if socket manager runtime has been aborted.
-     *
-     * Returns immediately on the second call.
-     *
-     * Returns error if the background runtime has already been joined
-     * or if the runtime panicked.
-     */
-    void join();
-
-    /**
      * Stop all background threads and drop all connections.
      *
      * # Argument
@@ -101,12 +84,23 @@ namespace socket_manager {
      * # Thread Safety
      * Thread safe.
      *
-     * This method does not wait for the background threads to finish.
-     *
-     * Call methods after successful `aborted` will result in runtime errors.
-     *
+     * # Errors
+     * Throws `std::runtime_error` if socket manager runtime has been aborted.
      */
     void abort(bool wait = true);
+
+    /**
+     * Join and wait on the `SocketManager` background runtime.
+     * Call `abort` in another thread to stop the background runtime.
+     *
+     * # Thread Safety
+     * Thread safe.
+     *
+     * # Errors
+     * Throws `std::runtime_error` if the background runtime panicked.
+     * Returns immediately on the second call.
+     */
+    void join();
 
     ~SocketManager();
 
