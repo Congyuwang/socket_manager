@@ -22,6 +22,12 @@ jobs:
       with:
         submodules: true
 
+    - name: Install LLVM and Clang
+      uses: KyleMayes/install-llvm-action@v1
+      with:
+        version: "16"
+        env: true
+
     - name: Install Rust toolchain
       uses: actions-rs/toolchain@v1
       with:
