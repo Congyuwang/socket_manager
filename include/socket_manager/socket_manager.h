@@ -30,7 +30,26 @@ namespace socket_manager {
      *                 the number of threads is equal to the number of cores.
      *                 Default to single-threaded runtime.
      */
-    explicit SocketManager(const std::shared_ptr<CB> &conn_cb, size_t n_threads = 1);
+    explicit SocketManager(const std::shared_ptr<CB> &conn_cb, size_t n_threads = 1) {
+      static_assert(
+              std::is_base_of<ConnCallback<Rcv>, CB>::value,
+              "conn_cb should be derived from `ConnCallback`");
+
+      static_assert(
+              std::is_base_of<MsgReceiver, Rcv>::value,
+              "Rcv should be derived from MsgReceiver");
+
+      char *err = nullptr;
+      inner = socket_manager_init(OnConnCallback{
+              conn_cb.get(),
+              ConnCallback<Rcv>::on_conn
+      }, n_threads, &err);
+      if (err) {
+        const std::string err_str(err);
+        free(err);
+        throw std::runtime_error(err_str);
+      }
+    }
 
     /**
      * Listen on the given address.
@@ -44,7 +63,14 @@ namespace socket_manager {
      *
      * @param addr: the ip address to listen to (support both ipv4 and ipv6).
      */
-    void listen_on_addr(const std::string &addr);
+    void listen_on_addr(const std::string &addr) {
+      char *err = nullptr;
+      if (socket_manager_listen_on_addr(inner, addr.c_str(), &err)) {
+        const std::string err_str(err);
+        free(err);
+        throw std::runtime_error(err_str);
+      }
+    }
 
     /**
      * Connect to the given address.
@@ -58,7 +84,14 @@ namespace socket_manager {
      *
      * @param addr: the ip address to listen to (support both ipv4 and ipv6).
      */
-    void connect_to_addr(const std::string &addr);
+    void connect_to_addr(const std::string &addr) {
+      char *err = nullptr;
+      if (socket_manager_connect_to_addr(inner, addr.c_str(), &err)) {
+        const std::string err_str(err);
+        free(err);
+        throw std::runtime_error(err_str);
+      }
+    }
 
     /**
      * Cancel listening on the given address.
@@ -72,7 +105,14 @@ namespace socket_manager {
      *
      * @param addr cancel listening on this address.
      */
-    void cancel_listen_on_addr(const std::string &addr);
+    void cancel_listen_on_addr(const std::string &addr) {
+      char *err = nullptr;
+      if (socket_manager_cancel_listen_on_addr(inner, addr.c_str(), &err)) {
+        const std::string err_str(err);
+        free(err);
+        throw std::runtime_error(err_str);
+      }
+    }
 
     /**
      * Stop all background threads and drop all connections.
@@ -87,7 +127,14 @@ namespace socket_manager {
      * # Errors
      * Throws `std::runtime_error` if socket manager runtime has been aborted.
      */
-    void abort(bool wait = true);
+    void abort(bool wait = true) {
+      char *err = nullptr;
+      if (socket_manager_abort(inner, wait, &err)) {
+        const std::string err_str(err);
+        free(err);
+        throw std::runtime_error(err_str);
+      }
+    }
 
     /**
      * Join and wait on the `SocketManager` background runtime.
@@ -100,9 +147,18 @@ namespace socket_manager {
      * Throws `std::runtime_error` if the background runtime panicked.
      * Returns immediately on the second call.
      */
-    void join();
+    void join() {
+      char *err = nullptr;
+      if (socket_manager_join(inner, &err)) {
+        const std::string err_str(err);
+        free(err);
+        throw std::runtime_error(err_str);
+      }
+    }
 
-    ~SocketManager();
+    ~SocketManager() {
+      socket_manager_free(inner);
+    }
 
     SocketManager(const SocketManager &) = delete;
 
