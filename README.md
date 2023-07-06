@@ -51,21 +51,18 @@ sudo cmake --install build --config Release
 ## Usage
 
 In your CMakeLists.txt, add the following lines:
-
 ```cmake
-# enable lto requires clang-16
-SET(CMAKE_C_FLAGS "-Wall -std=c99")
-SET(CMAKE_C_FLAGS_DEBUG "-g")
-SET(CMAKE_C_FLAGS_MINSIZEREL "-Os -DNDEBUG -flto=full")
-SET(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG -flto=full")
-SET(CMAKE_C_FLAGS_RELWITHDEBINFO "-O2 -g")
-
-SET(CMAKE_CXX_FLAGS "-Wall")
-SET(CMAKE_CXX_FLAGS_DEBUG "-g")
-SET(CMAKE_CXX_FLAGS_MINSIZEREL "-Os -DNDEBUG -flto=full")
-SET(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG -flto=full")
-SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g")
-
 find_package(socket_manager 0.1.0 REQUIRED)
 target_link_libraries(test_socket_manager PUBLIC socket_manager)
+```
+
+### Install as Static Library
+
+For installing as static library, add the lines in the 
+`toolchain.cmake` in your toolchain file or use the
+`toolchain.cmake` to ensure the right toolchain is used.
+
+To enable lto:
+```cmake
+set_property(TARGET <your-target> PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 ```
