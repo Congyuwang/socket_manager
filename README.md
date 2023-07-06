@@ -33,9 +33,8 @@ wget https://apt.llvm.org/llvm.sh
 chmod +x llvm.sh
 sudo ./llvm.sh 16
 
-sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-16 100
-sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-16 100
-sudo update-alternatives --install /usr/bin/llvm-ar llvm-ar /usr/bin/llvm-ar-16 100
+chmod +x update-alternatives-clang.sh
+./update-alternatives-clang 16 9999
 export CC=/usr/bin/clang
 export CXX=/usr/bin/clang++
 ```
