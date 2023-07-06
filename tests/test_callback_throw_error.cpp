@@ -84,6 +84,11 @@ int test_callback_throw_error(int argc, char **argv) {
     std::unique_lock<std::mutex> u_lock(store_record_cb->mutex);
     if (store_record_cb->events.size() == 6) {
       assert(std::get<0>(store_record_cb->events[0]) == CONNECTED);
+      assert(std::get<0>(store_record_cb->events[1]) == CONNECTION_CLOSED);
+      assert(std::get<0>(store_record_cb->events[2]) == CONNECTED);
+      assert(std::get<0>(store_record_cb->events[3]) == CONNECTION_CLOSED);
+      assert(std::get<0>(store_record_cb->events[4]) == CONNECTED);
+      assert(std::get<0>(store_record_cb->events[5]) == CONNECTION_CLOSED);
       break;
     }
     store_record_cb->cond.wait(u_lock);
