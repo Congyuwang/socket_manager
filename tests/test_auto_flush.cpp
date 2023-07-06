@@ -63,8 +63,10 @@ int test_auto_flush(int argc, char **argv) {
 
   while (true) {
     std::unique_lock<std::mutex> u_lock(recv_cb->mutex);
-    recv_cb->cond.wait(u_lock, [&recv_cb] { return recv_cb->received.load(); });
-    break;
+    if (recv_cb->received.load()) {
+      break;
+    }
+    recv_cb->cond.wait_for(u_lock, std::chrono::milliseconds(10));
   }
 
   return 0;

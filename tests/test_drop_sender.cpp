@@ -32,7 +32,7 @@ int test_drop_sender(int argc, char **argv) {
       assert(std::get<0>(server_cb->events[1]) == CONNECTION_CLOSED);
       break;
     }
-    server_cb->cond.wait(u_lock);
+    server_cb->cond.wait_for(u_lock, std::chrono::milliseconds(10));
   }
 
   while (true) {
@@ -46,7 +46,7 @@ int test_drop_sender(int argc, char **argv) {
     }
     {
       std::unique_lock<std::mutex> u_lock(lock);
-      cond.wait(u_lock);
+      cond.wait_for(u_lock, std::chrono::milliseconds(10));
     }
   }
 }

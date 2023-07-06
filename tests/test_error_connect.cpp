@@ -23,7 +23,7 @@ int test_error_connect(int argc, char **argv) {
     }
     {
       std::unique_lock<std::mutex> u_lock(lock);
-      cond.wait(u_lock);
+      cond.wait_for(u_lock, std::chrono::milliseconds(10));
     }
   }
 }

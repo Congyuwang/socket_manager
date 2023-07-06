@@ -65,7 +65,7 @@ int test_error_twice_start(int argc, char **argv) {
     if (bad_cb->error_thrown.load(std::memory_order_acquire) == 2) {
       break;
     }
-    bad_cb->cond.wait(lock);
+    bad_cb->cond.wait_for(lock, std::chrono::milliseconds(10));
   }
 
   return 0;
