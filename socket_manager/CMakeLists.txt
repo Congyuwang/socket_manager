@@ -21,6 +21,8 @@ else ()
             COMMAND rm -rf ${tokio_obj_dir})
 endif ()
 
+target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_DL_LIBS})
+
 set(header_path ${CMAKE_SOURCE_DIR}/include/${PROJECT_NAME})
 set(header ${CMAKE_SOURCE_DIR}/include/socket_manager_c_api.h
            ${header_path}/socket_manager.h
