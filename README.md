@@ -69,7 +69,12 @@ target_link_libraries(test_socket_manager PUBLIC socket_manager)
 For linking, add the lines in the `toolchain.cmake` in your toolchain file
 or use the provided `toolchain.cmake` to ensure the right toolchain is used.
 
-To enable lto:
+Example:
+```cmake
+set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/toolchain.cmake)
+```
+
+To enable lto, add:
 ```cmake
 set_property(TARGET <your-target> PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 ```
