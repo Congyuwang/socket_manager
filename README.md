@@ -32,8 +32,6 @@ sudo ./llvm.sh 16 all
 
 chmod +x update-alternatives-clang.sh
 sudo ./update-alternatives-clang.sh 16 9999
-export CC=/usr/bin/clang
-export CXX=/usr/bin/clang++
 ```
 
 - Step 4: Pull the source code
