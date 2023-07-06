@@ -34,7 +34,7 @@ chmod +x llvm.sh
 sudo ./llvm.sh 16
 
 chmod +x update-alternatives-clang.sh
-./update-alternatives-clang.sh 16 9999
+sudo ./update-alternatives-clang.sh 16 9999
 export CC=/usr/bin/clang
 export CXX=/usr/bin/clang++
 ```
