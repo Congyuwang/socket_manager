@@ -8,7 +8,7 @@ int test_error_connect(int argc, char **argv) {
   std::vector<std::tuple<std::string, std::shared_ptr<std::string>>> buffer;
 
   auto test_cb = std::make_shared<BitFlagCallback>(lock, cond, sig, buffer);
-  SocketManager<BitFlagCallback, MsgStoreReceiver> test(test_cb);
+  SocketManager<BitFlagCallback> test(test_cb);
   test.connect_to_addr("127.0.0.1:12345");
 
   // Wait for the connection to fail

@@ -1,4 +1,4 @@
-use crate::c_api::callbacks::OnMsgCallback;
+use crate::c_api::callbacks::OnMsgObj;
 use crate::c_api::structs::CConnection;
 use crate::c_api::utils::write_error_c_str;
 use crate::{CMsgSender, ConnConfig};
@@ -34,7 +34,7 @@ use std::time::Duration;
 #[no_mangle]
 pub unsafe extern "C" fn connection_start(
     conn: *mut CConnection,
-    on_msg: OnMsgCallback,
+    on_msg: OnMsgObj,
     write_flush_interval: c_ulonglong,
     err: *mut *mut c_char,
 ) -> *mut CMsgSender {

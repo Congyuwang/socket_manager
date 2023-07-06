@@ -16,7 +16,7 @@ namespace socket_manager {
    * Use Connection to send and receive messages from
    * established connections.
    */
-  template<class Rcv> class Connection {
+  class Connection {
 
   public:
 
@@ -45,6 +45,7 @@ namespace socket_manager {
      * of write buffer auto flushing. Set to 0 to disable auto flush.
      * Default to 20 milliseconds.
      */
+    template<class Rcv>
     std::shared_ptr<MsgSender> start(
             std::unique_ptr<Rcv> msg_receiver,
             unsigned long long write_flush_interval = DEFAULT_WRITE_FLUSH_MILLI_SEC) {
@@ -56,9 +57,8 @@ namespace socket_manager {
       // start the connection.
       // calling twice `connection_start` will throw exception.
       char *err = nullptr;
-      CMsgSender *sender = connection_start(inner, OnMsgCallback{
+      CMsgSender *sender = connection_start(inner, OnMsgObj{
               msg_receiver.get(),
-              MsgReceiver::on_msg
       }, write_flush_interval, &err);
       if (sender == nullptr) {
         const std::string err_str(err);
@@ -102,16 +102,14 @@ namespace socket_manager {
 
   private:
 
-    template<class> friend class ConnCallback;
+    friend class ConnCallback;
+
+    friend char* ::socket_manager_extern_on_conn(void *this_, ConnStates conn);
 
     // keep the msg_receiver alive
-    std::unique_ptr<Rcv> receiver;
+    std::unique_ptr<MsgReceiver> receiver;
 
-    explicit Connection(CConnection *inner) : inner(inner) {
-      static_assert(
-              std::is_base_of<MsgReceiver, Rcv>::value,
-              "msg_receiver should be derived from `MsgReceiver`");
-    }
+    explicit Connection(CConnection *inner) : inner(inner) {}
 
     CConnection *inner;
 

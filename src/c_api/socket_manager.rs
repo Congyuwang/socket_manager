@@ -1,4 +1,4 @@
-use crate::c_api::callbacks::OnConnCallback;
+use crate::c_api::callbacks::OnConnObj;
 use crate::c_api::utils::{socket_addr, write_error_c_str};
 use crate::CSocketManager;
 use libc::size_t;
@@ -26,7 +26,7 @@ use std::ptr::null_mut;
 /// and the returned pointer will be null.
 #[no_mangle]
 pub unsafe extern "C" fn socket_manager_init(
-    on_conn: OnConnCallback,
+    on_conn: OnConnObj,
     n_threads: size_t,
     err: *mut *mut c_char,
 ) -> *mut CSocketManager {

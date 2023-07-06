@@ -1,4 +1,4 @@
-use crate::c_api::callbacks::OnMsgCallback;
+use crate::c_api::callbacks::OnMsgObj;
 use libc::size_t;
 use std::ffi::c_char;
 
@@ -65,5 +65,5 @@ pub struct OnConnectError {
 }
 
 pub struct CConnection {
-    pub(crate) conn: crate::Conn<OnMsgCallback>,
+    pub(crate) conn: crate::Conn<OnMsgObj>,
 }

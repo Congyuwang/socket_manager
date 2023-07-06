@@ -29,14 +29,6 @@ typedef struct CMsgSender CMsgSender;
 typedef struct CSocketManager CSocketManager;
 
 /**
- * The data pointer is only valid for the duration of the callback.
- */
-typedef struct ConnMsg {
-  const char *Bytes;
-  size_t Len;
-} ConnMsg;
-
-/**
  * Callback function for receiving messages.
  *
  * `callback_self` is feed to the first argument of the callback.
@@ -52,10 +44,17 @@ typedef struct ConnMsg {
  * # Thread Safety
  * Must be thread safe!
  */
-typedef struct OnMsgCallback {
-  void *CallbackSelf;
-  char *(*Callback)(void*, struct ConnMsg);
-} OnMsgCallback;
+typedef struct OnMsgObj {
+  void *This;
+} OnMsgObj;
+
+/**
+ * The data pointer is only valid for the duration of the callback.
+ */
+typedef struct ConnMsg {
+  const char *Bytes;
+  size_t Len;
+} ConnMsg;
 
 typedef struct OnConnect {
   const char *Local;
@@ -113,10 +112,9 @@ typedef struct ConnStates {
  * # Thread Safety
  * Must be thread safe!
  */
-typedef struct OnConnCallback {
-  void *CallbackSelf;
-  char *(*Callback)(void*, struct ConnStates);
-} OnConnCallback;
+typedef struct OnConnObj {
+  void *This;
+} OnConnObj;
 
 #ifdef __cplusplus
 extern "C" {
@@ -149,7 +147,7 @@ extern "C" {
  * and the returned pointer will be null.
  */
 struct CMsgSender *connection_start(struct CConnection *conn,
-                                    struct OnMsgCallback on_msg,
+                                    struct OnMsgObj on_msg,
                                     unsigned long long write_flush_interval,
                                     char **err);
 
@@ -172,6 +170,16 @@ int connection_close(struct CConnection *conn, char **err);
  * Destructor of `Connection`.
  */
 void connection_free(struct CConnection *conn);
+
+/**
+ * Callback function for receiving messages.
+ */
+extern char *socket_manager_extern_on_msg(void *this_, struct ConnMsg msg);
+
+/**
+ * Callback function for connection state changes.
+ */
+extern char *socket_manager_extern_on_conn(void *this_, struct ConnStates conn);
 
 /**
  * Send a message via the given `CMsgSender`.
@@ -224,9 +232,7 @@ void msg_sender_free(struct CMsgSender *sender);
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`,
  * and the returned pointer will be null.
  */
-struct CSocketManager *socket_manager_init(struct OnConnCallback on_conn,
-                                           size_t n_threads,
-                                           char **err);
+struct CSocketManager *socket_manager_init(struct OnConnObj on_conn, size_t n_threads, char **err);
 
 /**
  * Listen on the given address.
