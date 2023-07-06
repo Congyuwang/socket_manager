@@ -41,6 +41,7 @@ namespace socket_manager {
 
     template<class Rcv> friend class Connection;
 
+    inline
     static char *string_dup(const std::string &str) {
       auto size = str.size();
       char *buffer = (char *) malloc(size + 1);
@@ -48,6 +49,7 @@ namespace socket_manager {
       return buffer;
     }
 
+    inline
     static char *on_msg(void *receiver_ptr,
                         ConnMsg msg) {
       auto receiver = reinterpret_cast<MsgReceiver *>(receiver_ptr);
