@@ -6,7 +6,7 @@ set(header ${header_path}/socket_manager.h
            ${header_path}/conn_callback.h
            ${header_path}/msg_sender.h
            ${header_path}/msg_receiver.h)
-set(src socket_manager.cc msg_sender.cc connection.cc)
+set(src msg_sender.cc)
 
 target_sources(${PROJECT_NAME} PRIVATE ${src})
 add_dependencies(${PROJECT_NAME} tokio-socket-manager)
@@ -24,8 +24,8 @@ file(MAKE_DIRECTORY ${tokio_obj_dir})
 
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         WORKING_DIRECTORY ${tokio_obj_dir}
-        COMMAND llvm-ar -x ${CMAKE_BINARY_DIR}/libtokio_socket_manager.a
-        COMMAND llvm-ar -qs ${CMAKE_CURRENT_BINARY_DIR}/lib${PROJECT_NAME}.a *.o
+        COMMAND ${CMAKE_AR} -x ${CMAKE_BINARY_DIR}/libtokio_socket_manager.a
+        COMMAND ${CMAKE_AR} -qs ${CMAKE_CURRENT_BINARY_DIR}/lib${PROJECT_NAME}.a *.o
         COMMAND rm -rf ${tokio_obj_dir})
 
 install(TARGETS ${PROJECT_NAME} DESTINATION ${main_lib_dest})

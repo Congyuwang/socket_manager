@@ -15,8 +15,8 @@ int test_multiple_connections(int argc, char **argv) {
   auto p0_cb = std::make_shared<StoreAllEventsConnCallback>();
   auto p1_cb = std::make_shared<StoreAllEventsConnCallback>();
 
-  SocketManager p0(p0_cb);
-  SocketManager p1(p1_cb);
+  SocketManager<StoreAllEventsConnCallback, MsgStoreReceiver> p0(p0_cb);
+  SocketManager<StoreAllEventsConnCallback, MsgStoreReceiver> p1(p1_cb);
 
   // listen
   p1.listen_on_addr(p1_addr_0);
@@ -47,7 +47,7 @@ int test_multiple_connections(int argc, char **argv) {
       }
       break;
     }
-    p0_cb->cond.wait(u_lock);
+    p0_cb->cond.wait_for(u_lock, std::chrono::milliseconds(10));
   }
   while (true) {
     std::unique_lock<std::mutex> u_lock(p1_cb->mutex);
@@ -58,7 +58,7 @@ int test_multiple_connections(int argc, char **argv) {
       }
       break;
     }
-    p1_cb->cond.wait(u_lock);
+    p1_cb->cond.wait_for(u_lock, std::chrono::milliseconds(10));
   }
 
   // send messages from p0 to p1 and vice versa
@@ -80,7 +80,7 @@ int test_multiple_connections(int argc, char **argv) {
       }
       break;
     }
-    p0_cb->cond.wait(u_lock);
+    p0_cb->cond.wait_for(u_lock, std::chrono::milliseconds(10));
   }
   while (true) {
     std::unique_lock<std::mutex> u_lock(p1_cb->mutex);
@@ -92,7 +92,7 @@ int test_multiple_connections(int argc, char **argv) {
       }
       break;
     }
-    p1_cb->cond.wait(u_lock);
+    p1_cb->cond.wait_for(u_lock, std::chrono::milliseconds(10));
   }
 
   // shutdown all connections from p0
@@ -118,7 +118,7 @@ int test_multiple_connections(int argc, char **argv) {
     }
     {
       std::unique_lock<std::mutex> u_lock(p1_cb->mutex);
-      p1_cb->cond.wait(u_lock);
+      p1_cb->cond.wait_for(u_lock, std::chrono::milliseconds(10));
     }
   }
   while (true) {
@@ -128,7 +128,7 @@ int test_multiple_connections(int argc, char **argv) {
     }
     {
       std::unique_lock<std::mutex> u_lock(p0_cb->mutex);
-      p0_cb->cond.wait(u_lock);
+      p0_cb->cond.wait_for(u_lock, std::chrono::milliseconds(10));
     }
   }
 

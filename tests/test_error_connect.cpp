@@ -8,7 +8,7 @@ int test_error_connect(int argc, char **argv) {
   std::vector<std::tuple<std::string, std::shared_ptr<std::string>>> buffer;
 
   auto test_cb = std::make_shared<BitFlagCallback>(lock, cond, sig, buffer);
-  SocketManager test(test_cb);
+  SocketManager<BitFlagCallback, MsgStoreReceiver> test(test_cb);
   test.connect_to_addr("127.0.0.1:12345");
 
   // Wait for the connection to fail
@@ -23,7 +23,7 @@ int test_error_connect(int argc, char **argv) {
     }
     {
       std::unique_lock<std::mutex> u_lock(lock);
-      cond.wait(u_lock);
+      cond.wait_for(u_lock, std::chrono::milliseconds(10));
     }
   }
 }
