@@ -40,10 +40,19 @@ cd socket_manager
 git submodule update --init
 ```
 
-- Step 5: Build and install
+- Step 5: Build and Install
+
+As a shared library:
 
 ```shell
 cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release
+sudo cmake --install build --config Release
+```
+
+As a static library:
+```shell
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
 cmake --build build --config Release
 sudo cmake --install build --config Release
 ```
@@ -56,11 +65,9 @@ find_package(socket_manager 0.1.0 REQUIRED)
 target_link_libraries(test_socket_manager PUBLIC socket_manager)
 ```
 
-### Install as Static Library
-
-For installing as static library, add the lines in the 
-`toolchain.cmake` in your toolchain file or use the
-`toolchain.cmake` to ensure the right toolchain is used.
+### Linking as Static Library
+For linking, add the lines in the `toolchain.cmake` in your toolchain file
+or use the provided `toolchain.cmake` to ensure the right toolchain is used.
 
 To enable lto:
 ```cmake
