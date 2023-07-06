@@ -4,7 +4,7 @@ using namespace socket_manager;
 
 int test_error_call_after_abort(int argc, char **argv) {
   auto nothing_cb = std::make_shared<DoNothingConnCallback>();
-  SocketManager<DoNothingConnCallback> nothing(nothing_cb);
+  SocketManager nothing(nothing_cb);
 
   nothing.abort();
 

@@ -18,7 +18,6 @@ namespace socket_manager {
    * Dropping this object will close all the connections and wait for all the
    * threads to finish.
    */
-  template<class CB>
   class SocketManager {
 
   public:
@@ -30,21 +29,7 @@ namespace socket_manager {
      *                 the number of threads is equal to the number of cores.
      *                 Default to single-threaded runtime.
      */
-    explicit SocketManager(const std::shared_ptr<CB> &conn_cb, size_t n_threads = 1) : conn_cb(conn_cb) {
-      static_assert(
-              std::is_base_of<ConnCallback, CB>::value,
-              "conn_cb should be derived from `ConnCallback`");
-
-      char *err = nullptr;
-      inner = socket_manager_init(OnConnObj{
-              conn_cb.get()
-      }, n_threads, &err);
-      if (err) {
-        const std::string err_str(err);
-        free(err);
-        throw std::runtime_error(err_str);
-      }
-    }
+    explicit SocketManager(const std::shared_ptr<ConnCallback> &conn_cb, size_t n_threads = 1);
 
     /**
      * Listen on the given address.
@@ -58,14 +43,7 @@ namespace socket_manager {
      *
      * @param addr: the ip address to listen to (support both ipv4 and ipv6).
      */
-    void listen_on_addr(const std::string &addr) {
-      char *err = nullptr;
-      if (socket_manager_listen_on_addr(inner, addr.c_str(), &err)) {
-        const std::string err_str(err);
-        free(err);
-        throw std::runtime_error(err_str);
-      }
-    }
+    void listen_on_addr(const std::string &addr);
 
     /**
      * Connect to the given address.
@@ -79,14 +57,7 @@ namespace socket_manager {
      *
      * @param addr: the ip address to listen to (support both ipv4 and ipv6).
      */
-    void connect_to_addr(const std::string &addr) {
-      char *err = nullptr;
-      if (socket_manager_connect_to_addr(inner, addr.c_str(), &err)) {
-        const std::string err_str(err);
-        free(err);
-        throw std::runtime_error(err_str);
-      }
-    }
+    void connect_to_addr(const std::string &addr);
 
     /**
      * Cancel listening on the given address.
@@ -100,14 +71,7 @@ namespace socket_manager {
      *
      * @param addr cancel listening on this address.
      */
-    void cancel_listen_on_addr(const std::string &addr) {
-      char *err = nullptr;
-      if (socket_manager_cancel_listen_on_addr(inner, addr.c_str(), &err)) {
-        const std::string err_str(err);
-        free(err);
-        throw std::runtime_error(err_str);
-      }
-    }
+    void cancel_listen_on_addr(const std::string &addr);
 
     /**
      * Stop all background threads and drop all connections.
@@ -122,14 +86,7 @@ namespace socket_manager {
      * # Errors
      * Throws `std::runtime_error` if socket manager runtime has been aborted.
      */
-    void abort(bool wait = true) {
-      char *err = nullptr;
-      if (socket_manager_abort(inner, wait, &err)) {
-        const std::string err_str(err);
-        free(err);
-        throw std::runtime_error(err_str);
-      }
-    }
+    void abort(bool wait = true);
 
     /**
      * Join and wait on the `SocketManager` background runtime.
@@ -142,18 +99,9 @@ namespace socket_manager {
      * Throws `std::runtime_error` if the background runtime panicked.
      * Returns immediately on the second call.
      */
-    void join() {
-      char *err = nullptr;
-      if (socket_manager_join(inner, &err)) {
-        const std::string err_str(err);
-        free(err);
-        throw std::runtime_error(err_str);
-      }
-    }
+    void join();
 
-    ~SocketManager() {
-      socket_manager_free(inner);
-    }
+    ~SocketManager();
 
     SocketManager(const SocketManager &) = delete;
 
@@ -162,7 +110,7 @@ namespace socket_manager {
   private:
 
     CSocketManager *inner;
-    std::shared_ptr<CB> conn_cb;
+    std::shared_ptr<ConnCallback> conn_cb;
 
   };
 

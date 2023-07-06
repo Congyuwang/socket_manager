@@ -72,8 +72,8 @@ int test_transfer_data_large(int argc, char **argv) {
 
   auto send_cb = std::make_shared<SendLargeDataConnCallback>();
   auto store_cb = std::make_shared<StoreAllDataNotifyOnCloseCallback>();
-  SocketManager<SendLargeDataConnCallback> send(send_cb);
-  SocketManager<StoreAllDataNotifyOnCloseCallback> store(store_cb);
+  SocketManager send(send_cb);
+  SocketManager store(store_cb);
 
   send.listen_on_addr(addr);
   store.connect_to_addr(addr);

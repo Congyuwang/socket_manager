@@ -66,10 +66,10 @@ int test_callback_throw_error(int argc, char **argv) {
   auto err_on_msg_cb = std::make_shared<OnMsgErrorCallback>();
   auto store_record_cb = std::make_shared<StoreAllEventsConnHelloCallback>();
 
-  SocketManager<OnConnectErrorBeforeStartCallback> err_before(err_before_cb);
-  SocketManager<OnConnectErrorAfterStartCallback> err_after(err_after_cb);
-  SocketManager<OnMsgErrorCallback> err_on_msg(err_on_msg_cb);
-  SocketManager<StoreAllEventsConnHelloCallback> store_record(store_record_cb);
+  SocketManager err_before(err_before_cb);
+  SocketManager err_after(err_after_cb);
+  SocketManager err_on_msg(err_on_msg_cb);
+  SocketManager store_record(store_record_cb);
 
   store_record.listen_on_addr(addr);
   std::this_thread::sleep_for(std::chrono::milliseconds(10));
