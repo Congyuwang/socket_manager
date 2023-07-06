@@ -16,8 +16,8 @@ int test_drop_sender(int argc, char **argv) {
   // bit flag socket drop sender directly, which should close the connection.
   auto test_cb = std::make_unique<BitFlagCallback>(lock, cond, sig, buffer);
 
-  SocketManager server(server_cb);
-  SocketManager test(std::move(test_cb));
+  SocketManager<StoreAllEventsConnCallback, MsgStoreReceiver> server(server_cb);
+  SocketManager<BitFlagCallback, MsgStoreReceiver> test(std::move(test_cb));
 
   server.listen_on_addr(local_addr);
   // wait 10ms for server to start listening
@@ -30,13 +30,9 @@ int test_drop_sender(int argc, char **argv) {
     if (server_cb->events.size() == 2) {
       assert(std::get<0>(server_cb->events[0]) == CONNECTED);
       assert(std::get<0>(server_cb->events[1]) == CONNECTION_CLOSED);
-      assert(std::get<0>(server_cb->events[2]) == CONNECTED);
-      assert(std::get<0>(server_cb->events[3]) == CONNECTION_CLOSED);
-      assert(std::get<0>(server_cb->events[4]) == CONNECTED);
-      assert(std::get<0>(server_cb->events[5]) == CONNECTION_CLOSED);
       break;
     }
-    server_cb->cond.wait(u_lock);
+    server_cb->cond.wait_for(u_lock, std::chrono::milliseconds(10));
   }
 
   while (true) {
@@ -50,7 +46,7 @@ int test_drop_sender(int argc, char **argv) {
     }
     {
       std::unique_lock<std::mutex> u_lock(lock);
-      cond.wait(u_lock);
+      cond.wait_for(u_lock, std::chrono::milliseconds(10));
     }
   }
 }

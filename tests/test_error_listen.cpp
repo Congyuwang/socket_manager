@@ -8,7 +8,7 @@ int test_error_listen(int argc, char **argv) {
   std::vector<std::tuple<std::string, std::shared_ptr<std::string>>> buffer;
 
   auto test_cb = std::make_shared<BitFlagCallback>(lock, cond, sig, buffer);
-  SocketManager test(test_cb);
+  SocketManager<BitFlagCallback, MsgStoreReceiver> test(test_cb);
   test.listen_on_addr("127.0.0.1:12346");
   test.listen_on_addr("127.0.0.1:12346");
 
@@ -24,7 +24,7 @@ int test_error_listen(int argc, char **argv) {
     }
     {
       std::unique_lock<std::mutex> u_lock(lock);
-      cond.wait(u_lock);
+      cond.wait_for(u_lock, std::chrono::milliseconds(10));
     }
   }
 }

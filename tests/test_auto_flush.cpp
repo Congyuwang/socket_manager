@@ -23,7 +23,7 @@ public:
 class HelloWorldManager : public DoNothingConnCallback {
 public:
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  const std::shared_ptr<Connection> &conn) override {
+                  const std::shared_ptr<Connection<DoNothingReceiver>> &conn) override {
     auto do_nothing = std::make_unique<ReceiverHelloWorld>(mutex, cond, received);
     sender = conn->start(std::move(do_nothing));
     sender->send("hello world");
@@ -39,7 +39,7 @@ private:
 
 class SendHelloWorldDoNotClose : public DoNothingConnCallback {
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  const std::shared_ptr<Connection> &conn) override {
+                  const std::shared_ptr<Connection<DoNothingReceiver>> &conn) override {
     auto do_nothing = std::make_unique<DoNothingReceiver>();
     sender = conn->start(std::move(do_nothing));
     sender->send("hello world");
@@ -54,17 +54,19 @@ int test_auto_flush(int argc, char **argv) {
   const std::string addr = "127.0.0.1:12354";
 
   auto send_cb = std::make_shared<SendHelloWorldDoNotClose>();
-  SocketManager send(send_cb);
+  SocketManager<SendHelloWorldDoNotClose, DoNothingReceiver> send(send_cb);
   send.listen_on_addr(addr);
 
   auto recv_cb = std::make_shared<HelloWorldManager>();
-  SocketManager recv(recv_cb);
+  SocketManager<HelloWorldManager, DoNothingReceiver> recv(recv_cb);
   recv.connect_to_addr(addr);
 
   while (true) {
     std::unique_lock<std::mutex> u_lock(recv_cb->mutex);
-    recv_cb->cond.wait(u_lock, [&recv_cb] { return recv_cb->received.load(); });
-    break;
+    if (recv_cb->received.load()) {
+      break;
+    }
+    recv_cb->cond.wait_for(u_lock, std::chrono::milliseconds(10));
   }
 
   return 0;

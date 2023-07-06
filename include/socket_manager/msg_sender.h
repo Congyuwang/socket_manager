@@ -47,7 +47,7 @@ namespace socket_manager {
 
   private:
 
-    friend class Connection;
+    template<class> friend class Connection;
 
     explicit MsgSender(CMsgSender *inner);
 

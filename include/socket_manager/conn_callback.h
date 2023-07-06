@@ -41,14 +41,14 @@ namespace socket_manager {
    *   -> unique `MsgReceiver`, where the later object has a longer
    *   lifetime than the former.
    */
-  class ConnCallback {
+  template<class Rcv> class ConnCallback {
   public:
 
     virtual ~ConnCallback() = default;
 
   private:
 
-    friend class SocketManager;
+    template<class, class> friend class SocketManager;
 
     /**
      * Called when a new connection is established.
@@ -65,7 +65,7 @@ namespace socket_manager {
      */
     virtual void on_connect(const std::string &local_addr,
                             const std::string &peer_addr,
-                            const std::shared_ptr<Connection> &conn) = 0;
+                            const std::shared_ptr<Connection<Rcv>> &conn) = 0;
 
     /**
      * Called when a connection is closed.
@@ -127,7 +127,7 @@ namespace socket_manager {
           auto local_addr = std::string(on_connect.Local);
           auto peer_addr = std::string(on_connect.Peer);
 
-          std::shared_ptr<Connection> conn(new Connection(on_connect.Conn));
+          std::shared_ptr<Connection<Rcv>> conn(new Connection<Rcv>(on_connect.Conn));
 
           // keep the connection alive
           {
@@ -198,7 +198,7 @@ namespace socket_manager {
     // keep the connection object alive before connection closed
     // to ensure that message listener is alive during connection.
     std::mutex lock;
-    std::unordered_map<std::string, std::shared_ptr<Connection>> conns;
+    std::unordered_map<std::string, std::shared_ptr<Connection<Rcv>>> conns;
 
   };
 }

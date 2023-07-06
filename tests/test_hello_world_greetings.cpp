@@ -11,8 +11,8 @@ int test_hello_world_greetings(int argc, char **argv) {
   auto server_cb = std::make_shared<StoreAllEventsConnCallback>();
   auto client_cb = std::make_shared<StoreAllEventsConnCallback>();
 
-  SocketManager server(server_cb);
-  SocketManager client(client_cb);
+  SocketManager<StoreAllEventsConnCallback, MsgStoreReceiver> server(server_cb);
+  SocketManager<StoreAllEventsConnCallback, MsgStoreReceiver> client(client_cb);
 
   server.listen_on_addr(addr);
   // Wait for 100ms
@@ -36,7 +36,7 @@ int test_hello_world_greetings(int argc, char **argv) {
       c_conn_id = std::get<1>(client_cb->events[0]);
       break;
     }
-    client_cb->cond.wait(u_lock);
+    client_cb->cond.wait_for(u_lock, std::chrono::milliseconds(10));
   }
 
   // wait for connection success (server side)
@@ -49,7 +49,7 @@ int test_hello_world_greetings(int argc, char **argv) {
       server.cancel_listen_on_addr(addr);
       break;
     }
-    server_cb->cond.wait(u_lock);
+    server_cb->cond.wait_for(u_lock, std::chrono::milliseconds(10));
   }
 
   // send message
@@ -65,7 +65,7 @@ int test_hello_world_greetings(int argc, char **argv) {
       assert(*std::get<1>(server_cb->buffer[0]) == "hello world");
       break;
     }
-    server_cb->cond.wait(u_lock);
+    server_cb->cond.wait_for(u_lock, std::chrono::milliseconds(10));
   }
 
   server_cb->send_to(s_conn_id, "hello world");
@@ -80,7 +80,7 @@ int test_hello_world_greetings(int argc, char **argv) {
       assert(*std::get<1>(client_cb->buffer[0]) == "hello world");
       break;
     }
-    client_cb->cond.wait(u_lock);
+    client_cb->cond.wait_for(u_lock, std::chrono::milliseconds(10));
   }
 
   // drop sender
@@ -94,7 +94,7 @@ int test_hello_world_greetings(int argc, char **argv) {
       assert(std::get<0>(server_cb->events[1]) == CONNECTION_CLOSED);
       break;
     }
-    server_cb->cond.wait(u_lock);
+    server_cb->cond.wait_for(u_lock, std::chrono::milliseconds(10));
   }
 
   // wait for connection close
@@ -105,7 +105,7 @@ int test_hello_world_greetings(int argc, char **argv) {
       std::cout << "Connection closed: " << std::get<1>(client_cb->events[1]) << std::endl;
       break;
     }
-    client_cb->cond.wait(u_lock);
+    client_cb->cond.wait_for(u_lock, std::chrono::milliseconds(10));
   }
 
   client_cb->drop_connection(c_conn_id);
