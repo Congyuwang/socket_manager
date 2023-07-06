@@ -30,7 +30,7 @@ namespace socket_manager {
      *                 the number of threads is equal to the number of cores.
      *                 Default to single-threaded runtime.
      */
-    explicit SocketManager(const std::shared_ptr<CB> &conn_cb, size_t n_threads = 1) {
+    explicit SocketManager(const std::shared_ptr<CB> &conn_cb, size_t n_threads = 1) : conn_cb(conn_cb) {
       static_assert(
               std::is_base_of<ConnCallback<Rcv>, CB>::value,
               "conn_cb should be derived from `ConnCallback`");
