@@ -2,8 +2,6 @@
 
 enable_testing()
 
-set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
-
 find_package(Threads REQUIRED)
 
 # all files named test*.cpp are included
@@ -20,6 +18,9 @@ create_test_sourcelist(Tests CommonCxxTests.cxx ${test_files})
 # build test driver
 add_executable(CommonCxxTests ${Tests})
 target_link_libraries(CommonCxxTests PUBLIC socket_manager ${CMAKE_THREAD_LIBS_INIT})
+
+# enable lto for tests
+set_property(TARGET CommonCxxTests PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 # Add all the ADD_TEST for each test
 set(TestsToRun ${Tests})
