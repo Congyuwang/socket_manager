@@ -4,8 +4,9 @@
 
 namespace socket_manager {
 
-  std::shared_ptr<MsgSender> Connection::start(
-          std::unique_ptr<MsgReceiver> msg_receiver,
+  template<class Rcv>
+  std::shared_ptr<MsgSender> Connection<Rcv>::start(
+          std::unique_ptr<Rcv> msg_receiver,
           unsigned long long write_flush_interval) {
 
     // start the connection.
@@ -28,7 +29,8 @@ namespace socket_manager {
     return std::shared_ptr<MsgSender>(new MsgSender(sender));
   }
 
-  void Connection::close() {
+  template<class Rcv>
+  void Connection<Rcv>::close() {
     char *err = nullptr;
     if (connection_close(inner, &err)) {
       const std::string err_str(err);
@@ -37,9 +39,15 @@ namespace socket_manager {
     }
   }
 
-  Connection::Connection(CConnection *inner) : inner(inner) {}
+  template<class Rcv>
+  Connection<Rcv>::Connection(CConnection *inner) : inner(inner) {
+    static_assert(
+            std::is_base_of<MsgReceiver, Rcv>::value,
+            "msg_receiver should be derived from `MsgReceiver`");
+  }
 
-  Connection::~Connection() {
+  template<class Rcv>
+  Connection<Rcv>::~Connection() {
     connection_free(inner);
   }
 

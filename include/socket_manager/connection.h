@@ -15,7 +15,7 @@ namespace socket_manager {
    * Use Connection to send and receive messages from
    * established connections.
    */
-  class Connection {
+  template<class Rcv> class Connection {
 
   public:
 
@@ -45,7 +45,7 @@ namespace socket_manager {
      * Default to 20 milliseconds.
      */
     std::shared_ptr<MsgSender> start(
-            std::unique_ptr<MsgReceiver> msg_receiver,
+            std::unique_ptr<Rcv> msg_receiver,
             unsigned long long write_flush_interval = DEFAULT_WRITE_FLUSH_MILLI_SEC);
 
     /**
@@ -68,10 +68,10 @@ namespace socket_manager {
 
   private:
 
-    friend class ConnCallback;
+    template<class> friend class ConnCallback;
 
     // keep the msg_receiver alive
-    std::unique_ptr<MsgReceiver> receiver;
+    std::unique_ptr<Rcv> receiver;
 
     explicit Connection(CConnection *inner);
 

@@ -16,8 +16,8 @@ int test_drop_sender(int argc, char **argv) {
   // bit flag socket drop sender directly, which should close the connection.
   auto test_cb = std::make_unique<BitFlagCallback>(lock, cond, sig, buffer);
 
-  SocketManager server(server_cb);
-  SocketManager test(std::move(test_cb));
+  SocketManager<StoreAllEventsConnCallback, MsgStoreReceiver> server(server_cb);
+  SocketManager<BitFlagCallback, MsgStoreReceiver> test(std::move(test_cb));
 
   server.listen_on_addr(local_addr);
   // wait 10ms for server to start listening

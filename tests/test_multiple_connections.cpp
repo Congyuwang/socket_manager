@@ -15,8 +15,8 @@ int test_multiple_connections(int argc, char **argv) {
   auto p0_cb = std::make_shared<StoreAllEventsConnCallback>();
   auto p1_cb = std::make_shared<StoreAllEventsConnCallback>();
 
-  SocketManager p0(p0_cb);
-  SocketManager p1(p1_cb);
+  SocketManager<StoreAllEventsConnCallback, MsgStoreReceiver> p0(p0_cb);
+  SocketManager<StoreAllEventsConnCallback, MsgStoreReceiver> p1(p1_cb);
 
   // listen
   p1.listen_on_addr(p1_addr_0);
