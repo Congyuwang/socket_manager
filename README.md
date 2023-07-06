@@ -22,9 +22,6 @@ rustup default nightly
 macOS:
 ```shell
 brew install llvm@16
-export PATH=/opt/homebrew/opt/llvm/bin:${PATH}
-export CC=/opt/homebrew/opt/llvm/bin/clang
-export CXX=/opt/homebrew/opt/llvm/bin/clang++
 ```
 
 linux
@@ -32,11 +29,7 @@ linux
 wget https://apt.llvm.org/llvm.sh
 chmod +x llvm.sh
 sudo ./llvm.sh 16 all
-
-chmod +x update-alternatives-clang.sh
 sudo ./update-alternatives-clang.sh 16 9999
-export CC=/usr/bin/clang
-export CXX=/usr/bin/clang++
 ```
 
 - Step 4: Pull the source code

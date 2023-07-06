@@ -24,8 +24,8 @@ file(MAKE_DIRECTORY ${tokio_obj_dir})
 
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         WORKING_DIRECTORY ${tokio_obj_dir}
-        COMMAND llvm-ar -x ${CMAKE_BINARY_DIR}/libtokio_socket_manager.a
-        COMMAND llvm-ar -qs ${CMAKE_CURRENT_BINARY_DIR}/lib${PROJECT_NAME}.a *.o
+        COMMAND ${CMAKE_AR} -x ${CMAKE_BINARY_DIR}/libtokio_socket_manager.a
+        COMMAND ${CMAKE_AR} -qs ${CMAKE_CURRENT_BINARY_DIR}/lib${PROJECT_NAME}.a *.o
         COMMAND rm -rf ${tokio_obj_dir})
 
 install(TARGETS ${PROJECT_NAME} DESTINATION ${main_lib_dest})
