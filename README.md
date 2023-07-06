@@ -22,9 +22,6 @@ rustup default nightly
 macOS:
 ```shell
 brew install llvm@16
-export PATH=$HOMEBREW_PREFIX/opt/llvm/bin:$PATH
-export CC=$HOMEBREW_PREFIX/opt/llvm/bin/clang
-export CXX=$HOMEBREW_PREFIX/opt/llvm/bin/clang++
 ```
 
 linux
