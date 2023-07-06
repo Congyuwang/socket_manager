@@ -49,6 +49,10 @@ namespace socket_manager {
             std::unique_ptr<Rcv> msg_receiver,
             unsigned long long write_flush_interval = DEFAULT_WRITE_FLUSH_MILLI_SEC) {
 
+      static_assert(
+              std::is_base_of<MsgReceiver, Rcv>::value,
+              "msg_receiver should be derived from MsgReceiver");
+
       // start the connection.
       // calling twice `connection_start` will throw exception.
       char *err = nullptr;
