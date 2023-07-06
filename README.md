@@ -54,7 +54,6 @@ In your CMakeLists.txt, add the following lines:
 
 ```cmake
 # enable lto requires clang-16
-set(CMAKE_CXX_STANDARD 14)
 SET(CMAKE_C_FLAGS "-Wall -std=c99")
 SET(CMAKE_C_FLAGS_DEBUG "-g")
 SET(CMAKE_C_FLAGS_MINSIZEREL "-Os -DNDEBUG -flto=full")
