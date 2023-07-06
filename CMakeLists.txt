@@ -15,6 +15,9 @@ SET(CMAKE_CXX_FLAGS_MINSIZEREL "-Os -DNDEBUG -flto=full")
 SET(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG -flto=full")
 SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g")
 
+add_subdirectory(${CMAKE_SOURCE_DIR}/corrosion)
+corrosion_import_crate(MANIFEST_PATH Cargo.toml)
+
 if (APPLE)
     SET(CMAKE_C_COMPILER   $ENV{HOMEBREW_PREFIX}/opt/llvm/bin/clang)
     SET(CMAKE_CXX_COMPILER $ENV{HOMEBREW_PREFIX}/opt/llvm/bin/clang++)
@@ -31,15 +34,13 @@ elseif (LINUX)
     SET(CMAKE_NM            /usr/bin/llvm-nm)
     SET(CMAKE_OBJDUMP       /usr/bin/llvm-objdump)
     SET(CMAKE_RANLIB        /usr/bin/llvm-ranlib)
+    SET(ARCH_FLAGS          "-target ${Rust_CARGO_TARGET_ARCH}-${Rust_CARGO_TARGET_VENDOR}-${Rust_CARGO_TARGET_OS}-${Rust_CARGO_TARGET_ENV}")
 endif ()
 
 set(include_dest "include/${PROJECT_NAME}-${PROJECT_VERSION}")
 set(main_lib_dest "lib/${PROJECT_NAME}-${PROJECT_VERSION}")
 
 set(Rust_TOOLCHAIN "nightly" CACHE STRING "requires nightly")
-
-add_subdirectory(${CMAKE_SOURCE_DIR}/corrosion)
-corrosion_import_crate(MANIFEST_PATH Cargo.toml)
 
 add_subdirectory(socket_manager)
 
