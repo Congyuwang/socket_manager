@@ -5,7 +5,6 @@
 #include "socket_manager_c_api.h"
 #include <string>
 #include <memory>
-#include <mutex>
 
 namespace socket_manager {
 
