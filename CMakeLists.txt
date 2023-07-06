@@ -1,4 +1,7 @@
 cmake_minimum_required(VERSION 3.9)
+
+set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/toolchain.cmake)
+
 project(socket_manager LANGUAGES C CXX VERSION 0.1.0)
 
 set(CMAKE_CXX_STANDARD 14)
@@ -17,25 +20,9 @@ SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g")
 
 add_subdirectory(${CMAKE_SOURCE_DIR}/corrosion)
 corrosion_import_crate(MANIFEST_PATH Cargo.toml)
-
-if (APPLE)
-    SET(CMAKE_C_COMPILER   $ENV{HOMEBREW_PREFIX}/opt/llvm/bin/clang)
-    SET(CMAKE_CXX_COMPILER $ENV{HOMEBREW_PREFIX}/opt/llvm/bin/clang++)
-    SET(CMAKE_AR           $ENV{HOMEBREW_PREFIX}/opt/llvm/bin/llvm-ar)
-    SET(CMAKE_LINKER       $ENV{HOMEBREW_PREFIX}/opt/llvm/bin/llvm-ld)
-    SET(CMAKE_NM           $ENV{HOMEBREW_PREFIX}/opt/llvm/bin/llvm-nm)
-    SET(CMAKE_OBJDUMP      $ENV{HOMEBREW_PREFIX}/opt/llvm/bin/llvm-objdump)
-    SET(CMAKE_RANLIB       $ENV{HOMEBREW_PREFIX}/opt/llvm/bin/llvm-ranlib)
-elseif (LINUX)
-    SET(CMAKE_C_COMPILER    /usr/bin/clang)
-    SET(CMAKE_CXX_COMPILER  /usr/bin/clang++)
-    SET(CMAKE_AR            /usr/bin/llvm-ar)
-    SET(CMAKE_LINKER        /usr/bin/llvm-ld)
-    SET(CMAKE_NM            /usr/bin/llvm-nm)
-    SET(CMAKE_OBJDUMP       /usr/bin/llvm-objdump)
-    SET(CMAKE_RANLIB        /usr/bin/llvm-ranlib)
-    SET(ARCH_FLAGS          "-target ${Rust_CARGO_TARGET_ARCH}-${Rust_CARGO_TARGET_VENDOR}-${Rust_CARGO_TARGET_OS}-${Rust_CARGO_TARGET_ENV}")
-endif ()
+set(triple ${Rust_CARGO_TARGET_ARCH}-${Rust_CARGO_TARGET_VENDOR}-${Rust_CARGO_TARGET_OS}-${Rust_CARGO_TARGET_ENV})
+set(CMAKE_C_COMPILER_TARGET ${triple})
+set(CMAKE_CXX_COMPILER_TARGET ${triple})
 
 set(include_dest "include/${PROJECT_NAME}-${PROJECT_VERSION}")
 set(main_lib_dest "lib/${PROJECT_NAME}-${PROJECT_VERSION}")
