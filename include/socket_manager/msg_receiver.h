@@ -39,8 +39,6 @@ namespace socket_manager {
      */
     virtual void on_message(const std::shared_ptr<std::string> &data) = 0;
 
-    friend class Connection;
-
     friend char* ::socket_manager_extern_on_msg(void *receiver_ptr, ConnMsg msg);
 
   };

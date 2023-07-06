@@ -49,8 +49,6 @@ namespace socket_manager {
 
   private:
 
-    class SocketManager;
-
     friend char* ::socket_manager_extern_on_conn(void *this_, ConnStates conn);
 
     /**
