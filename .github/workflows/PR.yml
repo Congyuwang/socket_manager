@@ -2,9 +2,9 @@ name: PR Check
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main-static" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main-static" ]
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
