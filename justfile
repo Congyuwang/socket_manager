@@ -1,7 +1,3 @@
-export PATH := `echo $HOMEBREW_PREFIX/opt/llvm/bin:$PATH`
-export CC := `echo $HOMEBREW_PREFIX/opt/llvm/bin/clang`
-export CXX := `echo $HOMEBREW_PREFIX/opt/llvm/bin/clang++`
-
 cbind:
     cbindgen -q --config cbindgen.toml --crate tokio-socket-manager --output include/socket_manager_c_api.h
 
