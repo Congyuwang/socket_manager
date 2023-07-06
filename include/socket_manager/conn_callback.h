@@ -112,6 +112,7 @@ namespace socket_manager {
     virtual void on_connect_error(const std::string &addr,
                                   const std::string &err) = 0;
 
+    inline
     static char *string_dup(const std::string &str) {
       auto size = str.size();
       char *buffer = (char *) malloc(size + 1);
