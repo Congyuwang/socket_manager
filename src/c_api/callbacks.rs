@@ -1,3 +1,4 @@
+use crate::c_api::ffi::{socket_manager_extern_on_conn, socket_manager_extern_on_msg};
 use crate::c_api::structs::{
     CConnection, ConnMsg, ConnStateCode, ConnStateData, ConnStates, OnConnect, OnConnectError,
     OnConnectionClose, OnListenError,
@@ -21,9 +22,8 @@ use std::ffi::{c_char, c_void, CString};
 /// Must be thread safe!
 #[repr(C)]
 #[derive(Clone)]
-pub struct OnMsgCallback {
-    callback_self: *mut c_void,
-    callback: unsafe extern "C" fn(*mut c_void, ConnMsg) -> *mut c_char,
+pub struct OnMsgObj {
+    this: *mut c_void,
 }
 
 /// Callback function for connection state changes.
@@ -43,19 +43,18 @@ pub struct OnMsgCallback {
 /// Must be thread safe!
 #[repr(C)]
 #[derive(Clone)]
-pub struct OnConnCallback {
-    callback_self: *mut c_void,
-    callback: unsafe extern "C" fn(*mut c_void, ConnStates) -> *mut c_char,
+pub struct OnConnObj {
+    this: *mut c_void,
 }
 
-impl OnMsgCallback {
+impl OnMsgObj {
     pub fn call_inner(&self, conn_msg: crate::Msg<'_>) -> Result<(), String> {
         let conn_msg = ConnMsg {
             bytes: conn_msg.bytes.as_ptr() as *const c_char,
             len: conn_msg.bytes.len(),
         };
         unsafe {
-            let cb_result = (self.callback)(self.callback_self, conn_msg);
+            let cb_result = socket_manager_extern_on_msg(self.this, conn_msg);
             if let Err(e) = parse_c_err_str(cb_result) {
                 tracing::error!("Error thrown in OnMsg callback: {e}");
                 Err(e)
@@ -66,13 +65,13 @@ impl OnMsgCallback {
     }
 }
 
-impl FnMut<(crate::Msg<'_>,)> for OnMsgCallback {
+impl FnMut<(crate::Msg<'_>,)> for OnMsgObj {
     extern "rust-call" fn call_mut(&mut self, conn_msg: (crate::Msg<'_>,)) -> Self::Output {
         self.call_inner(conn_msg.0)
     }
 }
 
-impl FnOnce<(crate::Msg<'_>,)> for OnMsgCallback {
+impl FnOnce<(crate::Msg<'_>,)> for OnMsgObj {
     type Output = Result<(), String>;
 
     extern "rust-call" fn call_once(self, conn_msg: (crate::Msg<'_>,)) -> Self::Output {
@@ -80,20 +79,17 @@ impl FnOnce<(crate::Msg<'_>,)> for OnMsgCallback {
     }
 }
 
-impl Fn<(crate::Msg<'_>,)> for OnMsgCallback {
+impl Fn<(crate::Msg<'_>,)> for OnMsgObj {
     extern "rust-call" fn call(&self, conn_msg: (crate::Msg<'_>,)) -> Self::Output {
         self.call_inner(conn_msg.0)
     }
 }
 
-impl OnConnCallback {
+impl OnConnObj {
     /// connection callback
-    pub(crate) fn call_inner(
-        &self,
-        conn_states: crate::ConnState<OnMsgCallback>,
-    ) -> Result<(), String> {
-        let on_conn = |msg| unsafe {
-            let cb_result = (self.callback)(self.callback_self, msg);
+    pub(crate) fn call_inner(&self, conn_states: crate::ConnState<OnMsgObj>) -> Result<(), String> {
+        let on_conn = |conn| unsafe {
+            let cb_result = socket_manager_extern_on_conn(self.this, conn);
             parse_c_err_str(cb_result)
         };
         match conn_states {
@@ -188,34 +184,30 @@ impl OnConnCallback {
     }
 }
 
-impl FnMut<(crate::ConnState<OnMsgCallback>,)> for OnConnCallback {
+impl FnMut<(crate::ConnState<OnMsgObj>,)> for OnConnObj {
     extern "rust-call" fn call_mut(
         &mut self,
-        conn_msg: (crate::ConnState<OnMsgCallback>,),
+        conn_msg: (crate::ConnState<OnMsgObj>,),
     ) -> Self::Output {
         self.call_inner(conn_msg.0)
     }
 }
 
-impl FnOnce<(crate::ConnState<OnMsgCallback>,)> for OnConnCallback {
+impl FnOnce<(crate::ConnState<OnMsgObj>,)> for OnConnObj {
     type Output = Result<(), String>;
 
-    extern "rust-call" fn call_once(
-        self,
-        conn_msg: (crate::ConnState<OnMsgCallback>,),
-    ) -> Self::Output {
+    extern "rust-call" fn call_once(self, conn_msg: (crate::ConnState<OnMsgObj>,)) -> Self::Output {
         self.call_inner(conn_msg.0)
     }
 }
 
-impl Fn<(crate::ConnState<OnMsgCallback>,)> for OnConnCallback {
-    extern "rust-call" fn call(
-        &self,
-        conn_msg: (crate::ConnState<OnMsgCallback>,),
-    ) -> Self::Output {
+impl Fn<(crate::ConnState<OnMsgObj>,)> for OnConnObj {
+    extern "rust-call" fn call(&self, conn_msg: (crate::ConnState<OnMsgObj>,)) -> Self::Output {
         self.call_inner(conn_msg.0)
     }
 }
 
-unsafe impl Send for OnMsgCallback {}
-unsafe impl Send for OnConnCallback {}
+unsafe impl Send for OnMsgObj {}
+unsafe impl Sync for OnMsgObj {}
+unsafe impl Send for OnConnObj {}
+unsafe impl Sync for OnConnObj {}

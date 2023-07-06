@@ -27,7 +27,8 @@ set(header ${header_path}/socket_manager.h
            ${header_path}/conn_callback.h
            ${header_path}/msg_sender.h
            ${header_path}/msg_receiver.h)
-set(src msg_sender.cc)
+set(src msg_sender.cc
+        socket_manager_c_api.cc)
 
 target_sources(${PROJECT_NAME} PRIVATE ${src})
 

@@ -18,7 +18,8 @@ namespace socket_manager {
    * Dropping this object will close all the connections and wait for all the
    * threads to finish.
    */
-  template<class CB, class Rcv> class SocketManager {
+  template<class CB>
+  class SocketManager {
 
   public:
 
@@ -31,17 +32,12 @@ namespace socket_manager {
      */
     explicit SocketManager(const std::shared_ptr<CB> &conn_cb, size_t n_threads = 1) : conn_cb(conn_cb) {
       static_assert(
-              std::is_base_of<ConnCallback<Rcv>, CB>::value,
+              std::is_base_of<ConnCallback, CB>::value,
               "conn_cb should be derived from `ConnCallback`");
 
-      static_assert(
-              std::is_base_of<MsgReceiver, Rcv>::value,
-              "Rcv should be derived from MsgReceiver");
-
       char *err = nullptr;
-      inner = socket_manager_init(OnConnCallback{
-              conn_cb.get(),
-              ConnCallback<Rcv>::on_conn
+      inner = socket_manager_init(OnConnObj{
+              conn_cb.get()
       }, n_threads, &err);
       if (err) {
         const std::string err_str(err);

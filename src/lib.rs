@@ -1,5 +1,6 @@
 #![feature(unboxed_closures)]
 #![feature(fn_traits)]
+#![allow(improper_ctypes)]
 
 mod c_api;
 
