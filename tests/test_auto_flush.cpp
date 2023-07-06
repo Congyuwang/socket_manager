@@ -54,11 +54,11 @@ int test_auto_flush(int argc, char **argv) {
   const std::string addr = "127.0.0.1:12354";
 
   auto send_cb = std::make_shared<SendHelloWorldDoNotClose>();
-  SocketManager<SendHelloWorldDoNotClose> send(send_cb);
+  SocketManager send(send_cb);
   send.listen_on_addr(addr);
 
   auto recv_cb = std::make_shared<HelloWorldManager>();
-  SocketManager<HelloWorldManager> recv(recv_cb);
+  SocketManager recv(recv_cb);
   recv.connect_to_addr(addr);
 
   while (true) {

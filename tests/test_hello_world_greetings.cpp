@@ -11,8 +11,8 @@ int test_hello_world_greetings(int argc, char **argv) {
   auto server_cb = std::make_shared<StoreAllEventsConnCallback>();
   auto client_cb = std::make_shared<StoreAllEventsConnCallback>();
 
-  SocketManager<StoreAllEventsConnCallback> server(server_cb);
-  SocketManager<StoreAllEventsConnCallback> client(client_cb);
+  SocketManager server(server_cb);
+  SocketManager client(client_cb);
 
   server.listen_on_addr(addr);
   // Wait for 100ms

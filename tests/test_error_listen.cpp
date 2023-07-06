@@ -8,7 +8,7 @@ int test_error_listen(int argc, char **argv) {
   std::vector<std::tuple<std::string, std::shared_ptr<std::string>>> buffer;
 
   auto test_cb = std::make_shared<BitFlagCallback>(lock, cond, sig, buffer);
-  SocketManager<BitFlagCallback> test(test_cb);
+  SocketManager test(test_cb);
   test.listen_on_addr("127.0.0.1:12346");
   test.listen_on_addr("127.0.0.1:12346");
 
