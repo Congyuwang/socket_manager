@@ -23,9 +23,8 @@ jobs:
         submodules: true
 
     - name: Install LLVM and Clang
-      run:
-        wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-        wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
+      run: |
+        wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add - 
         sudo apt-get install clang-16 lldb-16 lld-16 llvm-16-linker-tools
 
     - name: Install Rust toolchain
