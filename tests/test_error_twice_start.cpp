@@ -2,13 +2,18 @@
 #include <chrono>
 #include <thread>
 
-class TwiceStartCallback : public DoNothingConnCallback {
+class DoNothingMsgReceiver : public MsgReceiver {
+public:
+  void on_message(const std::shared_ptr<std::string> &data) override {}
+};
+
+class TwiceStartCallback : public ConnCallback<DoNothingMsgReceiver> {
 
 public:
   TwiceStartCallback() : error_thrown(0) {};
 
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  const std::shared_ptr<Connection> &conn) override {
+                  const std::shared_ptr<Connection<DoNothingMsgReceiver>> &conn) override {
     auto receiver = std::make_unique<DoNothingMsgReceiver>();
     auto receiver2 = std::make_unique<DoNothingMsgReceiver>();
     conn->start(std::move(receiver));
@@ -29,17 +34,15 @@ public:
     cond.notify_all();
   }
 
+  void on_connection_close(const std::string &local_addr, const std::string &peer_addr) override {}
+
+  void on_listen_error(const std::string &addr, const std::string &err) override {}
+
+  void on_connect_error(const std::string &addr, const std::string &err) override {}
+
   std::atomic_int error_thrown;
   std::mutex mutex;
   std::condition_variable cond;
-
-private:
-
-  class DoNothingMsgReceiver : public MsgReceiver {
-  public:
-    void on_message(const std::shared_ptr<std::string> &data) override {}
-  };
-
 };
 
 int test_error_twice_start(int argc, char **argv) {
@@ -48,8 +51,8 @@ int test_error_twice_start(int argc, char **argv) {
   auto bad_cb = std::make_shared<TwiceStartCallback>();
   auto good_cb = std::make_shared<StoreAllEventsConnCallback>();
 
-  SocketManager bad(bad_cb);
-  SocketManager good(good_cb);
+  SocketManager<TwiceStartCallback, DoNothingMsgReceiver> bad(bad_cb);
+  SocketManager<StoreAllEventsConnCallback, MsgStoreReceiver> good(good_cb);
 
   bad.listen_on_addr(addr);
   // wait 100ms

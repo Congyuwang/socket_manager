@@ -19,7 +19,7 @@ namespace socket_manager {
    * Dropping this object will close all the connections and wait for all the
    * threads to finish.
    */
-  class SocketManager {
+  template<class CB, class Rcv> class SocketManager {
 
   public:
 
@@ -30,7 +30,7 @@ namespace socket_manager {
      *                 the number of threads is equal to the number of cores.
      *                 Default to single-threaded runtime.
      */
-    explicit SocketManager(const std::shared_ptr<ConnCallback> &conn_cb, size_t n_threads = 1);
+    explicit SocketManager(const std::shared_ptr<CB> &conn_cb, size_t n_threads = 1);
 
     /**
      * Listen on the given address.
@@ -111,7 +111,7 @@ namespace socket_manager {
   private:
 
     CSocketManager *inner;
-    std::shared_ptr<ConnCallback> conn_cb;
+    std::shared_ptr<CB> conn_cb;
 
   };
 

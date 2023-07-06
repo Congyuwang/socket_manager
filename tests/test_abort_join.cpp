@@ -3,13 +3,13 @@
 
 using namespace socket_manager;
 
-void abort_manager(SocketManager &manager) {
+void abort_manager(SocketManager<DoNothingConnCallback, DoNothingReceiver> &manager) {
   manager.abort();
 }
 
 int test_abort_join(int argc, char **argv) {
   auto nothing_cb = std::make_shared<DoNothingConnCallback>();
-  SocketManager nothing(nothing_cb);
+  SocketManager<DoNothingConnCallback, DoNothingReceiver> nothing(nothing_cb);
 
   std::thread abort_t(abort_manager, std::ref(nothing));
 

@@ -39,7 +39,7 @@ namespace socket_manager {
 
   private:
 
-    friend class Connection;
+    template<class Rcv> friend class Connection;
 
     static char *string_dup(const std::string &str) {
       auto size = str.size();

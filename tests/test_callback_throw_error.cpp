@@ -7,14 +7,14 @@ using namespace socket_manager;
 
 class OnConnectErrorBeforeStartCallback : public DoNothingConnCallback {
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  const std::shared_ptr<Connection> &conn) override {
+                  const std::shared_ptr<Connection<DoNothingReceiver>> &conn) override {
     throw std::runtime_error("throw some error before calling start");
   }
 };
 
 class OnConnectErrorAfterStartCallback : public DoNothingConnCallback {
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  const std::shared_ptr<Connection> &conn) override {
+                  const std::shared_ptr<Connection<DoNothingReceiver>> &conn) override {
     conn->start(std::make_unique<DoNothingReceiver>());
     throw std::runtime_error("throw some error after calling start");
   }
@@ -26,19 +26,26 @@ class OnMsgErrorReceiver : public MsgReceiver {
   }
 };
 
-class OnMsgErrorCallback : public DoNothingConnCallback {
+class OnMsgErrorCallback : public ConnCallback<OnMsgErrorReceiver> {
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  const std::shared_ptr<Connection> &conn) override {
+                  const std::shared_ptr<Connection<OnMsgErrorReceiver>> &conn) override {
     sender = conn->start(std::make_unique<OnMsgErrorReceiver>());
     sender.use_count();
   }
+
+  void on_connection_close(const std::string &local_addr, const std::string &peer_addr) override {}
+
+  void on_listen_error(const std::string &addr, const std::string &err) override {}
+
+  void on_connect_error(const std::string &addr, const std::string &err) override {}
+
 private:
   std::shared_ptr<MsgSender> sender;
 };
 
 class StoreAllEventsConnHelloCallback : public StoreAllEventsConnCallback {
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  const std::shared_ptr<Connection> &conn) override {
+                  const std::shared_ptr<Connection<MsgStoreReceiver>> &conn) override {
     std::unique_lock<std::mutex> lock(mutex);
     auto conn_id = local_addr + "->" + peer_addr;
     events.emplace_back(CONNECTED, conn_id);
@@ -59,10 +66,10 @@ int test_callback_throw_error(int argc, char **argv) {
   auto err_on_msg_cb = std::make_shared<OnMsgErrorCallback>();
   auto store_record_cb = std::make_shared<StoreAllEventsConnHelloCallback>();
 
-  SocketManager err_before(err_before_cb);
-  SocketManager err_after(err_after_cb);
-  SocketManager err_on_msg(err_on_msg_cb);
-  SocketManager store_record(store_record_cb);
+  SocketManager<OnConnectErrorBeforeStartCallback, DoNothingReceiver> err_before(err_before_cb);
+  SocketManager<OnConnectErrorAfterStartCallback, DoNothingReceiver> err_after(err_after_cb);
+  SocketManager<OnMsgErrorCallback, OnMsgErrorReceiver> err_on_msg(err_on_msg_cb);
+  SocketManager<StoreAllEventsConnHelloCallback, MsgStoreReceiver> store_record(store_record_cb);
 
   store_record.listen_on_addr(addr);
   std::this_thread::sleep_for(std::chrono::milliseconds(10));
