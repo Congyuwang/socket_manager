@@ -42,11 +42,9 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 set_target_properties(${PROJECT_NAME} PROPERTIES
         VERSION ${PROJECT_VERSION})
 
-install(TARGETS ${PROJECT_NAME} DESTINATION ${main_lib_dest})
 install(FILES ${header} DESTINATION ${include_dest})
 install(TARGETS ${PROJECT_NAME} tokio-socket-manager EXPORT ${PROJECT_NAME} DESTINATION ${main_lib_dest})
 install(EXPORT ${PROJECT_NAME} DESTINATION ${main_lib_dest})
-
 configure_file(${CMAKE_SOURCE_DIR}/socket_manager-config-version.cmake.in
         ${CMAKE_CURRENT_BINARY_DIR}/socket_manager-config-version.cmake @ONLY)
 install(FILES ${CMAKE_SOURCE_DIR}/${PROJECT_NAME}-config.cmake
