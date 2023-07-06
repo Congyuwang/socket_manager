@@ -27,7 +27,7 @@ int test_error_send_after_closed(int argc, char **argv) {
       s_conn_id = std::get<1>(server_cb->events[0]);
       break;
     }
-    server_cb->cond.wait(u_lock);
+    server_cb->cond.wait_for(u_lock, std::chrono::milliseconds(10));
   }
 
   // close connection from server (by dropping sender)
@@ -44,7 +44,7 @@ int test_error_send_after_closed(int argc, char **argv) {
       assert(std::get<1>(client_cb->events[1]) == c_conn_id);
       break;
     }
-    client_cb->cond.wait(u_lock);
+    client_cb->cond.wait_for(u_lock, std::chrono::milliseconds(10));
   }
 
   // Wait for 100ms

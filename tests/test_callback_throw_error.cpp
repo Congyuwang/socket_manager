@@ -91,7 +91,7 @@ int test_callback_throw_error(int argc, char **argv) {
       assert(std::get<0>(store_record_cb->events[5]) == CONNECTION_CLOSED);
       break;
     }
-    store_record_cb->cond.wait(u_lock);
+    store_record_cb->cond.wait_for(u_lock, std::chrono::milliseconds(10));
   }
 
   return 0;

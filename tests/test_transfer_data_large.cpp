@@ -86,7 +86,7 @@ int test_transfer_data_large(int argc, char **argv) {
     }
     {
       std::unique_lock<std::mutex> u_lock(store_cb->mutex);
-      store_cb->cond.wait(u_lock);
+      store_cb->cond.wait_for(u_lock, std::chrono::milliseconds(10));
     }
   }
 }
