@@ -2,8 +2,6 @@
 
 enable_testing()
 
-set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
-
 find_package(Threads REQUIRED)
 
 # all files named test*.cpp are included
