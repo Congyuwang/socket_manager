@@ -6,8 +6,45 @@ function register_clang_version {
     local version=$1
     local priority=$2
 
-    update-alternatives --remove-all clang
-    update-alternatives --remove-all clang++
+    update-alternatives --remove-all /usr/bin/llvm-config || true
+    update-alternatives --remove-all /usr/bin/llvm-ar || true
+    update-alternatives --remove-all /usr/bin/llvm-as || true
+    update-alternatives --remove-all /usr/bin/llvm-bcanalyzer || true
+    update-alternatives --remove-all /usr/bin/llvm-cov || true
+    update-alternatives --remove-all /usr/bin/llvm-diff || true
+    update-alternatives --remove-all /usr/bin/llvm-dis || true
+    update-alternatives --remove-all /usr/bin/llvm-dwarfdump || true
+    update-alternatives --remove-all /usr/bin/llvm-extract || true
+    update-alternatives --remove-all /usr/bin/llvm-link || true
+    update-alternatives --remove-all /usr/bin/llvm-mc || true
+    update-alternatives --remove-all /usr/bin/llvm-mcmarkup || true
+    update-alternatives --remove-all /usr/bin/llvm-nm || true
+    update-alternatives --remove-all /usr/bin/llvm-objdump || true
+    update-alternatives --remove-all /usr/bin/llvm-ranlib || true
+    update-alternatives --remove-all /usr/bin/llvm-readobj || true
+    update-alternatives --remove-all /usr/bin/llvm-rtdyld || true
+    update-alternatives --remove-all /usr/bin/llvm-size || true
+    update-alternatives --remove-all /usr/bin/llvm-stress || true
+    update-alternatives --remove-all /usr/bin/llvm-symbolizer || true
+    update-alternatives --remove-all /usr/bin/llvm-tblgen || true
+    update-alternatives --remove-all /usr/bin/clang || true
+    update-alternatives --remove-all /usr/bin/clang++ || true
+    update-alternatives --remove-all /usr/bin/asan_symbolize || true
+    update-alternatives --remove-all /usr/bin/c-index-test || true
+    update-alternatives --remove-all /usr/bin/clang-check || true
+    update-alternatives --remove-all /usr/bin/clang-cl || true
+    update-alternatives --remove-all /usr/bin/clang-cpp || true
+    update-alternatives --remove-all /usr/bin/clang-format || true
+    update-alternatives --remove-all /usr/bin/clang-format-diff || true
+    update-alternatives --remove-all /usr/bin/clang-import-test || true
+    update-alternatives --remove-all /usr/bin/clang-include-fixer || true
+    update-alternatives --remove-all /usr/bin/clang-offload-bundler || true
+    update-alternatives --remove-all /usr/bin/clang-query || true
+    update-alternatives --remove-all /usr/bin/clang-rename || true
+    update-alternatives --remove-all /usr/bin/clang-reorder-fields || true
+    update-alternatives --remove-all /usr/bin/clang-tidy || true
+    update-alternatives --remove-all /usr/bin/lldb || true
+    update-alternatives --remove-all /usr/bin/lldb-server || true
 
     update-alternatives \
         --install /usr/bin/llvm-config       llvm-config      /usr/bin/llvm-config-${version} ${priority} \
