@@ -31,7 +31,7 @@ linux
 ```shell
 wget https://apt.llvm.org/llvm.sh
 chmod +x llvm.sh
-sudo ./llvm.sh 16
+sudo ./llvm.sh 16 all
 
 chmod +x update-alternatives-clang.sh
 sudo ./update-alternatives-clang.sh 16 9999
