@@ -6,6 +6,9 @@ function register_clang_version {
     local version=$1
     local priority=$2
 
+    update-alternatives --remove-all clang
+    update-alternatives --remove-all clang++
+
     update-alternatives \
         --install /usr/bin/llvm-config       llvm-config      /usr/bin/llvm-config-${version} ${priority} \
         --slave   /usr/bin/llvm-ar           llvm-ar          /usr/bin/llvm-ar-${version} \
