@@ -34,7 +34,7 @@ chmod +x llvm.sh
 sudo ./llvm.sh 16
 
 sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-16 100
-sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang-16++ 100
+sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-16 100
 sudo update-alternatives --install /usr/bin/llvm-ar llvm-ar /usr/bin/llvm-ar-16 100
 export CC=/usr/bin/clang
 export CXX=/usr/bin/clang++
