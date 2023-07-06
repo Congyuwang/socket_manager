@@ -14,10 +14,20 @@ debug:
 
 build:
     cmake -B build -DCMAKE_BUILD_TYPE=Release
-    cmake --build build --config Release
+    cmake --build build --config Release --verbose
+    just test
+
+build-static:
+    cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
+    cmake --build build --config Release --verbose
     just test
 
 install:
     just clean
     just build
+    sudo cmake --install build --config Release
+
+install-static:
+    just clean
+    just build-static
     sudo cmake --install build --config Release

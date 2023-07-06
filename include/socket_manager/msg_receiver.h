@@ -20,6 +20,10 @@ namespace socket_manager {
 
   public:
 
+    virtual ~MsgReceiver() = default;
+
+  private:
+
     /**
      * Called when a message is received.
      *
@@ -35,35 +39,11 @@ namespace socket_manager {
      */
     virtual void on_message(const std::shared_ptr<std::string> &data) = 0;
 
-    virtual ~MsgReceiver() = default;
+    friend class Connection;
 
-  private:
-
-    template<class Rcv> friend class Connection;
-
-    static char *string_dup(const std::string &str) {
-      auto size = str.size();
-      char *buffer = (char *) malloc(size + 1);
-      memcpy(buffer, str.c_str(), size + 1);
-      return buffer;
-    }
-
-    static char *on_msg(void *receiver_ptr,
-                        ConnMsg msg) {
-      auto receiver = reinterpret_cast<MsgReceiver *>(receiver_ptr);
-      auto data_ptr = std::make_shared<std::string>(msg.Bytes, msg.Len);
-      try {
-        receiver->on_message(data_ptr);
-      } catch (std::runtime_error &e) {
-        return string_dup(e.what());
-      } catch (...) {
-        return string_dup("unknown error");
-      }
-      return nullptr;
-    }
+    friend char* ::socket_manager_extern_on_msg(void *receiver_ptr, ConnMsg msg);
 
   };
-
 
 } // namespace socket_manager
 

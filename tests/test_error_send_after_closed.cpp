@@ -8,8 +8,8 @@ int test_error_send_after_closed(int argc, char **argv) {
   auto server_cb = std::make_shared<StoreAllEventsConnCallback>();
   auto client_cb = std::make_shared<StoreAllEventsConnCallback>(false);
 
-  SocketManager<StoreAllEventsConnCallback, MsgStoreReceiver> server(server_cb);
-  SocketManager<StoreAllEventsConnCallback, MsgStoreReceiver> client(client_cb);
+  SocketManager server(server_cb);
+  SocketManager client(client_cb);
 
   server.listen_on_addr(addr);
 

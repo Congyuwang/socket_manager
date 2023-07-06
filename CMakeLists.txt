@@ -1,29 +1,34 @@
-cmake_minimum_required(VERSION 3.8)
+cmake_minimum_required(VERSION 3.9)
+set(CMAKE_CXX_STANDARD 14)
+
+# read toolchain file before project
+set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/toolchain.cmake)
+
+# define project
 project(socket_manager LANGUAGES C CXX VERSION 0.1.0)
 
-set(CMAKE_CXX_STANDARD 14)
-SET(CMAKE_C_FLAGS "-Wall -std=c99")
-SET(CMAKE_C_FLAGS_DEBUG "-g")
-SET(CMAKE_C_FLAGS_MINSIZEREL "-Os -DNDEBUG")
-SET(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG")
-SET(CMAKE_C_FLAGS_RELWITHDEBINFO "-O2 -g")
+# set default build type as shared
+option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 
-SET(CMAKE_CXX_FLAGS "-Wall")
-SET(CMAKE_CXX_FLAGS_DEBUG "-g")
-SET(CMAKE_CXX_FLAGS_MINSIZEREL "-Os -DNDEBUG")
-SET(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
-SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O2 -g")
+# import rust
+add_subdirectory(${CMAKE_SOURCE_DIR}/corrosion)
+corrosion_import_crate(MANIFEST_PATH Cargo.toml FLAGS --verbose)
+set(Rust_TOOLCHAIN "nightly" CACHE STRING "requires nightly")
+
+# enable cross language lto
+corrosion_add_target_rustflags(tokio-socket-manager -C linker-plugin-lto)
+
+# set target triple as rust target
+set(BUILD_TRIPLE ${Rust_CARGO_TARGET_ARCH}-${Rust_CARGO_TARGET_VENDOR}-${Rust_CARGO_TARGET_OS}-${Rust_CARGO_TARGET_ENV})
+set(CMAKE_C_COMPILER_TARGET ${BUILD_TRIPLE})
+set(CMAKE_CXX_COMPILER_TARGET ${BUILD_TRIPLE})
 
 set(include_dest "include/${PROJECT_NAME}-${PROJECT_VERSION}")
 set(main_lib_dest "lib/${PROJECT_NAME}-${PROJECT_VERSION}")
 
-set(Rust_TOOLCHAIN "nightly" CACHE STRING "requires nightly")
-
-add_subdirectory(${CMAKE_SOURCE_DIR}/corrosion)
-corrosion_import_crate(MANIFEST_PATH Cargo.toml)
-
 add_subdirectory(socket_manager)
 
+# add tests
 option(PACKAGE_TESTS "Build the tests" ON)
 if (PACKAGE_TESTS)
     enable_testing()

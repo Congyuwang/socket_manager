@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <cstring>
 #include "connection.h"
+#include "socket_manager_c_api.h"
 
 namespace socket_manager {
 
@@ -41,14 +42,16 @@ namespace socket_manager {
    *   -> unique `MsgReceiver`, where the later object has a longer
    *   lifetime than the former.
    */
-  template<class Rcv> class ConnCallback {
+  class ConnCallback {
   public:
 
     virtual ~ConnCallback() = default;
 
   private:
 
-    template<class, class> friend class SocketManager;
+    class SocketManager;
+
+    friend char* ::socket_manager_extern_on_conn(void *this_, ConnStates conn);
 
     /**
      * Called when a new connection is established.
@@ -65,7 +68,7 @@ namespace socket_manager {
      */
     virtual void on_connect(const std::string &local_addr,
                             const std::string &peer_addr,
-                            const std::shared_ptr<Connection<Rcv>> &conn) = 0;
+                            const std::shared_ptr<Connection> &conn) = 0;
 
     /**
      * Called when a connection is closed.
@@ -112,93 +115,10 @@ namespace socket_manager {
     virtual void on_connect_error(const std::string &addr,
                                   const std::string &err) = 0;
 
-    static char *string_dup(const std::string &str) {
-      auto size = str.size();
-      char *buffer = (char *) malloc(size + 1);
-      memcpy(buffer, str.c_str(), size + 1);
-      return buffer;
-    }
-
-    static char *on_conn(void *conn_cb_ptr, ConnStates states) {
-      auto conn_cb = static_cast<ConnCallback *>(conn_cb_ptr);
-      switch (states.Code) {
-        case ConnStateCode::Connect: {
-          auto on_connect = states.Data.OnConnect;
-          auto local_addr = std::string(on_connect.Local);
-          auto peer_addr = std::string(on_connect.Peer);
-
-          std::shared_ptr<Connection<Rcv>> conn(new Connection<Rcv>(on_connect.Conn));
-
-          // keep the connection alive
-          {
-            std::unique_lock<std::mutex> lock(conn_cb->lock);
-            conn_cb->conns[local_addr + peer_addr] = conn;
-          }
-          try {
-            conn_cb->on_connect(local_addr, peer_addr, conn);
-          } catch (std::runtime_error &e) {
-            return string_dup(e.what());
-          } catch (...) {
-            return string_dup("unknown error");
-          }
-          return nullptr;
-        }
-        case ConnStateCode::ConnectionClose: {
-          auto on_connection_close = states.Data.OnConnectionClose;
-          auto local_addr = std::string(on_connection_close.Local);
-          auto peer_addr = std::string(on_connection_close.Peer);
-
-          // remove the connection from the map
-          {
-            std::unique_lock<std::mutex> lock(conn_cb->lock);
-            conn_cb->conns.erase(local_addr + peer_addr);
-          }
-          try {
-            conn_cb->on_connection_close(local_addr, peer_addr);
-          } catch (std::runtime_error &e) {
-            return string_dup(e.what());
-          } catch (...) {
-            return string_dup("unknown error");
-          }
-          return nullptr;
-        }
-        case ConnStateCode::ListenError: {
-          auto listen_error = states.Data.OnListenError;
-          auto addr = std::string(listen_error.Addr);
-          auto err = std::string(listen_error.Err);
-          try {
-            conn_cb->on_listen_error(addr, err);
-          } catch (std::runtime_error &e) {
-            return string_dup(e.what());
-          } catch (...) {
-            return string_dup("unknown error");
-          }
-          return nullptr;
-        }
-        case ConnStateCode::ConnectError: {
-          auto connect_error = states.Data.OnConnectError;
-          auto addr = std::string(connect_error.Addr);
-          auto err = std::string(connect_error.Err);
-          try {
-            conn_cb->on_connect_error(addr, err);
-          } catch (std::runtime_error &e) {
-            return string_dup(e.what());
-          } catch (...) {
-            return string_dup("unknown error");
-          }
-          return nullptr;
-        }
-        default: {
-          // should never reach here
-          return nullptr;
-        }
-      }
-    }
-
     // keep the connection object alive before connection closed
     // to ensure that message listener is alive during connection.
     std::mutex lock;
-    std::unordered_map<std::string, std::shared_ptr<Connection<Rcv>>> conns;
+    std::unordered_map<std::string, std::shared_ptr<Connection>> conns;
 
   };
 }

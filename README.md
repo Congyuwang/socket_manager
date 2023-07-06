@@ -17,7 +17,22 @@ rustup toolchain install nightly
 rustup default nightly
 ```
 
-- Step 3: Pull the source code
+- Step 3: Install LLVM 16
+
+macOS:
+```shell
+brew install llvm@16
+```
+
+linux
+```shell
+wget https://apt.llvm.org/llvm.sh
+chmod +x llvm.sh
+sudo ./llvm.sh 16 all
+sudo ./update-alternatives-clang.sh 16 9999
+```
+
+- Step 4: Pull the source code
 
 ```shell
 git clone https://github.com/Congyuwang/socket_manager.git
@@ -25,7 +40,9 @@ cd socket_manager
 git submodule update --init
 ```
 
-- Step 4: Build and install
+- Step 5: Build and Install
+
+As a shared library:
 
 ```shell
 cmake -B build -DCMAKE_BUILD_TYPE=Release
@@ -33,11 +50,31 @@ cmake --build build --config Release
 sudo cmake --install build --config Release
 ```
 
+As a static library:
+```shell
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
+cmake --build build --config Release
+sudo cmake --install build --config Release
+```
+
 ## Usage
 
 In your CMakeLists.txt, add the following lines:
-
 ```cmake
 find_package(socket_manager 0.1.0 REQUIRED)
 target_link_libraries(test_socket_manager PUBLIC socket_manager)
+```
+
+### Linking as Static Library
+For linking, add the lines in the `toolchain.cmake` in your toolchain file
+or use the provided `toolchain.cmake` to ensure the right toolchain is used.
+
+Example:
+```cmake
+set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/toolchain.cmake)
+```
+
+To enable lto, add:
+```cmake
+set_property(TARGET <your-target> PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 ```

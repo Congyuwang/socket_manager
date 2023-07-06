@@ -19,6 +19,9 @@ create_test_sourcelist(Tests CommonCxxTests.cxx ${test_files})
 add_executable(CommonCxxTests ${Tests})
 target_link_libraries(CommonCxxTests PUBLIC socket_manager ${CMAKE_THREAD_LIBS_INIT})
 
+# enable lto for tests
+set_property(TARGET CommonCxxTests PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+
 # Add all the ADD_TEST for each test
 set(TestsToRun ${Tests})
 list(REMOVE_ITEM TestsToRun CommonCxxTests.cxx)

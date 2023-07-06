@@ -3,7 +3,7 @@
 class SendLargeDataConnCallback : public DoNothingConnCallback {
 public:
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  const std::shared_ptr<Connection<DoNothingReceiver>> &conn) override {
+                  const std::shared_ptr<Connection> &conn) override {
     auto rcv = std::make_unique<DoNothingReceiver>();
     auto sender = conn->start(std::move(rcv));
     for (int i = 0; i < 1024 * 1024; ++i) {
@@ -39,11 +39,11 @@ public:
   int count = 0;
 };
 
-class StoreAllDataNotifyOnCloseCallback : public ConnCallback<StoreAllData> {
+class StoreAllDataNotifyOnCloseCallback : public ConnCallback {
 public:
 
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  const std::shared_ptr<Connection<StoreAllData>> &conn) override {
+                  const std::shared_ptr<Connection> &conn) override {
     auto rcv = std::make_unique<StoreAllData>(add_data);
     // store sender so connection is not dropped.
     sender = conn->start(std::move(rcv));
@@ -72,8 +72,8 @@ int test_transfer_data_large(int argc, char **argv) {
 
   auto send_cb = std::make_shared<SendLargeDataConnCallback>();
   auto store_cb = std::make_shared<StoreAllDataNotifyOnCloseCallback>();
-  SocketManager<SendLargeDataConnCallback, DoNothingReceiver> send(send_cb);
-  SocketManager<StoreAllDataNotifyOnCloseCallback, StoreAllData> store(store_cb);
+  SocketManager send(send_cb);
+  SocketManager store(store_cb);
 
   send.listen_on_addr(addr);
   store.connect_to_addr(addr);
