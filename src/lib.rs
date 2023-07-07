@@ -197,7 +197,8 @@ impl CSocketManager {
         let connection_state = ConnectionState::new();
         let join_handle = Some(std::thread::spawn(move || {
             let handle = runtime.handle();
-            runtime.block_on(main(cmd_recv, stop, handle, on_conn, connection_state))
+            runtime.block_on(main(cmd_recv, stop, handle, on_conn, connection_state));
+            tracing::debug!("runtime stopped");
         }));
         Ok(CSocketManager {
             cmd_send,
