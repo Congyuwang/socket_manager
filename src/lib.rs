@@ -270,16 +270,13 @@ impl CSocketManager {
             .has_joined
             .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
         {
-            Ok(_) => {
-                self.join_handle.take().unwrap().join().map_err(|e| {
-                    tracing::error!("socket manager join returned error: {:?}", e);
-                    std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        format!("socket manager join returned error: {:?}", e),
-                    )
-                })?;
-                Ok(())
-            }
+            Ok(_) => self.join_handle.take().unwrap().join().map_err(|e| {
+                tracing::error!("socket manager join returned error: {:?}", e);
+                std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!("socket manager join returned error: {:?}", e),
+                )
+            }),
             Err(_) => Ok(()),
         }
     }
