@@ -58,7 +58,7 @@ jobs:
         SOCKET_LOG: debug
 
     - name: Install
-      run: cmake --install build --config Release
+      run: sudo cmake --install build --config Release
 
     - name: Test Linking
       working-directory: ${{github.workspace}}/tests/test_find_package
