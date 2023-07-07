@@ -4,20 +4,13 @@ Easily manage multiple socket connections asynchronously in C++.
 
 ## Installation
 
-- Step 1: Install Rust
+- Step 1: Install Rust Nightly
 
 ```shell
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain nightly
 ```
 
-- Step 2: Install nightly toolchain
-
-```shell
-rustup toolchain install nightly
-rustup default nightly
-```
-
-- Step 3: Install LLVM 16
+- Step 2: Install LLVM 16
 
 macOS:
 ```shell
@@ -32,7 +25,7 @@ sudo ./llvm.sh 16 all
 sudo ./update-alternatives-clang.sh 16 9999
 ```
 
-- Step 4: Pull the source code
+- Step 3: Pull the source code
 
 ```shell
 git clone https://github.com/Congyuwang/socket_manager.git
@@ -40,7 +33,7 @@ cd socket_manager
 git submodule update --init
 ```
 
-- Step 5: Build and Install
+- Step 4: Build and Install
 
 As a shared library:
 
