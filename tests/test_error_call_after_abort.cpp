@@ -19,13 +19,11 @@ int test_error_call_after_abort(int argc, char **argv) {
     std::cout << "connect_to_addr after abort-join throw error: " << e.what() << std::endl;
   }
 
-  try {
-    nothing.abort();
-    // should not reach here
-    return -1;
-  } catch (std::runtime_error &e) {
-    std::cout << "abort after abort-join throw error: " << e.what() << std::endl;
-  }
+  // should not throw error on abort after abort
+  nothing.abort();
+
+  // should not throw error on join after join
+  nothing.join();
 
   return 0;
 }
