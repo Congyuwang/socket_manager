@@ -72,13 +72,13 @@ int test_callback_throw_error(int argc, char **argv) {
   SocketManager store_record(store_record_cb);
 
   store_record.listen_on_addr(addr);
-  std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
   err_before.connect_to_addr(addr);
-  std::this_thread::sleep_for(std::chrono::milliseconds(5));
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
   err_after.connect_to_addr(addr);
-  std::this_thread::sleep_for(std::chrono::milliseconds(5));
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
   err_on_msg.connect_to_addr(addr);
-  std::this_thread::sleep_for(std::chrono::milliseconds(5));
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   while (true) {
     std::unique_lock<std::mutex> u_lock(store_record_cb->mutex);

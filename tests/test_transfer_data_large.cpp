@@ -1,4 +1,6 @@
 #include "test_utils.h"
+#include <chrono>
+#include <thread>
 
 class SendLargeDataConnCallback : public DoNothingConnCallback {
 public:
@@ -76,6 +78,9 @@ int test_transfer_data_large(int argc, char **argv) {
   SocketManager store(store_cb);
 
   send.listen_on_addr(addr);
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
   store.connect_to_addr(addr);
 
   // Wait for the connection to close
