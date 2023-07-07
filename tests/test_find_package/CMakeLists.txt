@@ -1,0 +1,12 @@
+cmake_minimum_required(VERSION 3.25)
+
+set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/toolchain.cmake)
+
+project(helloworld_server)
+
+set(CMAKE_CXX_STANDARD 14)
+add_executable(helloworld_server helloworld_server.cpp)
+set_property(TARGET helloworld_server PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+
+find_package(socket_manager 0.1.0 REQUIRED)
+target_link_libraries(helloworld_server PUBLIC socket_manager)

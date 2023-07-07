@@ -11,6 +11,12 @@ dev-docker:
 test:
     cd build && SOCKET_LOG=debug ctest --output-on-failure && cd ..
 
+test-linking:
+    cd tests/test_find_package
+    cmake -B build -DCMAKE_BUILD_TYPE=Release
+    cmake --build build --config Release --verbose
+    cd ../..
+
 debug:
     cmake -B build -DCMAKE_BUILD_TYPE=Debug
     cmake --build build --config Debug

@@ -5,7 +5,7 @@
 
 int test_hello_world_greetings(int argc, char **argv) {
 
-  const std::string addr = "127.0.0.1:40009";
+  const std::string addr = "127.0.0.1:40109";
 
   // create server
   auto server_cb = std::make_shared<StoreAllEventsConnCallback>();

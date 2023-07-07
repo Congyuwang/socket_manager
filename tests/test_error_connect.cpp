@@ -9,7 +9,7 @@ int test_error_connect(int argc, char **argv) {
 
   auto test_cb = std::make_shared<BitFlagCallback>(lock, cond, sig, buffer);
   SocketManager test(test_cb);
-  test.connect_to_addr("127.0.0.1:40004");
+  test.connect_to_addr("127.0.0.1:40104");
 
   // Wait for the connection to fail
   while (true) {
