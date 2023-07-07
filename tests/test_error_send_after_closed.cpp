@@ -3,7 +3,7 @@
 #include <thread>
 
 int test_error_send_after_closed(int argc, char **argv) {
-  const std::string addr = "127.0.0.1:40007";
+  const std::string addr = "127.0.0.1:40107";
 
   auto server_cb = std::make_shared<StoreAllEventsConnCallback>();
   auto client_cb = std::make_shared<StoreAllEventsConnCallback>(false);
