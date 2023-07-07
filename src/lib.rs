@@ -32,7 +32,11 @@ const BUFFER_SIZE: usize = 1024 * 8;
 pub struct CSocketManager {
     cmd_send: UnboundedSender<Command>,
 
-    stopper: oneshot::Receiver<()>,
+    // stopper of main loop
+    cmd_stopper: oneshot::Receiver<()>,
+
+    // stoppers of all listeners and connections
+    conn_state: Arc<ConnectionState>,
 
     // use has_joined to fence the join_handle,
     // both should only be accessed by the `join` method.
@@ -165,21 +169,31 @@ pub enum ConnState<OnMsg> {
 /// Internal connection state.
 struct ConnectionState {
     listeners: DashMap<SocketAddr, oneshot::Receiver<()>>,
+    connections: DashMap<(SocketAddr, SocketAddr), oneshot::Receiver<()>>,
 }
 
 impl ConnectionState {
     fn new() -> Arc<Self> {
         Arc::new(ConnectionState {
             listeners: DashMap::new(),
+            connections: DashMap::new(),
         })
+    }
+
+    // called only in abort!
+    fn stop_all(&self) {
+        // first drop all listeners
+        self.listeners.clear();
+        // then drop all connections
+        self.connections.clear();
     }
 }
 
 impl CSocketManager {
     /// start background threads to run the runtime
     pub fn init<
-        OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + 'static + Clone,
-        OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + 'static + Clone,
+        OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + Sync + 'static + Clone,
+        OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + Sync + 'static + Clone,
     >(
         on_conn: OnConn,
         n_threads: usize,
@@ -193,16 +207,19 @@ impl CSocketManager {
             .try_init();
         let runtime = start_runtime(n_threads)?;
         let (cmd_send, cmd_recv) = mpsc::unbounded_channel::<Command>();
-        let (stop, stopper) = oneshot::channel::<()>();
+        let (stop, cmd_stopper) = oneshot::channel::<()>();
         let connection_state = ConnectionState::new();
+        let conn_state = connection_state.clone();
         let join_handle = Some(std::thread::spawn(move || {
             let handle = runtime.handle();
             runtime.block_on(main(cmd_recv, stop, handle, on_conn, connection_state));
-            tracing::debug!("runtime stopped");
+            tracing::debug!("socket_manager stopped");
+            // runtime will be dropped here, which will wait for all tasks to finish.
         }));
         Ok(CSocketManager {
             cmd_send,
-            stopper,
+            cmd_stopper,
+            conn_state,
             has_joined: AtomicBool::new(false),
             join_handle,
         })
@@ -232,7 +249,10 @@ impl CSocketManager {
     ///
     /// This function will not block the current thread.
     pub fn abort(&mut self, wait: bool) -> std::io::Result<()> {
-        self.stopper.close();
+        // first stop the main loop
+        self.cmd_stopper.close();
+        // then stop all listeners, and then all connections
+        self.conn_state.stop_all();
         if wait {
             self.join()?;
         }
@@ -250,13 +270,16 @@ impl CSocketManager {
             .has_joined
             .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
         {
-            Ok(_) => self.join_handle.take().unwrap().join().map_err(|e| {
-                tracing::error!("socket manager join returned error: {:?}", e);
-                std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("socket manager join returned error: {:?}", e),
-                )
-            }),
+            Ok(_) => {
+                self.join_handle.take().unwrap().join().map_err(|e| {
+                    tracing::error!("socket manager join returned error: {:?}", e);
+                    std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        format!("socket manager join returned error: {:?}", e),
+                    )
+                })?;
+                Ok(())
+            }
             Err(_) => Ok(()),
         }
     }
@@ -270,8 +293,8 @@ impl Drop for CSocketManager {
 
 /// The main loop running in the background.
 async fn main<
-    OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + 'static + Clone,
-    OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + 'static + Clone,
+    OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + Sync + 'static + Clone,
+    OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + Sync + 'static + Clone,
 >(
     mut cmd_recv: UnboundedReceiver<Command>,
     mut stop: oneshot::Sender<()>,
@@ -281,16 +304,13 @@ async fn main<
 ) {
     loop {
         tokio::select! {
-            _ = stop.closed() => {
-                tracing::info!("socket manager stopped");
-                break;
-            }
+            biased;
             Some(cmd) = cmd_recv.recv() => {
                 match cmd {
                     Command::Listen { addr } => {
-                        listen_on_addr(handle, addr, on_conn.clone(), connection_state.clone())
+                        listen_on_addr(handle, addr, &on_conn, &connection_state)
                     }
-                    Command::Connect { addr } => connect_to_addr(handle, addr, on_conn.clone()),
+                    Command::Connect { addr } => connect_to_addr(handle, addr, &on_conn, &connection_state),
                     Command::CancelListen { addr } => {
                         if connection_state.listeners.remove(&addr).is_none() {
                             tracing::warn!("cancel listening failed: not listening to {addr}");
@@ -298,6 +318,9 @@ async fn main<
                     }
                 }
             }
+            _ = stop.closed() => {
+                break
+            },
             else => {
                 unreachable!("command channel should not be closed, join before drop!");
             }
@@ -339,9 +362,12 @@ fn connect_to_addr<
 >(
     handle: &Handle,
     addr: SocketAddr,
-    on_conn: OnConn,
+    on_conn: &OnConn,
+    connection_state: &Arc<ConnectionState>,
 ) {
     let handle = handle.clone();
+    let on_conn = on_conn.clone();
+    let connection_state = connection_state.clone();
 
     // attempt to connect to address, and obtain connection info
     let connect_result = async move {
@@ -355,7 +381,14 @@ fn connect_to_addr<
         // trying to connect to address
         match connect_result.await {
             Ok((stream, local_addr, peer_addr)) => {
-                handle_connection(local_addr, peer_addr, handle, stream, on_conn);
+                handle_connection(
+                    local_addr,
+                    peer_addr,
+                    handle,
+                    stream,
+                    on_conn,
+                    connection_state,
+                );
             }
             Err(error) => {
                 tracing::warn!("error connecting tp addr={addr}: {error}");
@@ -367,17 +400,19 @@ fn connect_to_addr<
 
 /// This function listens on a port.
 fn listen_on_addr<
-    OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + 'static + Clone,
-    OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + 'static + Clone,
+    OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + Sync + 'static + Clone,
+    OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + Sync + 'static + Clone,
 >(
     handle: &Handle,
     addr: SocketAddr,
-    on_conn: OnConn,
-    connection_state: Arc<ConnectionState>,
+    on_conn: &OnConn,
+    connection_state: &Arc<ConnectionState>,
 ) {
-    // spawn listening task
     let handle = handle.clone();
-    let on_conn_clone = on_conn.clone();
+    let on_conn = on_conn.clone();
+    let connection_state = connection_state.clone();
+
+    // spawn listening task
     handle.clone().spawn(async move {
         // bind to address
         let listener = match TcpListener::bind(addr).await {
@@ -395,7 +430,15 @@ fn listen_on_addr<
         connection_state.listeners.insert(addr, cancel);
 
         // async loop to accept connections
-        accept_connections(addr, listener, &handle, canceled, on_conn_clone).await;
+        accept_connections(
+            addr,
+            listener,
+            &handle,
+            canceled,
+            &on_conn,
+            &connection_state,
+        )
+        .await;
     });
 }
 
@@ -407,7 +450,8 @@ async fn accept_connections<
     listener: TcpListener,
     handle: &Handle,
     mut canceled: oneshot::Sender<()>,
-    on_conn: OnConn,
+    on_conn: &OnConn,
+    connection_state: &Arc<ConnectionState>,
 ) {
     loop {
         tokio::select! {
@@ -419,7 +463,8 @@ async fn accept_connections<
                         tracing::error!("failed to read address from stream: {e}");
                     }
                     Ok((local_addr, peer_addr)) => {
-                        handle_connection(local_addr, peer_addr, handle.clone(), stream, on_conn);
+                        let connection_state = connection_state.clone();
+                        handle_connection(local_addr, peer_addr, handle.clone(), stream, on_conn, connection_state);
                     }
                 }
             }
@@ -444,6 +489,7 @@ fn handle_connection<
     handle: Handle,
     stream: TcpStream,
     on_conn: OnConn,
+    connection_state: Arc<ConnectionState>,
 ) {
     let (send, recv) = mpsc::unbounded_channel::<SendCommand>();
     let (conn_config_setter, conn_config) = oneshot::channel::<(OnMsg, ConnConfig)>();
@@ -476,13 +522,25 @@ fn handle_connection<
         if let Ok((on_msg, conn_config)) = wait_for_start.await {
             let write_flush_interval = conn_config.write_flush_interval;
 
+            let (stop, stopper) = oneshot::channel::<()>();
+
             // spawn reader and writer
             let (read, write) = stream.into_split();
-            let writer = handle.spawn(handle_writer(write, recv, write_flush_interval));
+            let writer = handle.spawn(handle_writer(write, recv, write_flush_interval, stop));
             let reader = handle.spawn(handle_reader(read, on_msg));
 
+            // insert the stopper into connection_state
+            connection_state
+                .connections
+                .insert((local_addr, peer_addr), stopper);
+
             // join reader and writer
-            join_reader_writer((writer, reader), (local_addr, peer_addr)).await
+            join_reader_writer((writer, reader), (local_addr, peer_addr)).await;
+
+            // remove connection from connection_state after reader and writer are done
+            connection_state
+                .connections
+                .remove(&(local_addr, peer_addr));
         }
 
         tracing::info!("connection closed: local_addr={local_addr}, peer_addr={peer_addr}");
@@ -498,14 +556,15 @@ async fn handle_writer(
     write: OwnedWriteHalf,
     recv: UnboundedReceiver<SendCommand>,
     write_flush_interval: Option<Duration>,
+    stop: oneshot::Sender<()>,
 ) -> std::io::Result<()> {
     match write_flush_interval {
-        None => handle_writer_no_auto_flush(write, recv).await,
+        None => handle_writer_no_auto_flush(write, recv, stop).await,
         Some(duration) => {
             if duration.is_zero() {
-                handle_writer_no_auto_flush(write, recv).await
+                handle_writer_no_auto_flush(write, recv, stop).await
             } else {
-                handle_writer_auto_flush(write, recv, duration).await
+                handle_writer_auto_flush(write, recv, duration, stop).await
             }
         }
     }
@@ -515,6 +574,7 @@ async fn handle_writer_auto_flush(
     mut write: OwnedWriteHalf,
     mut recv: UnboundedReceiver<SendCommand>,
     duration: Duration,
+    mut stop: oneshot::Sender<()>,
 ) -> std::io::Result<()> {
     debug_assert!(!duration.is_zero());
     write.writable().await?;
@@ -536,6 +596,9 @@ async fn handle_writer_auto_flush(
             _ = flush_tick.tick() => {
                 buf_writer.flush().await?;
             }
+            _ = stop.closed() => {
+                break;
+            }
         }
     }
     // flush and close
@@ -547,13 +610,25 @@ async fn handle_writer_auto_flush(
 async fn handle_writer_no_auto_flush(
     mut write: OwnedWriteHalf,
     mut recv: UnboundedReceiver<SendCommand>,
+    mut stop: oneshot::Sender<()>,
 ) -> std::io::Result<()> {
     write.writable().await?;
     let mut buf_writer = BufWriter::new(&mut write);
-    while let Some(cmd) = recv.recv().await {
-        match cmd {
-            SendCommand::Send(msg) => buf_writer.write_all(&msg).await?,
-            SendCommand::Flush => buf_writer.flush().await?,
+    loop {
+        tokio::select! {
+            // biased towards recv.
+            // remove the usage of random generator to improve efficiency.
+            biased;
+            cmd = recv.recv() => {
+                match cmd {
+                    Some(SendCommand::Send(msg)) => buf_writer.write_all(&msg).await?,
+                    Some(SendCommand::Flush) => buf_writer.flush().await?,
+                    None => break,
+                }
+            }
+            _ = stop.closed() => {
+                break;
+            }
         }
     }
     // flush and close
