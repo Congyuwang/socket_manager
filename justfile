@@ -4,6 +4,10 @@ cbind:
 clean:
     rm -rf build
 
+dev-docker:
+    docker build -f ./dockerfile/dev-containers/focal/Dockerfile -t socket-manager-dev:focal .
+    docker build -f ./dockerfile/dev-containers/jammy/Dockerfile -t socket-manager-dev:jammy .
+
 test:
     cd build && SOCKET_LOG=debug ctest --output-on-failure && cd ..
 
