@@ -59,7 +59,7 @@ int test_auto_flush(int argc, char **argv) {
   SocketManager send(send_cb);
   send.listen_on_addr(addr);
 
-  std::thread::sleep_for(std::chrono::milliseconds(50));
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
   auto recv_cb = std::make_shared<HelloWorldManager>();
   SocketManager recv(recv_cb);
