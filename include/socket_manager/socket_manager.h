@@ -84,7 +84,8 @@ namespace socket_manager {
      * Thread safe.
      *
      * # Errors
-     * Throws `std::runtime_error` if socket manager runtime has been aborted.
+     * Throws `std::runtime_error` if `wait = true` and the background
+     * thread panicked.
      */
     void abort(bool wait = true);
 

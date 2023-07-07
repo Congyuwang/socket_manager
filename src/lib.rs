@@ -32,6 +32,8 @@ const BUFFER_SIZE: usize = 1024 * 8;
 pub struct CSocketManager {
     cmd_send: UnboundedSender<Command>,
 
+    stopper: oneshot::Receiver<()>,
+
     // use has_joined to fence the join_handle,
     // both should only be accessed by the `join` method.
     has_joined: AtomicBool,
@@ -58,7 +60,6 @@ enum Command {
     Listen { addr: SocketAddr },
     Connect { addr: SocketAddr },
     CancelListen { addr: SocketAddr },
-    Abort,
 }
 
 /// The connection struct for the on_conn callback.
@@ -192,13 +193,15 @@ impl CSocketManager {
             .try_init();
         let runtime = start_runtime(n_threads)?;
         let (cmd_send, cmd_recv) = mpsc::unbounded_channel::<Command>();
+        let (stop, stopper) = oneshot::channel::<()>();
         let connection_state = ConnectionState::new();
         let join_handle = Some(std::thread::spawn(move || {
             let handle = runtime.handle();
-            runtime.block_on(main(cmd_recv, handle, on_conn, connection_state))
+            runtime.block_on(main(cmd_recv, stop, handle, on_conn, connection_state))
         }));
         Ok(CSocketManager {
             cmd_send,
+            stopper,
             has_joined: AtomicBool::new(false),
             join_handle,
         })
@@ -228,9 +231,7 @@ impl CSocketManager {
     ///
     /// This function will not block the current thread.
     pub fn abort(&mut self, wait: bool) -> std::io::Result<()> {
-        self.cmd_send.send(Command::Abort).map_err(|_| {
-            std::io::Error::new(std::io::ErrorKind::Other, "socket manager has stopped")
-        })?;
+        self.stopper.close();
         if wait {
             self.join()?;
         }
@@ -272,22 +273,33 @@ async fn main<
     OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + 'static + Clone,
 >(
     mut cmd_recv: UnboundedReceiver<Command>,
+    mut stop: oneshot::Sender<()>,
     handle: &Handle,
     on_conn: OnConn,
     connection_state: Arc<ConnectionState>,
 ) {
-    while let Some(cmd) = cmd_recv.recv().await {
-        match cmd {
-            Command::Listen { addr } => {
-                listen_on_addr(handle, addr, on_conn.clone(), connection_state.clone())
+    loop {
+        tokio::select! {
+            _ = stop.closed() => {
+                tracing::info!("socket manager stopped");
+                break;
             }
-            Command::Connect { addr } => connect_to_addr(handle, addr, on_conn.clone()),
-            Command::CancelListen { addr } => {
-                if connection_state.listeners.remove(&addr).is_none() {
-                    tracing::warn!("cancel listening failed: not listening to {addr}");
+            Some(cmd) = cmd_recv.recv() => {
+                match cmd {
+                    Command::Listen { addr } => {
+                        listen_on_addr(handle, addr, on_conn.clone(), connection_state.clone())
+                    }
+                    Command::Connect { addr } => connect_to_addr(handle, addr, on_conn.clone()),
+                    Command::CancelListen { addr } => {
+                        if connection_state.listeners.remove(&addr).is_none() {
+                            tracing::warn!("cancel listening failed: not listening to {addr}");
+                        }
+                    }
                 }
             }
-            Command::Abort => break,
+            else => {
+                unreachable!("command channel should not be closed, join before drop!");
+            }
         }
     }
 }
