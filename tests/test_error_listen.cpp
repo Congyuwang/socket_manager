@@ -9,8 +9,8 @@ int test_error_listen(int argc, char **argv) {
 
   auto test_cb = std::make_shared<BitFlagCallback>(lock, cond, sig, buffer);
   SocketManager test(test_cb);
-  test.listen_on_addr("127.0.0.1:12346");
-  test.listen_on_addr("127.0.0.1:12346");
+  test.listen_on_addr("127.0.0.1:40005");
+  test.listen_on_addr("127.0.0.1:40005");
 
   // Wait for the connection to fail
   while (true) {

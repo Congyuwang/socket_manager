@@ -46,7 +46,7 @@ public:
 };
 
 int test_error_twice_start(int argc, char **argv) {
-  const std::string addr = "127.0.0.1:12348";
+  const std::string addr = "127.0.0.1:40008";
 
   auto bad_cb = std::make_shared<TwiceStartCallback>();
   auto good_cb = std::make_shared<StoreAllEventsConnCallback>();

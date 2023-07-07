@@ -8,9 +8,9 @@ int test_multiple_connections(int argc, char **argv) {
   // and 2 connections from p0 (client) -> p1 (server) port 1
   // and 2 connections from p1 (client) -> p0 (server)
 
-  const std::string p1_addr_0 = "127.0.0.1:12350";
-  const std::string p1_addr_1 = "127.0.0.1:12351";
-  const std::string p0_addr_0 = "127.0.0.1:12352";
+  const std::string p1_addr_0 = "127.0.0.1:40010";
+  const std::string p1_addr_1 = "127.0.0.1:40011";
+  const std::string p0_addr_0 = "127.0.0.1:40012";
 
   auto p0_cb = std::make_shared<StoreAllEventsConnCallback>();
   auto p1_cb = std::make_shared<StoreAllEventsConnCallback>();

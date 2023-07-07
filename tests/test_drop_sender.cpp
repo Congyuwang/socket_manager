@@ -5,7 +5,7 @@
 // this test is to test that dropping sender object closes remote connections
 
 int test_drop_sender(int argc, char **argv) {
-  const std::string local_addr = "127.0.0.1:12353";
+  const std::string local_addr = "127.0.0.1:40000";
 
   std::mutex lock;
   std::condition_variable cond;

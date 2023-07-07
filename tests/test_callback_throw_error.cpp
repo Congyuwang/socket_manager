@@ -59,7 +59,7 @@ class StoreAllEventsConnHelloCallback : public StoreAllEventsConnCallback {
 };
 
 int test_callback_throw_error(int argc, char **argv) {
-  const std::string addr = "127.0.0.1:12355";
+  const std::string addr = "127.0.0.1:40002";
 
   auto err_before_cb = std::make_shared<OnConnectErrorBeforeStartCallback>();
   auto err_after_cb = std::make_shared<OnConnectErrorAfterStartCallback>();

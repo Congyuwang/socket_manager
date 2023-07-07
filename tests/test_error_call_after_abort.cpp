@@ -12,7 +12,7 @@ int test_error_call_after_abort(int argc, char **argv) {
   nothing.join();
 
   try {
-    nothing.connect_to_addr("127.0.0.1:12345");
+    nothing.connect_to_addr("127.0.0.1:40003");
     // should not reach here
     return -1;
   } catch (std::runtime_error &e) {
