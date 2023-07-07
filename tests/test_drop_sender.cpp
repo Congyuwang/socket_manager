@@ -21,7 +21,7 @@ int test_drop_sender(int argc, char **argv) {
 
   server.listen_on_addr(local_addr);
   // wait 10ms for server to start listening
-  std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  std::this_thread::sleep_for(std::chrono::milliseconds(50));
   test.connect_to_addr(local_addr);
 
   // Wait for the connection to close
