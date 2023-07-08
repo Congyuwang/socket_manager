@@ -587,13 +587,17 @@ async fn handle_writer_auto_flush(
                 match cmd {
                     Some(SendCommand::Send(msg)) => buf_writer.write_all(&msg).await?,
                     Some(SendCommand::Flush) => buf_writer.flush().await?,
-                    None => break,
+                    None => {
+                        tracing::debug!("connection stopped (sender dropped)");
+                        break
+                    },
                 }
             }
             _ = flush_tick.tick() => {
                 buf_writer.flush().await?;
             }
             _ = stop.closed() => {
+                tracing::debug!("connection stopped (stop signal received)");
                 break;
             }
         }
