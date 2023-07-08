@@ -25,6 +25,7 @@ use tracing_subscriber::EnvFilter;
 const MAX_WORKER_THREADS: usize = 256;
 const SOCKET_LOG: &str = "SOCKET_LOG";
 const BUFFER_SIZE: usize = 1024 * 8;
+const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// The Main Struct of the Library.
 ///
@@ -206,8 +207,9 @@ impl CSocketManager {
         let join_handle = Some(std::thread::spawn(move || {
             let handle = runtime.handle();
             runtime.block_on(main(cmd_recv, handle, on_conn, connection_state));
+            tracing::debug!("shutting down socket_manager");
+            runtime.shutdown_timeout(SHUTDOWN_TIMEOUT);
             tracing::debug!("socket_manager stopped");
-            // runtime will be dropped here, which will wait for all tasks to finish.
         }));
         Ok(CSocketManager {
             cmd_send,
