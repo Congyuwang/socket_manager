@@ -44,9 +44,9 @@ jobs:
             cmake --build build --config Release
             cd build
             ./helloworld_server &
-            rsp=$(curl http://127.0.0.1:49999)
             # Give the server time to start
-            sleep 5
+            sleep 1
+            rsp=$(curl http://127.0.0.1:49999)
             if [[ "$rsp" == "Hello, world" ]]; then
               echo "Test passed"
               exit 0
