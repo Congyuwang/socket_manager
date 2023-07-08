@@ -290,9 +290,7 @@ async fn main<
 ) {
     while let Some(cmd) = cmd_recv.recv().await {
         match cmd {
-            Command::Listen { addr } => {
-                listen_on_addr(handle, addr, &on_conn, &connection_state)
-            }
+            Command::Listen { addr } => listen_on_addr(handle, addr, &on_conn, &connection_state),
             Command::Connect { addr } => connect_to_addr(handle, addr, &on_conn, &connection_state),
             Command::CancelListen { addr } => {
                 if connection_state.listeners.remove(&addr).is_none() {
