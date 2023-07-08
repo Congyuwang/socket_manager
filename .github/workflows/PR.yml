@@ -28,7 +28,7 @@ jobs:
         uses: Homebrew/actions/setup-homebrew@master
 
       - name: Install LLVM and Clang
-        run: brew install llvm@16
+        run: brew install llvm@16 || true
 
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
