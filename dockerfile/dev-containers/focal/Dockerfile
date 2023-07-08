@@ -35,6 +35,6 @@ ARG RUSTUP_DIST_SERVER="https://mirrors.tuna.tsinghua.edu.cn/rustup"
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
 
 # default sh to bash
-RUN ln -sf /bin/bash /bin/sh
+RUN chsh -s /bin/bash
 
 ENTRYPOINT ["/bin/bash"]
