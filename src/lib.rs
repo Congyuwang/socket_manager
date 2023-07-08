@@ -249,6 +249,7 @@ impl CSocketManager {
     ///
     /// This function will not block the current thread.
     pub fn abort(&mut self, wait: bool) -> std::io::Result<()> {
+        tracing::debug!("aborting socket manager (wait={wait})");
         // first stop the main loop
         self.cmd_stopper.close();
         // then stop all listeners, and then all connections
