@@ -207,9 +207,9 @@ impl CSocketManager {
         let join_handle = Some(std::thread::spawn(move || {
             let handle = runtime.handle();
             runtime.block_on(main(cmd_recv, handle, on_conn, connection_state));
-            tracing::debug!("shutting down socket_manager");
+            tracing::info!("shutting down socket_manager");
             runtime.shutdown_timeout(SHUTDOWN_TIMEOUT);
-            tracing::debug!("socket_manager stopped");
+            tracing::info!("socket_manager stopped");
         }));
         Ok(CSocketManager {
             cmd_send,
