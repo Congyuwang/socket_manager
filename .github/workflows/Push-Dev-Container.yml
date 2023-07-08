@@ -1,6 +1,10 @@
 name: Push Dev Container
 
 on:
+  push:
+    paths:
+      - dockerfile/**
+    branches: [ "main" ]
   pull_request:
     paths:
       - dockerfile/**
@@ -50,7 +54,7 @@ jobs:
         with:
           context: .
           file: ./dockerfile/dev-containers/jammy/Dockerfile
-          push: false
+          push: true
           tags: congyuwang/socket-manager-dev:jammy
           cache-from: type=registry,ref=congyuwang/socket-manager-dev:jammy
           cache-to: type=inline
