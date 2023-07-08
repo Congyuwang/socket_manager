@@ -2,7 +2,9 @@ use crate::c_api::callbacks::OnMsgObj;
 use crate::c_api::structs::CConnection;
 use crate::c_api::utils::write_error_c_str;
 use crate::{CMsgSender, ConnConfig};
+use libc::size_t;
 use std::ffi::{c_char, c_int};
+use std::num::NonZeroUsize;
 use std::os::raw::c_ulonglong;
 use std::ptr::null_mut;
 use std::time::Duration;
@@ -23,6 +25,8 @@ use std::time::Duration;
 /// * `on_msg` - A callback function that will be called when a message is received.
 /// * `write_flush_interval` - The interval in `milliseconds` of write buffer auto flushing.
 ///    Set to 0 to disable auto flush.
+/// * `msg_buffer_size` - The size of the message buffer in bytes, set to 0 to use default.
+///    The default is 8KB, with max size of 8MB, and min size of 512B.
 /// * `err` - A pointer to a pointer to a C string allocated by `malloc` on error.
 ///
 /// # Returns
@@ -36,6 +40,7 @@ pub unsafe extern "C" fn connection_start(
     conn: *mut CConnection,
     on_msg: OnMsgObj,
     write_flush_interval: c_ulonglong,
+    msg_buffer_size: size_t,
     err: *mut *mut c_char,
 ) -> *mut CMsgSender {
     let conn = &mut (*conn).conn;
@@ -44,10 +49,12 @@ pub unsafe extern "C" fn connection_start(
     } else {
         Some(Duration::from_millis(write_flush_interval))
     };
+    let msg_buffer_size = NonZeroUsize::new(msg_buffer_size);
     match conn.start_connection(
         on_msg,
         ConnConfig {
             write_flush_interval,
+            msg_buffer_size,
         },
     ) {
         Ok(sender) => {

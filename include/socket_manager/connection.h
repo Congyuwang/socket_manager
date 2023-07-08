@@ -10,7 +10,8 @@
 
 namespace socket_manager {
 
-  static unsigned long long DEFAULT_WRITE_FLUSH_MILLI_SEC = 10;
+  static unsigned long long DEFAULT_WRITE_FLUSH_MILLI_SEC = 10; // 10 milliseconds
+  static size_t DEFAULT_MSG_BUF_SIZE = 8 * 1024; // 8KB
 
   /**
    * Use Connection to send and receive messages from
@@ -44,10 +45,13 @@ namespace socket_manager {
      * @param write_flush_interval The interval in `milliseconds`
      * of write buffer auto flushing. Set to 0 to disable auto flush.
      * Default to 20 milliseconds.
+     * @param msg_buffer_size The size of the message buffer (bytes).
+     * Default to 8KB. Maximum is 8BM. Minimum is 512B.
      */
     std::shared_ptr<MsgSender> start(
             std::unique_ptr<MsgReceiver> msg_receiver,
-            unsigned long long write_flush_interval = DEFAULT_WRITE_FLUSH_MILLI_SEC);
+            unsigned long long write_flush_interval = DEFAULT_WRITE_FLUSH_MILLI_SEC,
+            size_t msg_buffer_size = DEFAULT_MSG_BUF_SIZE);
 
     /**
      * Close the connection without using it.
