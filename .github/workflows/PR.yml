@@ -78,13 +78,16 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: congyuwang/socket-manager-dev:focal
-      env:
-        Rust_COMPILER: /root/.cargo/bin/rustc
     strategy:
       matrix:
         shared: ["ON", "OFF"]
 
     steps:
+      - name: Setup Symlink Home
+        run: |
+          mkdir -p /github
+          ln -s /root $HOME
+
       - uses: actions/checkout@v3
         with:
           submodules: true
@@ -132,14 +135,17 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: congyuwang/socket-manager-dev:jammy
-      env:
-        Rust_COMPILER: /root/.cargo/bin/rustc
 
     strategy:
       matrix:
         shared: ["ON", "OFF"]
 
     steps:
+      - name: Setup Symlink Home
+        run: |
+          mkdir -p /github
+          ln -s /root $HOME
+
       - uses: actions/checkout@v3
         with:
           submodules: true
