@@ -82,12 +82,6 @@ jobs:
       matrix:
         shared: ["ON", "OFF"]
 
-    steps:
-      - name: Setup Symlink Home
-        run: |
-          mkdir -p /github
-          ln -s /root $HOME
-
       - uses: actions/checkout@v3
         with:
           submodules: true
@@ -139,12 +133,6 @@ jobs:
     strategy:
       matrix:
         shared: ["ON", "OFF"]
-
-    steps:
-      - name: Setup Symlink Home
-        run: |
-          mkdir -p /github
-          ln -s /root $HOME
 
       - uses: actions/checkout@v3
         with:
