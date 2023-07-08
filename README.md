@@ -15,6 +15,8 @@ curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain nightly
 macOS:
 ```shell
 brew install llvm@16
+# get brew environment
+eval "$(brew shellenv)"
 ```
 
 linux
@@ -54,7 +56,7 @@ sudo cmake --install build --config Release
 
 In your CMakeLists.txt, add the following lines:
 ```cmake
-find_package(socket_manager 0.1.0 REQUIRED)
+find_package(socket_manager 0.2.0 REQUIRED)
 target_link_libraries(test_socket_manager PUBLIC socket_manager)
 ```
 
