@@ -29,10 +29,12 @@ RUN ./update-alternatives-clang.sh 16 9999
 RUN rm llvm.sh
 RUN rm update-alternatives-clang.sh
 
+# install nightly rust (might need VPN)
 ARG RUSTUP_UPDATE_ROOT="https://mirrors.ustc.edu.cn/rust-static/rustup"
 ARG RUSTUP_DIST_SERVER="https://mirrors.tuna.tsinghua.edu.cn/rustup"
-
-# install nightly rust (might need VPN)
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
+
+# default sh to bash
+RUN ln -sf /bin/bash /bin/sh
 
 ENTRYPOINT ["/bin/bash"]
