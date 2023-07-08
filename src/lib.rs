@@ -11,7 +11,7 @@ use std::num::NonZeroUsize;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::io::{AsyncReadExt, AsyncWriteExt, BufReader, BufWriter};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter};
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::runtime;
@@ -635,23 +635,17 @@ async fn handle_reader<OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + 'static
 ) -> std::io::Result<()> {
     read.readable().await?;
     let mut buf_reader = BufReader::new(read);
-    let mut read_buf = [0u8; BUFFER_SIZE];
     loop {
-        let read_n = buf_reader.read(&mut read_buf).await;
-        match read_n {
-            Ok(n) => {
-                if n == 0 {
-                    return Ok(());
-                }
-                tracing::trace!("received {n} bytes", n = n);
-                if let Err(e) = on_msg(Msg {
-                    bytes: &read_buf[0..n],
-                }) {
-                    return Err(std::io::Error::new(std::io::ErrorKind::Other, e));
-                }
-            }
-            Err(e) => return Err(e),
+        let bytes = buf_reader.fill_buf().await?;
+        let n = bytes.len();
+        if n == 0 {
+            return Ok(());
         }
+        tracing::trace!("received {n} bytes", n = n);
+        if let Err(e) = on_msg(Msg { bytes }) {
+            return Err(std::io::Error::new(std::io::ErrorKind::Other, e));
+        }
+        buf_reader.consume(n);
     }
 }
 
