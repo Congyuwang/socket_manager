@@ -1,0 +1,67 @@
+# Use the latest 2.1 version of CircleCI pipeline process engine.
+# See: https://circleci.com/docs/configuration-reference
+version: 2.1
+
+# Define a job to be invoked later in a workflow.
+# See: https://circleci.com/docs/configuration-reference/#jobs
+jobs:
+  build:
+    parameters:
+      os:
+        type: string
+      shared:
+        type: string
+    # Specify the execution environment. You can specify an image from Docker Hub or use one of our convenience images from CircleCI's Developer Hub.
+    # See: https://circleci.com/docs/configuration-reference/#executor-job
+    docker:
+      - image: congyuwang/socket-manager-dev:<< parameters.os >>
+    # Add steps to the job
+    # See: https://circleci.com/docs/configuration-reference/#steps
+    steps:
+      - checkout
+      - run:
+          name: "Submodule"
+          command: git submodule update --init
+      - run:
+          name: "Configure CMake"
+          command: cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=<< parameters.shared >>
+      - run:
+          name: "Build"
+          command: cmake --build build --config Release --verbose
+      - run:
+          name: "Test"
+          command: cd build && ctest -C Release --output-on-failure && cd ..
+          environment:
+            SOCKET_LOG: debug
+      - run:
+          name: "Install"
+          command: cmake --install build --config Release
+      - run:
+          name: "Test Linking"
+          command: |
+            cd tests/test_find_package
+            cmake -B build -DCMAKE_BUILD_TYPE=Release
+            cmake --build build --config Release
+            cd build
+            ./helloworld_server &
+            # Give the server time to start
+            sleep 1
+            rsp=$(curl http://127.0.0.1:49999)
+            if [[ "$rsp" == "Hello, world" ]]; then
+              echo "Test passed"
+              exit 0
+            else
+              echo "Test failed"
+              exit 1
+            fi
+
+# Orchestrate jobs using workflows
+# See: https://circleci.com/docs/configuration-reference/#workflows
+workflows:
+  build-container:
+    jobs:
+      - build:
+          matrix:
+            parameters:
+              os: ["jammy", "focal"]
+              shared: ["ON", "OFF"]
