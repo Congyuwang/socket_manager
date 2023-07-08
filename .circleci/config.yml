@@ -35,7 +35,7 @@ jobs:
             SOCKET_LOG: debug
       - run:
           name: "Install"
-          command: sudo cmake --install build --config Release
+          command: cmake --install build --config Release
       - run:
           name: "Test Linking"
           command: |
