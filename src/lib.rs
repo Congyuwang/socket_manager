@@ -597,7 +597,7 @@ async fn handle_writer_auto_flush(
                 buf_writer.flush().await?;
             }
             _ = stop.closed() => {
-                tracing::debug!("connection stopped (stop signal received)");
+                tracing::debug!("connection stopped (socket manager dropped)");
                 break;
             }
         }
@@ -624,10 +624,14 @@ async fn handle_writer_no_auto_flush(
                 match cmd {
                     Some(SendCommand::Send(msg)) => buf_writer.write_all(&msg).await?,
                     Some(SendCommand::Flush) => buf_writer.flush().await?,
-                    None => break,
+                    None => {
+                        tracing::debug!("connection stopped (sender dropped)");
+                        break
+                    },
                 }
             }
             _ = stop.closed() => {
+                tracing::debug!("connection stopped (socket manager dropped)");
                 break;
             }
         }
