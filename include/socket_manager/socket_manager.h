@@ -76,6 +76,8 @@ namespace socket_manager {
     /**
      * Stop all background threads and drop all connections.
      *
+     * Calling a second time will return immediately (if `wait = false`).
+     *
      * # Argument
      * - `wait`: if true, wait for all the background threads to finish.
      *     Default to true.
@@ -84,20 +86,21 @@ namespace socket_manager {
      * Thread safe.
      *
      * # Errors
-     * Throws `std::runtime_error` if socket manager runtime has been aborted.
+     * Throws `std::runtime_error` if `wait = true` and the background
+     * thread panicked.
      */
     void abort(bool wait = true);
 
     /**
      * Join and wait on the `SocketManager` background runtime.
-     * Call `abort` in another thread to stop the background runtime.
+     *
+     * Returns immediately on the second call.
      *
      * # Thread Safety
      * Thread safe.
      *
      * # Errors
      * Throws `std::runtime_error` if the background runtime panicked.
-     * Returns immediately on the second call.
      */
     void join();
 
