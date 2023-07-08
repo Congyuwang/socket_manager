@@ -81,6 +81,7 @@ jobs:
       matrix:
         shared: ["ON", "OFF"]
 
+    steps:
       - uses: actions/checkout@v3
         with:
           submodules: true
@@ -131,6 +132,7 @@ jobs:
       matrix:
         shared: ["ON", "OFF"]
 
+    steps:
       - uses: actions/checkout@v3
         with:
           submodules: true
