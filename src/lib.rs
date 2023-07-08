@@ -322,10 +322,6 @@ fn start_runtime(n_threads: usize) -> std::io::Result<Runtime> {
                 .worker_threads(n_cpu.get())
                 .build()
         }
-        1 => {
-            tracing::info!("socket manager started runtime with single thread");
-            runtime::Builder::new_current_thread().enable_all().build()
-        }
         n => {
             tracing::info!("socket manager started runtime with {n} threads");
             runtime::Builder::new_multi_thread()
