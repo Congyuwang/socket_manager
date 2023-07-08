@@ -76,8 +76,7 @@ jobs:
 
   build-focal:
     runs-on: ubuntu-latest
-    container:
-      image: congyuwang/socket-manager-dev:focal
+    container: congyuwang/socket-manager-dev:focal
     strategy:
       matrix:
         shared: ["ON", "OFF"]
@@ -127,9 +126,7 @@ jobs:
 
   build-jammy:
     runs-on: ubuntu-latest
-    container:
-      image: congyuwang/socket-manager-dev:jammy
-
+    container: congyuwang/socket-manager-dev:jammy
     strategy:
       matrix:
         shared: ["ON", "OFF"]
