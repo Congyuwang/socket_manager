@@ -302,7 +302,7 @@ async fn main<
                 // send stop signals to all listeners and connections
                 connection_state.stop_all();
                 // single threaded runtime will pause all spawned tasks after
-                // `block_on` returns. So we must wait for all tasks to finish.
+                // `block_on` returns. So we must use multi-threaded runtime.
                 break;
             }
         }
