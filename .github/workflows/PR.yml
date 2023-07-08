@@ -23,12 +23,11 @@ jobs:
         with:
           submodules: true
 
-      - name: Set up Homebrew
-        id: set-up-homebrew
-        uses: Homebrew/actions/setup-homebrew@master
+      - name: Install Homebrew
+        run: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
       - name: Install LLVM and Clang
-        run: brew install llvm@16 || true
+        run: brew install llvm@16
 
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
