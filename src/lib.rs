@@ -24,7 +24,9 @@ use tracing_subscriber::EnvFilter;
 
 const MAX_WORKER_THREADS: usize = 256;
 const SOCKET_LOG: &str = "SOCKET_LOG";
-const BUFFER_SIZE: usize = 1024 * 8;
+const DEFAULT_MSG_BUFFER_SIZE: usize = 1024 * 8; // 8KB
+const MIN_MSG_BUFFER_SIZE: usize = 512; // 512B
+const MAX_MSG_BUFFER_SIZE: usize = 1024 * 1024 * 8; // 8MB
 const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// The Main Struct of the Library.
@@ -88,6 +90,7 @@ impl<OnMsg> Conn<OnMsg> {
 /// Connection configuration
 pub struct ConnConfig {
     write_flush_interval: Option<Duration>,
+    msg_buffer_size: Option<NonZeroUsize>,
 }
 
 impl<OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + 'static + Clone> Conn<OnMsg> {
@@ -187,6 +190,13 @@ impl ConnectionState {
 
 impl CSocketManager {
     /// start background threads to run the runtime
+    ///
+    /// # Arguments
+    /// - `on_conn`: the callback for connection state changes.
+    /// - `n_threads`: number of threads to run the runtime:
+    ///    - 0: use the default number of threads.
+    ///    - 1: use the current thread.
+    ///    - \>1: use the specified number of threads.
     pub fn init<
         OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + Sync + 'static + Clone,
         OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + Sync + 'static + Clone,
@@ -502,13 +512,19 @@ fn handle_connection<
 
         if let Ok((on_msg, conn_config)) = wait_for_start.await {
             let write_flush_interval = conn_config.write_flush_interval;
+            let msg_buf_size = conn_config
+                .msg_buffer_size
+                .unwrap_or(NonZeroUsize::new(DEFAULT_MSG_BUFFER_SIZE).unwrap())
+                .get()
+                .min(MAX_MSG_BUFFER_SIZE)
+                .max(MIN_MSG_BUFFER_SIZE);
 
             let (stop, stopper) = oneshot::channel::<()>();
 
             // spawn reader and writer
             let (read, write) = stream.into_split();
             let writer = handle.spawn(handle_writer(write, recv, write_flush_interval, stop));
-            let reader = handle.spawn(handle_reader(read, on_msg));
+            let reader = handle.spawn(handle_reader(read, on_msg, msg_buf_size));
 
             // insert the stopper into connection_state
             connection_state
@@ -630,9 +646,10 @@ async fn handle_writer_no_auto_flush(
 async fn handle_reader<OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + 'static>(
     read: OwnedReadHalf,
     on_msg: OnMsg,
+    msg_buf_size: usize,
 ) -> std::io::Result<()> {
     read.readable().await?;
-    let mut buf_reader = BufReader::new(read);
+    let mut buf_reader = BufReader::with_capacity(msg_buf_size, read);
     loop {
         let bytes = buf_reader.fill_buf().await?;
         let n = bytes.len();
