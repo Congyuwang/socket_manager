@@ -45,14 +45,16 @@ namespace socket_manager {
      *                    receive messages from the peer.
      * @param msg_buffer_size The size of the message buffer in bytes.
      *    Set to 0 to use no buffer (i.e., call `on_msg` immediately on receiving
-     *    any data). The minimum is 8KB, and the maximum is 8MB.
+     *    any data, expecting the user to implement buffer if needed).
+     *    The minimum is 8KB, and the maximum is 8MB. Default to 8KB.
      * @param write_flush_interval The interval in `milliseconds`
      *    of write buffer auto flushing. Set to 0 to disable auto flush.
-     *    Default to 20 milliseconds.
+     *    Default to 10 milliseconds.
      * @param read_msg_flush_interval The interval in `milliseconds` of read message buffer
      *    auto flushing. The value is ignored when `msg_buffer_size` is 0.
      *    Set to 0 to disable auto flush (which is not recommended since there is no
      *    manual flush, and small messages might get stuck in buffer).
+     *    Default to 10 milliseconds.
      */
     std::shared_ptr<MsgSender> start(
             std::unique_ptr<MsgReceiver> msg_receiver,
