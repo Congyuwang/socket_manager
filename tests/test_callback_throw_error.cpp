@@ -1,3 +1,4 @@
+#undef NDEBUG
 #include "test_utils.h"
 #include <stdexcept>
 #include <chrono>
