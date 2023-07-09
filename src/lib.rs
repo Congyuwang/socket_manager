@@ -570,7 +570,9 @@ async fn handle_writer_auto_flush(
 ) -> std::io::Result<()> {
     debug_assert!(!duration.is_zero());
     write.writable().await?;
-    let mut buf_writer = BufWriter::new(&mut write);
+    let send_buf_size = socket2::SockRef::from(write.as_ref()).send_buffer_size()?;
+    tracing::trace!("send buffer size: {}", send_buf_size);
+    let mut buf_writer = BufWriter::with_capacity(send_buf_size, &mut write);
     let mut flush_tick = tokio::time::interval(duration);
     flush_tick.set_missed_tick_behavior(MissedTickBehavior::Skip);
     let mut has_data = false;
@@ -620,7 +622,9 @@ async fn handle_writer_no_auto_flush(
     mut stop: oneshot::Sender<()>,
 ) -> std::io::Result<()> {
     write.writable().await?;
-    let mut buf_writer = BufWriter::new(&mut write);
+    let send_buf_size = socket2::SockRef::from(write.as_ref()).send_buffer_size()?;
+    tracing::trace!("send buffer size: {}", send_buf_size);
+    let mut buf_writer = BufWriter::with_capacity(send_buf_size, &mut write);
     loop {
         tokio::select! {
             // biased towards recv.
@@ -686,7 +690,9 @@ async fn handle_reader_auto_flush<
     debug_assert!(!duration.is_zero());
 
     read.readable().await?;
-    let mut buf_reader = BufReader::new(read);
+    let recv_buffer_size = socket2::SockRef::from(read.as_ref()).recv_buffer_size()?;
+    tracing::trace!("recv buffer size: {}", recv_buffer_size);
+    let mut buf_reader = BufReader::with_capacity(recv_buffer_size, read);
     let mut msg_writer = BufWriter::with_capacity(msg_buf_size, OnMsgWrite { on_msg });
     let mut flush_tick = tokio::time::interval(duration);
     let mut has_data = false;
@@ -730,7 +736,9 @@ async fn handle_reader_no_auto_flush<
     msg_buf_size: usize,
 ) -> std::io::Result<()> {
     read.readable().await?;
-    let mut buf_reader = BufReader::new(read);
+    let recv_buffer_size = socket2::SockRef::from(read.as_ref()).recv_buffer_size()?;
+    tracing::trace!("recv buffer size: {}", recv_buffer_size);
+    let mut buf_reader = BufReader::with_capacity(recv_buffer_size, read);
     let mut msg_writer = BufWriter::with_capacity(msg_buf_size, OnMsgWrite { on_msg });
 
     loop {
@@ -755,7 +763,9 @@ async fn handle_reader_no_buf<OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + 
     on_msg: OnMsg,
 ) -> std::io::Result<()> {
     read.readable().await?;
-    let mut buf_reader = BufReader::new(read);
+    let recv_buffer_size = socket2::SockRef::from(read.as_ref()).recv_buffer_size()?;
+    tracing::trace!("recv buffer size: {}", recv_buffer_size);
+    let mut buf_reader = BufReader::with_capacity(recv_buffer_size, read);
     loop {
         let bytes = buf_reader.fill_buf().await?;
         let n = bytes.len();
