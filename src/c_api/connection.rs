@@ -53,12 +53,12 @@ pub unsafe extern "C" fn connection_start(
     let write_flush_interval = if write_flush_interval == 0 {
         None
     } else {
-        Some(Duration::from_millis(write_flush_interval))
+        Some(Duration::from_micros(write_flush_interval))
     };
     let read_msg_flush_interval = if read_msg_flush_interval == 0 {
         None
     } else {
-        Some(Duration::from_millis(read_msg_flush_interval))
+        Some(Duration::from_micros(read_msg_flush_interval))
     };
     let msg_buffer_size = NonZeroUsize::new(msg_buffer_size);
     match conn.start_connection(
