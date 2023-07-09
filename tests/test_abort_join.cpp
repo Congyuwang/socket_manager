@@ -1,3 +1,4 @@
+#undef NDEBUG
 #include <thread>
 #include "test_utils.h"
 

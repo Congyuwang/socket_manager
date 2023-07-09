@@ -135,10 +135,15 @@ extern "C" {
  * # Arguments
  * * `conn` - A pointer to a `CConnection`.
  * * `on_msg` - A callback function that will be called when a message is received.
+ * * `msg_buffer_size` - The size of the message buffer in bytes.
+ *    Set to 0 to use no buffer (i.e., call `on_msg` immediately on receiving
+ *    any data). The minimum is 8KB, and the maximum is 8MB.
+ * * `read_msg_flush_interval` - The interval in `milliseconds` of read message buffer
+ *    auto flushing. The value is ignored when `msg_buffer_size` is 0.
+ *    Set to 0 to disable auto flush (which is not recommended since there is no
+ *    manual flush, and small messages might get stuck in buffer).
  * * `write_flush_interval` - The interval in `milliseconds` of write buffer auto flushing.
  *    Set to 0 to disable auto flush.
- * * `msg_buffer_size` - The size of the message buffer in bytes, set to 0 to use default.
- *    The default is 8KB, with max size of 8MB, and min size of 512B.
  * * `err` - A pointer to a pointer to a C string allocated by `malloc` on error.
  *
  * # Returns
@@ -150,8 +155,9 @@ extern "C" {
  */
 struct CMsgSender *connection_start(struct CConnection *conn,
                                     struct OnMsgObj on_msg,
-                                    unsigned long long write_flush_interval,
                                     size_t msg_buffer_size,
+                                    unsigned long long read_msg_flush_interval,
+                                    unsigned long long write_flush_interval,
                                     char **err);
 
 /**

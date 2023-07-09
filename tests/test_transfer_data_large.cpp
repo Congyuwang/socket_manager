@@ -1,6 +1,9 @@
+#undef NDEBUG
 #include "test_utils.h"
 #include <chrono>
 #include <thread>
+
+const size_t MSG_BUF_SIZE = 4 * 1024 * 1024;
 
 class SendLargeDataConnCallback : public DoNothingConnCallback {
 public:
@@ -26,19 +29,17 @@ public:
 
 class StoreAllData : public MsgReceiver {
 public:
-  explicit StoreAllData(std::string &buffer) : buffer(buffer) {}
+  explicit StoreAllData(std::string &buffer, int &count) : buffer(buffer), count(count) {}
 
   void on_message(const std::shared_ptr<std::string> &data) override {
-    if (count % 100 == 0) {
-      std::cout << "received " << count << " messages "
-                << ",size = " << buffer.size() << std::endl;
-    }
+    std::cout << "received " << count << " messages "
+              << ",size = " << buffer.size() << std::endl;
     buffer.append(*data);
     count += 1;
   }
 
   std::string &buffer;
-  int count = 0;
+  int &count;
 };
 
 class StoreAllDataNotifyOnCloseCallback : public ConnCallback {
@@ -46,9 +47,9 @@ public:
 
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
                   const std::shared_ptr<Connection> &conn) override {
-    auto rcv = std::make_unique<StoreAllData>(add_data);
+    auto rcv = std::make_unique<StoreAllData>(add_data, count);
     // store sender so connection is not dropped.
-    sender = conn->start(std::move(rcv));
+    sender = conn->start(std::move(rcv), MSG_BUF_SIZE);
   }
 
   void on_connection_close(const std::string &local_addr, const std::string &peer_addr) override {
@@ -66,6 +67,7 @@ public:
   std::condition_variable cond;
   std::atomic_bool has_closed{false};
   std::string add_data;
+  int count{0};
   std::shared_ptr<MsgSender> sender;
 };
 
@@ -87,6 +89,11 @@ int test_transfer_data_large(int argc, char **argv) {
   while (true) {
     if (store_cb->has_closed.load()) {
       assert(store_cb->add_data.size() == 1024 * 1024 * 100);
+      auto avg_size = store_cb->add_data.size() / store_cb->count;
+      std::cout << "received " << store_cb->count << " messages ,"
+                << "total size = " << store_cb->add_data.size() << " bytes, "
+                << "average size = " << avg_size << " bytes"
+                << std::endl;
       return 0;
     }
     {

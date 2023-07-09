@@ -1,3 +1,4 @@
+#undef NDEBUG
 #include <socket_manager/socket_manager.h>
 #include "test_utils.h"
 

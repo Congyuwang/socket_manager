@@ -7,15 +7,16 @@ namespace socket_manager {
 
   std::shared_ptr<MsgSender> Connection::start(
           std::unique_ptr<MsgReceiver> msg_receiver,
-          unsigned long long write_flush_interval,
-          size_t msg_buffer_size) {
+          size_t msg_buffer_size,
+          unsigned long long read_msg_flush_interval,
+          unsigned long long write_flush_interval) {
 
     // start the connection.
     // calling twice `connection_start` will throw exception.
     char *err = nullptr;
     CMsgSender *sender = connection_start(inner, OnMsgObj{
             msg_receiver.get(),
-    }, write_flush_interval, msg_buffer_size, &err);
+    }, msg_buffer_size, read_msg_flush_interval, write_flush_interval, &err);
     if (sender == nullptr) {
       const std::string err_str(err);
       free(err);

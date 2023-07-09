@@ -1,3 +1,4 @@
+#undef NDEBUG
 #include "test_utils.h"
 
 using namespace socket_manager;

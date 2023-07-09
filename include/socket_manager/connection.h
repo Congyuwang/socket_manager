@@ -11,6 +11,7 @@
 namespace socket_manager {
 
   static unsigned long long DEFAULT_WRITE_FLUSH_MILLI_SEC = 10; // 10 milliseconds
+  static unsigned long long DEFAULT_READ_MSG_FLUSH_MILLI_SEC = 10; // 10 milliseconds
   static size_t DEFAULT_MSG_BUF_SIZE = 8 * 1024; // 8KB
 
   /**
@@ -42,16 +43,22 @@ namespace socket_manager {
      *
      * @param msg_receiver the message receiver callback to
      *                    receive messages from the peer.
+     * @param msg_buffer_size The size of the message buffer in bytes.
+     *    Set to 0 to use no buffer (i.e., call `on_msg` immediately on receiving
+     *    any data). The minimum is 8KB, and the maximum is 8MB.
      * @param write_flush_interval The interval in `milliseconds`
-     * of write buffer auto flushing. Set to 0 to disable auto flush.
-     * Default to 20 milliseconds.
-     * @param msg_buffer_size The size of the message buffer (bytes).
-     * Default to 8KB. Maximum is 8BM. Minimum is 512B.
+     *    of write buffer auto flushing. Set to 0 to disable auto flush.
+     *    Default to 20 milliseconds.
+     * @param read_msg_flush_interval The interval in `milliseconds` of read message buffer
+     *    auto flushing. The value is ignored when `msg_buffer_size` is 0.
+     *    Set to 0 to disable auto flush (which is not recommended since there is no
+     *    manual flush, and small messages might get stuck in buffer).
      */
     std::shared_ptr<MsgSender> start(
             std::unique_ptr<MsgReceiver> msg_receiver,
-            unsigned long long write_flush_interval = DEFAULT_WRITE_FLUSH_MILLI_SEC,
-            size_t msg_buffer_size = DEFAULT_MSG_BUF_SIZE);
+            size_t msg_buffer_size = DEFAULT_MSG_BUF_SIZE,
+            unsigned long long read_msg_flush_interval = DEFAULT_READ_MSG_FLUSH_MILLI_SEC,
+            unsigned long long write_flush_interval = DEFAULT_WRITE_FLUSH_MILLI_SEC);
 
     /**
      * Close the connection without using it.

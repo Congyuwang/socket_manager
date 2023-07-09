@@ -8,10 +8,13 @@ use dashmap::DashMap;
 use futures::FutureExt;
 use std::net::SocketAddr;
 use std::num::NonZeroUsize;
+use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::task::Poll::Ready;
+use std::task::{Context, Poll};
 use std::time::Duration;
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter};
+use tokio::io::{AsyncBufReadExt, AsyncWrite, AsyncWriteExt, BufReader, BufWriter};
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::runtime;
@@ -24,8 +27,7 @@ use tracing_subscriber::EnvFilter;
 
 const MAX_WORKER_THREADS: usize = 256;
 const SOCKET_LOG: &str = "SOCKET_LOG";
-const DEFAULT_MSG_BUFFER_SIZE: usize = 1024 * 8; // 8KB
-const MIN_MSG_BUFFER_SIZE: usize = 512; // 512B
+const MIN_MSG_BUFFER_SIZE: usize = 1024 * 8; // 8KB
 const MAX_MSG_BUFFER_SIZE: usize = 1024 * 1024 * 8; // 8MB
 const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -88,8 +90,10 @@ impl<OnMsg> Conn<OnMsg> {
 }
 
 /// Connection configuration
+#[derive(Copy, Clone)]
 pub struct ConnConfig {
     write_flush_interval: Option<Duration>,
+    read_msg_flush_interval: Option<Duration>,
     msg_buffer_size: Option<NonZeroUsize>,
 }
 
@@ -199,7 +203,7 @@ impl CSocketManager {
     ///    - \>1: use the specified number of threads.
     pub fn init<
         OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + Sync + 'static + Clone,
-        OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + Sync + 'static + Clone,
+        OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + Sync + Unpin + 'static + Clone,
     >(
         on_conn: OnConn,
         n_threads: usize,
@@ -291,7 +295,7 @@ impl Drop for CSocketManager {
 /// The main loop running in the background.
 async fn main<
     OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + Sync + 'static + Clone,
-    OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + Sync + 'static + Clone,
+    OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + Sync + Unpin + 'static + Clone,
 >(
     mut cmd_recv: UnboundedReceiver<Command>,
     handle: &Handle,
@@ -349,7 +353,7 @@ fn start_runtime(n_threads: usize) -> std::io::Result<Runtime> {
 /// This function connects to a port.
 fn connect_to_addr<
     OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + 'static + Clone,
-    OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + 'static,
+    OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + Unpin + 'static,
 >(
     handle: &Handle,
     addr: SocketAddr,
@@ -392,7 +396,7 @@ fn connect_to_addr<
 /// This function listens on a port.
 fn listen_on_addr<
     OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + Sync + 'static + Clone,
-    OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + Sync + 'static + Clone,
+    OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + Sync + Unpin + 'static + Clone,
 >(
     handle: &Handle,
     addr: SocketAddr,
@@ -435,7 +439,7 @@ fn listen_on_addr<
 
 async fn accept_connections<
     OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + 'static + Clone,
-    OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + 'static + Clone,
+    OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + Unpin + 'static + Clone,
 >(
     addr: SocketAddr,
     listener: TcpListener,
@@ -473,7 +477,7 @@ async fn accept_connections<
 /// This function handles connection from a client.
 fn handle_connection<
     OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + 'static + Clone,
-    OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + 'static,
+    OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + Unpin + 'static,
 >(
     local_addr: SocketAddr,
     peer_addr: SocketAddr,
@@ -510,21 +514,12 @@ fn handle_connection<
     handle.clone().spawn(async move {
         tracing::info!("new connection: local_addr={local_addr}, peer_addr={peer_addr}");
 
-        if let Ok((on_msg, conn_config)) = wait_for_start.await {
-            let write_flush_interval = conn_config.write_flush_interval;
-            let msg_buf_size = conn_config
-                .msg_buffer_size
-                .unwrap_or(NonZeroUsize::new(DEFAULT_MSG_BUFFER_SIZE).unwrap())
-                .get()
-                .min(MAX_MSG_BUFFER_SIZE)
-                .max(MIN_MSG_BUFFER_SIZE);
-
-            let (stop, stopper) = oneshot::channel::<()>();
-
+        if let Ok((on_msg, config)) = wait_for_start.await {
             // spawn reader and writer
+            let (stop, stopper) = oneshot::channel::<()>();
             let (read, write) = stream.into_split();
-            let writer = handle.spawn(handle_writer(write, recv, write_flush_interval, stop));
-            let reader = handle.spawn(handle_reader(read, on_msg, msg_buf_size));
+            let writer = handle.spawn(handle_writer(write, recv, config, stop));
+            let reader = handle.spawn(handle_reader(read, on_msg, config));
 
             // insert the stopper into connection_state
             connection_state
@@ -552,10 +547,10 @@ fn handle_connection<
 async fn handle_writer(
     write: OwnedWriteHalf,
     recv: UnboundedReceiver<SendCommand>,
-    write_flush_interval: Option<Duration>,
+    config: ConnConfig,
     stop: oneshot::Sender<()>,
 ) -> std::io::Result<()> {
-    match write_flush_interval {
+    match config.write_flush_interval {
         None => handle_writer_no_auto_flush(write, recv, stop).await,
         Some(duration) => {
             if duration.is_zero() {
@@ -578,6 +573,7 @@ async fn handle_writer_auto_flush(
     let mut buf_writer = BufWriter::new(&mut write);
     let mut flush_tick = tokio::time::interval(duration);
     flush_tick.set_missed_tick_behavior(MissedTickBehavior::Skip);
+    let mut has_data = false;
     loop {
         tokio::select! {
             // biased towards recv, skip flush tick if missed.
@@ -585,16 +581,26 @@ async fn handle_writer_auto_flush(
             biased;
             cmd = recv.recv() => {
                 match cmd {
-                    Some(SendCommand::Send(msg)) => buf_writer.write_all(&msg).await?,
-                    Some(SendCommand::Flush) => buf_writer.flush().await?,
+                    Some(SendCommand::Send(msg)) => {
+                        buf_writer.write_all(&msg).await?;
+                        // enable ticked flush when there is data.
+                        has_data = true;
+                    },
+                    Some(SendCommand::Flush) => {
+                        buf_writer.flush().await?;
+                        // disable ticked flush when there is no data.
+                        has_data = false;
+                    },
                     None => {
                         tracing::debug!("connection stopped (sender dropped)");
                         break
                     },
                 }
             }
-            _ = flush_tick.tick() => {
+            _ = flush_tick.tick(), if has_data => {
                 buf_writer.flush().await?;
+                // disable ticked flush when there is no data.
+                has_data = false;
             }
             _ = stop.closed() => {
                 tracing::debug!("connection stopped (socket manager dropped)");
@@ -643,25 +649,126 @@ async fn handle_writer_no_auto_flush(
 }
 
 /// Receive bytes ReadHalf of TcpStream and call `on_msg` callback.
-async fn handle_reader<OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + 'static>(
+async fn handle_reader<OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + Unpin + 'static>(
+    read: OwnedReadHalf,
+    on_msg: OnMsg,
+    config: ConnConfig,
+) -> std::io::Result<()> {
+    if let Some(msg_buf_size) = config.msg_buffer_size {
+        let msg_buf_size = msg_buf_size
+            .get()
+            .min(MAX_MSG_BUFFER_SIZE)
+            .max(MIN_MSG_BUFFER_SIZE);
+        match config.read_msg_flush_interval {
+            None => handle_reader_no_auto_flush(read, on_msg, msg_buf_size).await,
+            Some(duration) => {
+                if duration.is_zero() {
+                    handle_reader_no_auto_flush(read, on_msg, msg_buf_size).await
+                } else {
+                    handle_reader_auto_flush(read, on_msg, duration, msg_buf_size).await
+                }
+            }
+        }
+    } else {
+        handle_reader_no_buf(read, on_msg).await
+    }
+}
+
+/// Has write buffer with auto flush.
+async fn handle_reader_auto_flush<
+    OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + Unpin + 'static,
+>(
+    read: OwnedReadHalf,
+    on_msg: OnMsg,
+    duration: Duration,
+    msg_buf_size: usize,
+) -> std::io::Result<()> {
+    debug_assert!(!duration.is_zero());
+
+    read.readable().await?;
+    let mut buf_reader = BufReader::new(read);
+    let mut msg_writer = BufWriter::with_capacity(msg_buf_size, OnMsgWrite { on_msg });
+    let mut flush_tick = tokio::time::interval(duration);
+    let mut has_data = false;
+    flush_tick.set_missed_tick_behavior(MissedTickBehavior::Skip);
+
+    loop {
+        tokio::select! {
+            biased;
+            fill_result = buf_reader.fill_buf() => {
+                let bytes = fill_result?;
+                let n = bytes.len();
+                if n == 0 {
+                    break;
+                }
+                msg_writer.write_all(bytes).await?;
+                tracing::trace!("received {n} bytes");
+                buf_reader.consume(n);
+                // enable ticked flush when there is data.
+                has_data = true;
+            }
+            _ = flush_tick.tick(), if has_data => {
+                msg_writer.flush().await?;
+                // disable ticked flush when there is no data.
+                has_data = false;
+            }
+        }
+    }
+
+    msg_writer.flush().await?;
+    msg_writer.shutdown().await?;
+    Ok(())
+}
+
+/// Has write buffer but no auto flush (small messages might get stuck).
+/// Call `OnMsg` on batch. This is not recommended.
+async fn handle_reader_no_auto_flush<
+    OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + Unpin + 'static,
+>(
     read: OwnedReadHalf,
     on_msg: OnMsg,
     msg_buf_size: usize,
 ) -> std::io::Result<()> {
     read.readable().await?;
-    let mut buf_reader = BufReader::with_capacity(msg_buf_size, read);
+    let mut buf_reader = BufReader::new(read);
+    let mut msg_writer = BufWriter::with_capacity(msg_buf_size, OnMsgWrite { on_msg });
+
     loop {
         let bytes = buf_reader.fill_buf().await?;
         let n = bytes.len();
         if n == 0 {
-            return Ok(());
+            break;
         }
-        tracing::trace!("received {n} bytes", n = n);
+        tracing::trace!("received {n} bytes");
+        msg_writer.write_all(bytes).await?;
+        buf_reader.consume(n);
+    }
+
+    msg_writer.flush().await?;
+    msg_writer.shutdown().await?;
+    Ok(())
+}
+
+/// Has no write buffer, received is sent immediately.
+async fn handle_reader_no_buf<OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + Unpin + 'static>(
+    read: OwnedReadHalf,
+    on_msg: OnMsg,
+) -> std::io::Result<()> {
+    read.readable().await?;
+    let mut buf_reader = BufReader::new(read);
+    loop {
+        let bytes = buf_reader.fill_buf().await?;
+        let n = bytes.len();
+        if n == 0 {
+            break;
+        }
+        tracing::trace!("received {n} bytes");
         if let Err(e) = on_msg(Msg { bytes }) {
             return Err(std::io::Error::new(std::io::ErrorKind::Other, e));
         }
         buf_reader.consume(n);
     }
+    Ok(())
 }
 
 /// On connection end, remove connection from connection state.
@@ -697,6 +804,37 @@ async fn join_reader_writer(
                 break;
             }
         }
+    }
+}
+
+/// async write wrapper for on_msg
+struct OnMsgWrite<OnMsg> {
+    on_msg: OnMsg,
+}
+
+impl<OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + 'static> AsyncWrite for OnMsgWrite<OnMsg> {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        _: &mut Context<'_>,
+        bytes: &[u8],
+    ) -> Poll<Result<usize, std::io::Error>> {
+        let on_msg = &self.on_msg;
+        let result = match on_msg(Msg { bytes }) {
+            Ok(_) => Ok(bytes.len()),
+            Err(e) => Err(std::io::Error::new(std::io::ErrorKind::Other, e)),
+        };
+        Ready(result)
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), std::io::Error>> {
+        Ready(Ok(()))
+    }
+
+    fn poll_shutdown(
+        self: Pin<&mut Self>,
+        _: &mut Context<'_>,
+    ) -> Poll<Result<(), std::io::Error>> {
+        Ready(Ok(()))
     }
 }
 
