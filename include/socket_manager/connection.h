@@ -10,9 +10,9 @@
 
 namespace socket_manager {
 
-  static unsigned long long DEFAULT_WRITE_FLUSH_MICRO_SEC = 1000; // 1 millisecond
-  static unsigned long long DEFAULT_READ_MSG_FLUSH_MICRO_SEC = 1000; // 1 millisecond
-  static size_t DEFAULT_MSG_BUF_SIZE = 128 * 1024; // 128KB
+  static unsigned long long DEFAULT_WRITE_FLUSH_MILLI_SEC = 1; // 1 millisecond
+  static unsigned long long DEFAULT_READ_MSG_FLUSH_MILLI_SEC = 1; // 1 millisecond
+  static size_t DEFAULT_MSG_BUF_SIZE = 8 * 1024; // 8KB
 
   /**
    * Use Connection to send and receive messages from
@@ -47,20 +47,20 @@ namespace socket_manager {
      *    Set to 0 to use no buffer (i.e., call `on_msg` immediately on receiving
      *    any data, expecting the user to implement buffer if needed).
      *    The minimum is 8KB, and the maximum is 8MB. Default to 8KB.
-     * @param write_flush_interval The interval in `microseconds`
+     * @param write_flush_interval The interval in `milliseconds`
      *    of write buffer auto flushing. Set to 0 to disable auto flush.
-     *    Default to 1000 microseconds.
-     * @param read_msg_flush_interval The interval in `microseconds` of read message buffer
+     *    Default to 1 millisecond.
+     * @param read_msg_flush_interval The interval in `milliseconds` of read message buffer
      *    auto flushing. The value is ignored when `msg_buffer_size` is 0.
      *    Set to 0 to disable auto flush (which is not recommended since there is no
      *    manual flush, and small messages might get stuck in buffer).
-     *    Default to 1000 microseconds.
+     *    Default to 1 millisecond.
      */
     std::shared_ptr<MsgSender> start(
             std::unique_ptr<MsgReceiver> msg_receiver,
             size_t msg_buffer_size = DEFAULT_MSG_BUF_SIZE,
-            unsigned long long read_msg_flush_interval = DEFAULT_READ_MSG_FLUSH_MICRO_SEC,
-            unsigned long long write_flush_interval = DEFAULT_WRITE_FLUSH_MICRO_SEC);
+            unsigned long long read_msg_flush_interval = DEFAULT_READ_MSG_FLUSH_MILLI_SEC,
+            unsigned long long write_flush_interval = DEFAULT_WRITE_FLUSH_MILLI_SEC);
 
     /**
      * Close the connection without using it.

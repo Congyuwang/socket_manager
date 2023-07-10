@@ -138,11 +138,11 @@ extern "C" {
  * * `msg_buffer_size` - The size of the message buffer in bytes.
  *    Set to 0 to use no buffer (i.e., call `on_msg` immediately on receiving
  *    any data). The minimum is 8KB, and the maximum is 8MB.
- * * `read_msg_flush_interval` - The interval in `microseconds` of read message buffer
+ * * `read_msg_flush_interval` - The interval in `milliseconds` of read message buffer
  *    auto flushing. The value is ignored when `msg_buffer_size` is 0.
  *    Set to 0 to disable auto flush (which is not recommended since there is no
  *    manual flush, and small messages might get stuck in buffer).
- * * `write_flush_interval` - The interval in `microseconds` of write buffer auto flushing.
+ * * `write_flush_interval` - The interval in `milliseconds` of write buffer auto flushing.
  *    Set to 0 to disable auto flush.
  * * `err` - A pointer to a pointer to a C string allocated by `malloc` on error.
  *
