@@ -10,7 +10,7 @@ use std::net::SocketAddr;
 use std::num::NonZeroUsize;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::task::Poll::Ready;
 use std::task::{Context, Poll};
 use std::time::Duration;
@@ -46,10 +46,11 @@ pub struct CSocketManager {
 /// Drop the sender to close the connection.
 pub struct CMsgSender {
     pub(crate) send: UnboundedSender<SendCommand>,
+    pub(crate) buf: Arc<Mutex<Vec<u8>>>,
 }
 
 pub enum SendCommand {
-    Send(Vec<u8>),
+    Send,
     Flush,
 }
 
@@ -488,7 +489,9 @@ fn handle_connection<
 ) {
     let (send, recv) = mpsc::unbounded_channel::<SendCommand>();
     let (conn_config_setter, conn_config) = oneshot::channel::<(OnMsg, ConnConfig)>();
-    let send = CMsgSender { send };
+    let buf = Arc::new(Mutex::new(Vec::new()));
+    let send_buf = buf.clone();
+    let send = CMsgSender { send, buf };
 
     let on_conn_clone = on_conn.clone();
     // Call `on_conn` callback, and wait for user to call `start` on connection.
@@ -518,7 +521,7 @@ fn handle_connection<
             // spawn reader and writer
             let (stop, stopper) = oneshot::channel::<()>();
             let (read, write) = stream.into_split();
-            let writer = handle.spawn(handle_writer(write, recv, config, stop));
+            let writer = handle.spawn(handle_writer(write, recv, send_buf, config, stop));
             let reader = handle.spawn(handle_reader(read, on_msg, config));
 
             // insert the stopper into connection_state
@@ -547,16 +550,17 @@ fn handle_connection<
 async fn handle_writer(
     write: OwnedWriteHalf,
     recv: UnboundedReceiver<SendCommand>,
+    send_buf: Arc<Mutex<Vec<u8>>>,
     config: ConnConfig,
     stop: oneshot::Sender<()>,
 ) -> std::io::Result<()> {
     match config.write_flush_interval {
-        None => handle_writer_no_auto_flush(write, recv, stop).await,
+        None => handle_writer_no_auto_flush(write, recv, send_buf, stop).await,
         Some(duration) => {
             if duration.is_zero() {
-                handle_writer_no_auto_flush(write, recv, stop).await
+                handle_writer_no_auto_flush(write, recv, send_buf, stop).await
             } else {
-                handle_writer_auto_flush(write, recv, duration, stop).await
+                handle_writer_auto_flush(write, recv, send_buf, duration, stop).await
             }
         }
     }
@@ -565,6 +569,7 @@ async fn handle_writer(
 async fn handle_writer_auto_flush(
     mut write: OwnedWriteHalf,
     mut recv: UnboundedReceiver<SendCommand>,
+    send_buf: Arc<Mutex<Vec<u8>>>,
     duration: Duration,
     mut stop: oneshot::Sender<()>,
 ) -> std::io::Result<()> {
@@ -572,6 +577,7 @@ async fn handle_writer_auto_flush(
     write.writable().await?;
     let send_buf_size = socket2::SockRef::from(write.as_ref()).send_buffer_size()?;
     tracing::trace!("send buffer size: {}", send_buf_size);
+    let mut read_buf = Vec::new();
     let mut buf_writer = BufWriter::with_capacity(send_buf_size, &mut write);
     let mut flush_tick = tokio::time::interval(duration);
     flush_tick.set_missed_tick_behavior(MissedTickBehavior::Skip);
@@ -583,8 +589,13 @@ async fn handle_writer_auto_flush(
             biased;
             cmd = recv.recv() => {
                 match cmd {
-                    Some(SendCommand::Send(msg)) => {
-                        buf_writer.write_all(&msg).await?;
+                    Some(SendCommand::Send) => {
+                        {
+                            let mut send_buf = send_buf.lock().unwrap();
+                            read_buf.append(&mut send_buf);
+                        }
+                        buf_writer.write_all(&read_buf).await?;
+                        read_buf.clear();
                         // enable ticked flush when there is data.
                         has_data = true;
                     },
@@ -619,11 +630,13 @@ async fn handle_writer_auto_flush(
 async fn handle_writer_no_auto_flush(
     mut write: OwnedWriteHalf,
     mut recv: UnboundedReceiver<SendCommand>,
+    send_buf: Arc<Mutex<Vec<u8>>>,
     mut stop: oneshot::Sender<()>,
 ) -> std::io::Result<()> {
     write.writable().await?;
     let send_buf_size = socket2::SockRef::from(write.as_ref()).send_buffer_size()?;
     tracing::trace!("send buffer size: {}", send_buf_size);
+    let mut read_buf = Vec::new();
     let mut buf_writer = BufWriter::with_capacity(send_buf_size, &mut write);
     loop {
         tokio::select! {
@@ -632,7 +645,14 @@ async fn handle_writer_no_auto_flush(
             biased;
             cmd = recv.recv() => {
                 match cmd {
-                    Some(SendCommand::Send(msg)) => buf_writer.write_all(&msg).await?,
+                    Some(SendCommand::Send) => {
+                        {
+                            let mut send_buf = send_buf.lock().unwrap();
+                            read_buf.append(&mut send_buf);
+                        }
+                        buf_writer.write_all(&read_buf).await?;
+                        read_buf.clear();
+                    },
                     Some(SendCommand::Flush) => buf_writer.flush().await?,
                     None => {
                         tracing::debug!("connection stopped (sender dropped)");

@@ -19,9 +19,13 @@ pub unsafe extern "C" fn msg_sender_send(
     len: size_t,
     err: *mut *mut c_char,
 ) -> c_int {
-    let sender = &(*sender).send;
-    let msg = std::slice::from_raw_parts(msg as *const u8, len).to_vec();
-    match sender.send(SendCommand::Send(msg)) {
+    let sender = &(*sender);
+    let msg = std::slice::from_raw_parts(msg as *const u8, len);
+    {
+        let mut lock_buf = sender.buf.lock().unwrap();
+        lock_buf.extend_from_slice(msg)
+    }
+    match sender.send.send(SendCommand::Send) {
         Ok(_) => {
             *err = null_mut();
             0
