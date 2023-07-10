@@ -12,7 +12,7 @@ namespace socket_manager {
 
   static unsigned long long DEFAULT_WRITE_FLUSH_MILLI_SEC = 1; // 1 millisecond
   static unsigned long long DEFAULT_READ_MSG_FLUSH_MILLI_SEC = 1; // 1 millisecond
-  static size_t DEFAULT_MSG_BUF_SIZE = 8 * 1024; // 8KB
+  static size_t DEFAULT_MSG_BUF_SIZE = 64 * 1024; // 64KB
 
   /**
    * Use Connection to send and receive messages from
@@ -46,7 +46,7 @@ namespace socket_manager {
      * @param msg_buffer_size The size of the message buffer in bytes.
      *    Set to 0 to use no buffer (i.e., call `on_msg` immediately on receiving
      *    any data, expecting the user to implement buffer if needed).
-     *    The minimum is 8KB, and the maximum is 8MB. Default to 8KB.
+     *    The minimum is 8KB, and the maximum is 8MB. Default to 64KB.
      * @param write_flush_interval The interval in `milliseconds`
      *    of write buffer auto flushing. Set to 0 to disable auto flush.
      *    Default to 1 millisecond.
