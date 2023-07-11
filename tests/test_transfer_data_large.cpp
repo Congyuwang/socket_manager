@@ -33,16 +33,18 @@ public:
 
 class StoreAllData : public MsgReceiver {
 public:
-  explicit StoreAllData(std::string &buffer, int &count) : buffer(buffer), count(count) {}
+  explicit StoreAllData(int &buffer, int &count) : buffer(buffer), count(count) {}
 
   void on_message(const std::shared_ptr<std::string> &data) override {
-    std::cout << "received " << count << " messages "
-              << ",size = " << buffer.size() << std::endl;
-    buffer.append(*data);
+    if (count % 100 == 0) {
+      std::cout << "received " << count << " messages "
+                << ",size = " << buffer << std::endl;
+    }
+    buffer += (int)data->size();
     count += 1;
   }
 
-  std::string &buffer;
+  int &buffer;
   int &count;
 };
 
@@ -70,7 +72,7 @@ public:
   std::mutex mutex;
   std::condition_variable cond;
   std::atomic_bool has_closed{false};
-  std::string add_data;
+  int add_data{0};
   int count{0};
   std::shared_ptr<MsgSender> sender;
 };
@@ -92,10 +94,10 @@ int test_transfer_data_large(int argc, char **argv) {
   // Wait for the connection to close
   while (true) {
     if (store_cb->has_closed.load()) {
-      assert(store_cb->add_data.size() == 1024 * 1024 * 500);
-      auto avg_size = store_cb->add_data.size() / store_cb->count;
+      assert(store_cb->add_data == 1024 * 1024 * 500);
+      auto avg_size = store_cb->add_data / store_cb->count;
       std::cout << "received " << store_cb->count << " messages ,"
-                << "total size = " << store_cb->add_data.size() << " bytes, "
+                << "total size = " << store_cb->add_data << " bytes, "
                 << "average size = " << avg_size << " bytes"
                 << std::endl;
       return 0;
