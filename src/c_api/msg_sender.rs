@@ -1,8 +1,8 @@
-use crate::c_api::callbacks::MsgSenderObj;
+use crate::c_api::callbacks::WakerObj;
 use crate::c_api::utils::write_error_c_str;
 use crate::CMsgSender;
 use libc::size_t;
-use std::ffi::{c_char, c_int};
+use std::ffi::{c_char, c_int, c_long};
 use std::ptr::null_mut;
 
 /// Send a message via the given `CMsgSender`.
@@ -53,9 +53,9 @@ pub unsafe extern "C" fn msg_sender_try_send(
     sender: *mut CMsgSender,
     msg: *const c_char,
     len: size_t,
-    waker_obj: MsgSenderObj,
+    waker_obj: WakerObj,
     err: *mut *mut c_char,
-) -> size_t {
+) -> c_long {
     let sender = &mut (*sender);
     let msg = std::slice::from_raw_parts(msg as *const u8, len);
     match sender.try_send(msg, waker_obj) {

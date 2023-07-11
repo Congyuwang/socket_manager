@@ -12,13 +12,13 @@ namespace socket_manager {
     }
   }
 
-  size_t MsgSender::try_send(const std::string &data, size_t offset) {
-    char *err = nullptr;
+  long MsgSender::try_send(const std::string &data, size_t offset, std::unique_ptr<Waker> waker) {
     // check length
     if (offset >= data.length()) {
       throw std::runtime_error("offset >= data.length()");
     }
-    size_t n = msg_sender_try_send(
+    char *err = nullptr;
+    long n = msg_sender_try_send(
             inner,
             data.data() + offset,
             data.length() - offset,

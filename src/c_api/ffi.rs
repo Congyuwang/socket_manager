@@ -1,4 +1,4 @@
-use crate::c_api::callbacks::{MsgSenderObj, OnConnObj, OnMsgObj};
+use crate::c_api::callbacks::{OnConnObj, OnMsgObj, WakerObj};
 use crate::c_api::structs::{ConnMsg, ConnStates};
 use std::ffi::c_char;
 
@@ -10,12 +10,12 @@ extern "C" {
     /// Callback function for connection state changes.
     pub(crate) fn socket_manager_extern_on_conn(this: OnConnObj, conn: ConnStates) -> *mut c_char;
 
-    /// Waker for the sender.
-    pub(crate) fn socket_manager_extern_sender_waker_wake(this: MsgSenderObj);
+    /// Waker for the try_send method.
+    pub(crate) fn socket_manager_extern_sender_waker_wake(this: WakerObj);
 
-    /// Decrement ref count of the sender (waker released).
-    pub(crate) fn socket_manager_extern_sender_waker_release(this: MsgSenderObj);
+    /// Decrement ref count of the waker.
+    pub(crate) fn socket_manager_extern_sender_waker_release(this: WakerObj);
 
-    /// Increment ref count of the sender (waker cloned).
-    pub(crate) fn socket_manager_extern_sender_waker_clone(this: MsgSenderObj);
+    /// Increment ref count of the waker.
+    pub(crate) fn socket_manager_extern_sender_waker_clone(this: WakerObj);
 }

@@ -11,17 +11,17 @@ use crate::c_api::utils::parse_c_err_str;
 use std::ffi::{c_char, c_void, CString};
 use std::task::{RawWaker, RawWakerVTable, Waker};
 
-const MSG_SENDER_VTABLE: RawWakerVTable = MsgSenderObj::make_vtable();
+const MSG_SENDER_VTABLE: RawWakerVTable = WakerObj::make_vtable();
 
 /// Send the msg sender obj to receive
 /// writable notification.
 #[repr(C)]
 #[derive(Copy, Clone)]
-pub struct MsgSenderObj {
+pub struct WakerObj {
     this: *mut c_void,
 }
 
-impl MsgSenderObj {
+impl WakerObj {
     pub(crate) unsafe fn make_waker(&self) -> Waker {
         let raw_waker = RawWaker::new(self.this as *const (), &MSG_SENDER_VTABLE);
         // Increment the ref count since a new waker is created.
@@ -33,24 +33,24 @@ impl MsgSenderObj {
         RawWakerVTable::new(
             |dat| unsafe {
                 let this = dat as *mut c_void;
-                let msg_obj = MsgSenderObj { this };
+                let msg_obj = WakerObj { this };
                 socket_manager_extern_sender_waker_clone(msg_obj);
                 RawWaker::new(dat, &MSG_SENDER_VTABLE)
             },
             |dat| unsafe {
                 let this = dat as *mut c_void;
-                let msg_obj = MsgSenderObj { this };
+                let msg_obj = WakerObj { this };
                 socket_manager_extern_sender_waker_wake(msg_obj);
                 socket_manager_extern_sender_waker_release(msg_obj);
             },
             |dat| unsafe {
                 let this = dat as *mut c_void;
-                let msg_obj = MsgSenderObj { this };
+                let msg_obj = WakerObj { this };
                 socket_manager_extern_sender_waker_wake(msg_obj);
             },
             |dat| unsafe {
                 let this = dat as *mut c_void;
-                let msg_obj = MsgSenderObj { this };
+                let msg_obj = WakerObj { this };
                 socket_manager_extern_sender_waker_release(msg_obj);
             },
         )
