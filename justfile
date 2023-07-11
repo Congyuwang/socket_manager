@@ -11,6 +11,9 @@ dev-docker:
 test:
     cd build && SOCKET_LOG=debug ctest --output-on-failure && cd ..
 
+time:
+    /usr/bin/time -l -h -p ./build/tests/CommonCxxTests test_transfer_data_large
+
 test-linking:
     cd tests/test_find_package
     cmake -B build -DCMAKE_BUILD_TYPE=Release
