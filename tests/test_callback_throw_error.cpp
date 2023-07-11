@@ -52,7 +52,10 @@ class StoreAllEventsConnHelloCallback : public StoreAllEventsConnCallback {
     events.emplace_back(CONNECTED, conn_id);
     auto msg_storer = std::make_unique<MsgStoreReceiver>(conn_id, mutex, cond, buffer);
     auto sender = conn->start(std::move(msg_storer));
-    sender->send("hello");
+    std::thread t1([sender]() {
+      sender->send("hello");
+    });
+    t1.detach();
     senders.emplace(conn_id, sender);
     connected_count.fetch_add(1, std::memory_order_seq_cst);
     cond.notify_all();

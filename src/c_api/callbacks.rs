@@ -1,10 +1,61 @@
-use crate::c_api::ffi::{socket_manager_extern_on_conn, socket_manager_extern_on_msg};
+use crate::c_api::ffi::{
+    socket_manager_extern_on_conn, socket_manager_extern_on_msg,
+    socket_manager_extern_sender_waker_clone, socket_manager_extern_sender_waker_release,
+    socket_manager_extern_sender_waker_wake,
+};
 use crate::c_api::structs::{
     CConnection, ConnMsg, ConnStateCode, ConnStateData, ConnStates, OnConnect, OnConnectError,
     OnConnectionClose, OnListenError,
 };
 use crate::c_api::utils::parse_c_err_str;
 use std::ffi::{c_char, c_void, CString};
+use std::task::{RawWaker, RawWakerVTable, Waker};
+
+const MSG_SENDER_VTABLE: RawWakerVTable = MsgSenderObj::make_vtable();
+
+/// Send the msg sender obj to receive
+/// writable notification.
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct MsgSenderObj {
+    this: *mut c_void,
+}
+
+impl MsgSenderObj {
+    pub(crate) unsafe fn make_waker(&self) -> Waker {
+        let raw_waker = RawWaker::new(self.this as *const (), &MSG_SENDER_VTABLE);
+        // Increment the ref count since a new waker is created.
+        socket_manager_extern_sender_waker_clone(*self);
+        Waker::from_raw(raw_waker)
+    }
+
+    const fn make_vtable() -> RawWakerVTable {
+        RawWakerVTable::new(
+            |dat| unsafe {
+                let this = dat as *mut c_void;
+                let msg_obj = MsgSenderObj { this };
+                socket_manager_extern_sender_waker_clone(msg_obj);
+                RawWaker::new(dat, &MSG_SENDER_VTABLE)
+            },
+            |dat| unsafe {
+                let this = dat as *mut c_void;
+                let msg_obj = MsgSenderObj { this };
+                socket_manager_extern_sender_waker_wake(msg_obj);
+                socket_manager_extern_sender_waker_release(msg_obj);
+            },
+            |dat| unsafe {
+                let this = dat as *mut c_void;
+                let msg_obj = MsgSenderObj { this };
+                socket_manager_extern_sender_waker_wake(msg_obj);
+            },
+            |dat| unsafe {
+                let this = dat as *mut c_void;
+                let msg_obj = MsgSenderObj { this };
+                socket_manager_extern_sender_waker_release(msg_obj);
+            },
+        )
+    }
+}
 
 /// Callback function for receiving messages.
 ///
@@ -21,7 +72,7 @@ use std::ffi::{c_char, c_void, CString};
 /// # Thread Safety
 /// Must be thread safe!
 #[repr(C)]
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 pub struct OnMsgObj {
     this: *mut c_void,
 }
@@ -42,7 +93,7 @@ pub struct OnMsgObj {
 /// # Thread Safety
 /// Must be thread safe!
 #[repr(C)]
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 pub struct OnConnObj {
     this: *mut c_void,
 }
@@ -54,7 +105,7 @@ impl OnMsgObj {
             len: conn_msg.bytes.len(),
         };
         unsafe {
-            let cb_result = socket_manager_extern_on_msg(self.this, conn_msg);
+            let cb_result = socket_manager_extern_on_msg(*self, conn_msg);
             if let Err(e) = parse_c_err_str(cb_result) {
                 tracing::error!("Error thrown in OnMsg callback: {e}");
                 Err(e)
@@ -89,7 +140,7 @@ impl OnConnObj {
     /// connection callback
     pub(crate) fn call_inner(&self, conn_states: crate::ConnState<OnMsgObj>) -> Result<(), String> {
         let on_conn = |conn| unsafe {
-            let cb_result = socket_manager_extern_on_conn(self.this, conn);
+            let cb_result = socket_manager_extern_on_conn(*self, conn);
             parse_c_err_str(cb_result)
         };
         match conn_states {

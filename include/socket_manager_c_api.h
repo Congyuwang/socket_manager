@@ -56,6 +56,27 @@ typedef struct ConnMsg {
   size_t Len;
 } ConnMsg;
 
+/**
+ * Callback function for connection state changes.
+ *
+ * `callback_self` is feed to the first argument of the callback.
+ *
+ * # Error Handling
+ * Returns null_ptr on success, otherwise returns a pointer to a malloced
+ * C string containing the error message (the c string should be freed by the
+ * caller).
+ *
+ * # Safety
+ * The callback pointer must be valid for the entire runtime lifetime!!
+ * (i.e., before the runtime is aborted and joined).
+ *
+ * # Thread Safety
+ * Must be thread safe!
+ */
+typedef struct OnConnObj {
+  void *This;
+} OnConnObj;
+
 typedef struct OnConnect {
   const char *Local;
   const char *Peer;
@@ -96,25 +117,12 @@ typedef struct ConnStates {
 } ConnStates;
 
 /**
- * Callback function for connection state changes.
- *
- * `callback_self` is feed to the first argument of the callback.
- *
- * # Error Handling
- * Returns null_ptr on success, otherwise returns a pointer to a malloced
- * C string containing the error message (the c string should be freed by the
- * caller).
- *
- * # Safety
- * The callback pointer must be valid for the entire runtime lifetime!!
- * (i.e., before the runtime is aborted and joined).
- *
- * # Thread Safety
- * Must be thread safe!
+ * Send the msg sender obj to receive
+ * writable notification.
  */
-typedef struct OnConnObj {
+typedef struct MsgSenderObj {
   void *This;
-} OnConnObj;
+} MsgSenderObj;
 
 #ifdef __cplusplus
 extern "C" {
@@ -183,12 +191,27 @@ void connection_free(struct CConnection *conn);
 /**
  * Callback function for receiving messages.
  */
-extern char *socket_manager_extern_on_msg(void *this_, struct ConnMsg msg);
+extern char *socket_manager_extern_on_msg(struct OnMsgObj this_, struct ConnMsg msg);
 
 /**
  * Callback function for connection state changes.
  */
-extern char *socket_manager_extern_on_conn(void *this_, struct ConnStates conn);
+extern char *socket_manager_extern_on_conn(struct OnConnObj this_, struct ConnStates conn);
+
+/**
+ * Waker for the sender.
+ */
+extern void socket_manager_extern_sender_waker_wake(struct MsgSenderObj this_);
+
+/**
+ * Decrement ref count of the sender (waker released).
+ */
+extern void socket_manager_extern_sender_waker_release(struct MsgSenderObj this_);
+
+/**
+ * Increment ref count of the sender (waker cloned).
+ */
+extern void socket_manager_extern_sender_waker_clone(struct MsgSenderObj this_);
 
 /**
  * Send a message via the given `CMsgSender`.
@@ -196,11 +219,33 @@ extern char *socket_manager_extern_on_conn(void *this_, struct ConnStates conn);
  * # Thread Safety
  * Thread safe.
  *
+ * This function should never be called within the context of the async callbacks
+ * since it might block.
+ *
  * # Errors
  * Returns -1 on error, 0 on success.
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
  */
-int msg_sender_send(const struct CMsgSender *sender, const char *msg, size_t len, char **err);
+int msg_sender_send(struct CMsgSender *sender, const char *msg, size_t len, char **err);
+
+/**
+ * Try to send a message via the given `CMsgSender`.
+ *
+ * # Thread Safety
+ * Thread safe.
+ *
+ * This function is non-blocking, pass the MsgSender class
+ * to the waker_obj to receive notification to continue
+ * sending the message.
+ *
+ * # Errors
+ * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
+ */
+size_t msg_sender_try_send(struct CMsgSender *sender,
+                           const char *msg,
+                           size_t len,
+                           struct MsgSenderObj waker_obj,
+                           char **err);
 
 /**
  * Manually flush the message sender.
@@ -212,7 +257,7 @@ int msg_sender_send(const struct CMsgSender *sender, const char *msg, size_t len
  * Returns -1 on error, 0 on success.
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
  */
-int msg_sender_flush(const struct CMsgSender *sender, char **err);
+int msg_sender_flush(struct CMsgSender *sender, char **err);
 
 /**
  * Destructor of `MsgSender`.

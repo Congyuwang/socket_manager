@@ -18,6 +18,10 @@ namespace socket_manager {
     /**
      * Send a message to the peer.
      *
+     * # Blocking!!
+     * This method might block, so it should
+     * never be used within the callbacks.
+     *
      * # Thread Safety
      * This method is thread safe.
      * This method does not implement backpressure
@@ -26,6 +30,25 @@ namespace socket_manager {
      * @param data the message to send
      */
     void send(const std::string &data);
+
+    /**
+     * Non blocking message sending.
+     *
+     * @param data the message to send
+     * @param offset the offset of the message to send.
+     *   That is data[offset..] is the message to send.
+     *   Increment the offset based on the return value.
+     */
+    size_t try_send(const std::string &data, size_t offset);
+
+    /**
+     * This function is invoked when sender allows
+     * receiving more data.
+     *
+     * Override this method to implement notification
+     * on when the sender allows receiving more data.
+     */
+    virtual void waker();
 
     /**
      * Manually flush the internal buffer.
@@ -39,7 +62,7 @@ namespace socket_manager {
     /**
      * Drop the sender to close the connection.
      */
-    ~MsgSender();
+    virtual ~MsgSender();
 
     MsgSender(const MsgSender &) = delete;
 
@@ -49,7 +72,15 @@ namespace socket_manager {
 
     friend class Connection;
 
+    friend void ::socket_manager_extern_sender_waker_wake(struct MsgSenderObj this_);
+
+    friend void ::socket_manager_extern_sender_waker_release(struct MsgSenderObj this_);
+
+    friend void ::socket_manager_extern_sender_waker_clone(struct MsgSenderObj this_);
+
     explicit MsgSender(CMsgSender *inner);
+
+    std::atomic_size_t waker_ref_count;
 
     CMsgSender *inner;
 

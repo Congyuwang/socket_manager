@@ -82,7 +82,7 @@ namespace socket_manager {
 
   private:
 
-    friend char* ::socket_manager_extern_on_conn(void *this_, ConnStates conn);
+    friend char* ::socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates conn);
 
     // keep the msg_receiver alive
     std::unique_ptr<MsgReceiver> receiver;

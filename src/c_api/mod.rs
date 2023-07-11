@@ -1,6 +1,6 @@
-mod callbacks;
+pub(crate) mod callbacks;
 mod connection;
-mod ffi;
+pub(crate) mod ffi;
 mod msg_sender;
 mod socket_manager;
 mod structs;

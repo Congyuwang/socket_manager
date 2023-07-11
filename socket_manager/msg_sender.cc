@@ -12,6 +12,28 @@ namespace socket_manager {
     }
   }
 
+  size_t MsgSender::try_send(const std::string &data, size_t offset) {
+    char *err = nullptr;
+    // check length
+    if (offset >= data.length()) {
+      throw std::runtime_error("offset >= data.length()");
+    }
+    size_t n = msg_sender_try_send(
+            inner,
+            data.data() + offset,
+            data.length() - offset,
+            MsgSenderObj{this},
+            &err);
+    if (err) {
+      const std::string err_str(err);
+      free(err);
+      throw std::runtime_error(err_str);
+    }
+    return n;
+  }
+
+  void MsgSender::waker() {}
+
   void MsgSender::flush() {
     char *err = nullptr;
     if (msg_sender_flush(inner, &err)) {
@@ -21,10 +43,13 @@ namespace socket_manager {
     }
   }
 
-  MsgSender::MsgSender(CMsgSender *inner) : inner(inner) {}
+  MsgSender::MsgSender(CMsgSender *inner) : waker_ref_count(0), inner(inner) {}
 
   MsgSender::~MsgSender() {
-    msg_sender_free(inner);
+    // ensure that it is not freed when there is still waker
+    if (waker_ref_count.load() == 0) {
+      msg_sender_free(inner);
+    }
   }
 
 } // namespace socket_manager
