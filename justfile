@@ -13,6 +13,7 @@ test:
 
 time:
     /usr/bin/time -l -h -p ./build/tests/CommonCxxTests test_transfer_data_large
+    /usr/bin/time -l -h -p ./build/tests/CommonCxxTests test_transfer_data_large_async
 
 test-linking:
     cd tests/test_find_package

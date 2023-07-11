@@ -42,7 +42,7 @@ public:
       std::mutex mutex;
       auto cond = std::make_shared<std::condition_variable>();
 
-      while (progress < 1024 * 1024 * 5) {
+      while (progress < 1024 * 1024 * 10) {
         auto waker = std::make_unique<CondWaker>(cond);
         auto sent = sender->try_send(DATA, offset, std::move(waker));
         if (sent < 0) {
@@ -125,7 +125,7 @@ int test_transfer_data_large_async(int argc, char **argv) {
   // Wait for the connection to close
   while (true) {
     if (store_cb->has_closed.load()) {
-      assert(store_cb->add_data == 1024 * 1024 * 500);
+      assert(store_cb->add_data == 1024 * 1024 * 1000);
       auto avg_size = store_cb->add_data / store_cb->count;
       std::cout << "received " << store_cb->count << " messages ,"
                 << "total size = " << store_cb->add_data << " bytes, "

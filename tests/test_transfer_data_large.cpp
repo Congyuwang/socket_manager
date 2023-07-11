@@ -13,7 +13,7 @@ public:
     auto sender = conn->start(std::move(rcv));
     std::thread t([sender]() {
       // send 100MB data
-      for (int i = 0; i < 5 * 1024 * 1024; ++i) {
+      for (int i = 0; i < 10 * 1024 * 1024; ++i) {
         sender->send("helloworld"
                      "helloworld"
                      "helloworld"
@@ -94,7 +94,7 @@ int test_transfer_data_large(int argc, char **argv) {
   // Wait for the connection to close
   while (true) {
     if (store_cb->has_closed.load()) {
-      assert(store_cb->add_data == 1024 * 1024 * 500);
+      assert(store_cb->add_data == 1024 * 1024 * 1000);
       auto avg_size = store_cb->add_data / store_cb->count;
       std::cout << "received " << store_cb->count << " messages ,"
                 << "total size = " << store_cb->add_data << " bytes, "
