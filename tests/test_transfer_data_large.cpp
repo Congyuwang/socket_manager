@@ -11,19 +11,23 @@ public:
                   const std::shared_ptr<Connection> &conn) override {
     auto rcv = std::make_unique<DoNothingReceiver>();
     auto sender = conn->start(std::move(rcv));
-    for (int i = 0; i < 1024 * 1024; ++i) {
-      sender->send("helloworld"
-                   "helloworld"
-                   "helloworld"
-                   "helloworld"
-                   "helloworld"
-                   "helloworld"
-                   "helloworld"
-                   "helloworld"
-                   "helloworld"
-                   "helloworld");
-    }
-    // close connection after sender finished.
+    std::thread t([sender]() {
+      // send 100MB data
+      for (int i = 0; i < 5 * 1024 * 1024; ++i) {
+        sender->send("helloworld"
+                     "helloworld"
+                     "helloworld"
+                     "helloworld"
+                     "helloworld"
+                     "helloworld"
+                     "helloworld"
+                     "helloworld"
+                     "helloworld"
+                     "helloworld");
+      }
+      // close connection after sender finished.
+    });
+    t.detach();
   }
 };
 
@@ -88,7 +92,7 @@ int test_transfer_data_large(int argc, char **argv) {
   // Wait for the connection to close
   while (true) {
     if (store_cb->has_closed.load()) {
-      assert(store_cb->add_data.size() == 1024 * 1024 * 100);
+      assert(store_cb->add_data.size() == 1024 * 1024 * 500);
       auto avg_size = store_cb->add_data.size() / store_cb->count;
       std::cout << "received " << store_cb->count << " messages ,"
                 << "total size = " << store_cb->add_data.size() << " bytes, "
