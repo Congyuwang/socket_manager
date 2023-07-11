@@ -120,9 +120,9 @@ typedef struct ConnStates {
  * Send the msg sender obj to receive
  * writable notification.
  */
-typedef struct MsgSenderObj {
+typedef struct WakerObj {
   void *This;
-} MsgSenderObj;
+} WakerObj;
 
 #ifdef __cplusplus
 extern "C" {
@@ -199,19 +199,19 @@ extern char *socket_manager_extern_on_msg(struct OnMsgObj this_, struct ConnMsg 
 extern char *socket_manager_extern_on_conn(struct OnConnObj this_, struct ConnStates conn);
 
 /**
- * Waker for the sender.
+ * Waker for the try_send method.
  */
-extern void socket_manager_extern_sender_waker_wake(struct MsgSenderObj this_);
+extern void socket_manager_extern_sender_waker_wake(struct WakerObj this_);
 
 /**
- * Decrement ref count of the sender (waker released).
+ * Decrement ref count of the waker.
  */
-extern void socket_manager_extern_sender_waker_release(struct MsgSenderObj this_);
+extern void socket_manager_extern_sender_waker_release(struct WakerObj this_);
 
 /**
- * Increment ref count of the sender (waker cloned).
+ * Increment ref count of the waker.
  */
-extern void socket_manager_extern_sender_waker_clone(struct MsgSenderObj this_);
+extern void socket_manager_extern_sender_waker_clone(struct WakerObj this_);
 
 /**
  * Send a message via the given `CMsgSender`.
@@ -241,11 +241,11 @@ int msg_sender_send(struct CMsgSender *sender, const char *msg, size_t len, char
  * # Errors
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
  */
-size_t msg_sender_try_send(struct CMsgSender *sender,
-                           const char *msg,
-                           size_t len,
-                           struct MsgSenderObj waker_obj,
-                           char **err);
+long msg_sender_try_send(struct CMsgSender *sender,
+                         const char *msg,
+                         size_t len,
+                         struct WakerObj waker_obj,
+                         char **err);
 
 /**
  * Manually flush the message sender.

@@ -13,28 +13,19 @@ static char *string_dup(const std::string &str) {
 /**
  * Waker for the sender.
  */
-extern void socket_manager_extern_sender_waker_wake(struct MsgSenderObj this_) {
-  auto sender = reinterpret_cast<socket_manager::MsgSender *>(this_.This);
-  sender->waker();
+extern void socket_manager_extern_sender_waker_wake(struct WakerObj this_) {
+  auto wr = reinterpret_cast<socket_manager::WakerWrapper *>(this_.This);
+  wr->wake();
 }
 
-/**
- * Decrement ref count of the sender (waker released).
- */
-extern void socket_manager_extern_sender_waker_release(struct MsgSenderObj this_) {
-  auto sender = reinterpret_cast<socket_manager::MsgSender *>(this_.This);
-  if (sender->waker_ref_count.fetch_sub(1) == 0) {
-    // free the sender
-    msg_sender_free(sender->inner);
-  }
+extern void socket_manager_extern_sender_waker_release(struct WakerObj this_) {
+  auto wr = reinterpret_cast<socket_manager::WakerWrapper *>(this_.This);
+  wr->release();
 }
 
-/**
- * Increment ref count of the sender (waker cloned).
- */
-extern void socket_manager_extern_sender_waker_clone(struct MsgSenderObj this_) {
-  auto sender = reinterpret_cast<socket_manager::MsgSender *>(this_.This);
-  sender->waker_ref_count.fetch_add(1);
+extern void socket_manager_extern_sender_waker_clone(struct WakerObj this_) {
+  auto wr = reinterpret_cast<socket_manager::WakerWrapper *>(this_.This);
+  wr->clone();
 }
 
 extern char *socket_manager_extern_on_msg(struct OnMsgObj this_, ConnMsg msg) {

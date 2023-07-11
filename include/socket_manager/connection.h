@@ -14,6 +14,10 @@ namespace socket_manager {
   static unsigned long long DEFAULT_READ_MSG_FLUSH_MILLI_SEC = 1; // 1 millisecond
   static size_t DEFAULT_MSG_BUF_SIZE = 64 * 1024; // 64KB
 
+  class MsgSender;
+
+  class WakerWrapper;
+
   /**
    * Use Connection to send and receive messages from
    * established connections.
@@ -82,10 +86,15 @@ namespace socket_manager {
 
   private:
 
+    friend class MsgSender;
+
     friend char* ::socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates conn);
 
     // keep the msg_receiver alive
     std::unique_ptr<MsgReceiver> receiver;
+
+    // keep the waker alive
+    std::unique_ptr<WakerWrapper> waker;
 
     explicit Connection(CConnection *inner);
 

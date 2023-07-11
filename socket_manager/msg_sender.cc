@@ -3,6 +3,24 @@
 
 namespace socket_manager {
 
+  WakerWrapper::WakerWrapper(std::unique_ptr<Waker> waker) : waker_ref_count(0) {
+    this->waker = waker.release();
+  }
+
+  void WakerWrapper::wake() {
+    this->waker->wake();
+  }
+
+  void WakerWrapper::release() {
+    if (this->waker_ref_count.fetch_sub(1) <= 0) {
+      delete this->waker;
+    }
+  }
+
+  void WakerWrapper::clone() {
+    this->waker_ref_count.fetch_add(1);
+  }
+
   void MsgSender::send(const std::string &data) {
     char *err = nullptr;
     if (msg_sender_send(inner, data.data(), data.length(), &err)) {
@@ -22,17 +40,18 @@ namespace socket_manager {
             inner,
             data.data() + offset,
             data.length() - offset,
-            MsgSenderObj{this},
+            WakerObj { waker.get() },
             &err);
     if (err) {
       const std::string err_str(err);
       free(err);
       throw std::runtime_error(err_str);
     }
+    // keep waker alive
+    auto wrapper = std::unique_ptr<WakerWrapper>(new WakerWrapper(std::move(waker)));
+    conn->waker = std::move(wrapper);
     return n;
   }
-
-  void MsgSender::waker() {}
 
   void MsgSender::flush() {
     char *err = nullptr;
@@ -43,13 +62,10 @@ namespace socket_manager {
     }
   }
 
-  MsgSender::MsgSender(CMsgSender *inner) : waker_ref_count(0), inner(inner) {}
+  MsgSender::MsgSender(CMsgSender *inner) : inner(inner) {}
 
   MsgSender::~MsgSender() {
-    // ensure that it is not freed when there is still waker
-    if (waker_ref_count.load() == 0) {
-      msg_sender_free(inner);
-    }
+    msg_sender_free(inner);
   }
 
 } // namespace socket_manager
