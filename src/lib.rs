@@ -30,7 +30,7 @@ use tracing_subscriber::EnvFilter;
 
 const MAX_WORKER_THREADS: usize = 256;
 const SOCKET_LOG: &str = "SOCKET_LOG";
-const RING_BUFFER_SIZE: usize = 1024 * 1024; // 1MB
+const RING_BUFFER_SIZE: usize = 256 * 1024; // 256KB
 const MIN_MSG_BUFFER_SIZE: usize = 1024 * 8; // 8KB
 const MAX_MSG_BUFFER_SIZE: usize = 1024 * 1024 * 8; // 8MB
 const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
