@@ -686,8 +686,11 @@ async fn handle_writer_auto_flush(
                 // disable ticked flush when there is no data.
                 has_data = false;
             }
-            _ = buf_cons.wait(RING_BUFFER_SIZE / 2) => {}
-            _ = flush_tick.tick(), if !buf_cons.is_empty() | has_data => {
+            _ = buf_cons.wait(1) => {
+                // wait until we see some data in the ring buffer
+                // or if the ring buffer is closed.
+            }
+            _ = flush_tick.tick(), if has_data => {
                 // flush everything.
                 write_from_ring_buf(&mut buf_cons, &mut buf_writer).await?;
                 buf_writer.flush().await?;
