@@ -59,21 +59,12 @@ impl CMsgSender {
     /// Do not use this method in the callback (i.e. async context),
     /// as it might block.
     pub fn send_block(&mut self, bytes: &[u8]) -> std::io::Result<()> {
-        let n = self.buf_prd.as_mut_base().push_slice(bytes);
-        if n < bytes.len() {
-            self.handle.clone().block_on(self.write_all(&bytes[n..]))
-        } else {
-            Ok(())
-        }
-    }
-
-    async fn write_all(&mut self, bytes: &[u8]) -> std::io::Result<()> {
         let mut written = 0;
         while written < bytes.len() {
             let n = self.buf_prd.as_mut_base().push_slice(&bytes[written..]);
             written += n;
             if n == 0 {
-                self.buf_prd.wait_free(RING_BUFFER_SIZE / 2).await;
+                self.handle.clone().block_on(self.buf_prd.wait_free(RING_BUFFER_SIZE / 2));
                 if self.buf_prd.is_closed() {
                     return Err(std::io::Error::new(
                         std::io::ErrorKind::Other,
