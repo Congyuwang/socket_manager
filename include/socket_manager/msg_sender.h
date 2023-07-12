@@ -14,6 +14,11 @@ namespace socket_manager {
   /**
    * Used for receiving writable notification for
    * `try_send` method.
+   *
+   * Each `try_test()` call releases the waker,
+   * when `wake()` is actually invoked
+   * (i.e., the number of calls of `release` and `clone`
+   * are equal).
    */
   class Waker {
 
