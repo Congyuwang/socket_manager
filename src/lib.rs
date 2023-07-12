@@ -650,6 +650,7 @@ async fn handle_writer_auto_flush(
             has_data = true;
             continue;
         }
+        // n = 0, now check if the ring buffer is closed
         if buf_cons.is_closed() {
             // must check if the ring buffer is closed
             tracing::debug!("connection stopped (sender dropped)");
@@ -663,6 +664,11 @@ async fn handle_writer_auto_flush(
             // remove the usage of random generator to improve efficiency.
             biased;
             Some(_) = recv.recv() => {
+                // on flush, read all data from ring buffer and write to socket.
+                let n = buf_cons.as_mut_base().pop_slice(&mut read_buf);
+                if n > 0 {
+                    buf_writer.write_all(&read_buf[..n]).await?;
+                }
                 buf_writer.flush().await?;
                 // disable ticked flush when there is no data.
                 has_data = false;
@@ -678,6 +684,9 @@ async fn handle_writer_auto_flush(
                 has_data = true;
             }
             _ = flush_tick.tick(), if has_data => {
+                // auto flush just flush bufwriter,
+                // do not read from ring buffer,
+                // to make it cheaper.
                 buf_writer.flush().await?;
                 // disable ticked flush when there is no data.
                 has_data = false;
@@ -715,6 +724,7 @@ async fn handle_writer_no_auto_flush(
             buf_writer.write_all(&read_buf[..n]).await?;
             continue;
         }
+        // n = 0, now check if the ring buffer is closed
         if buf_cons.is_closed() {
             // must check if the ring buffer is closed
             tracing::debug!("connection stopped (sender dropped)");
@@ -728,6 +738,11 @@ async fn handle_writer_no_auto_flush(
             // remove the usage of random generator to improve efficiency.
             biased;
             Some(_) = recv.recv() => {
+                // on flush, read all data from ring buffer and write to socket.
+                let n = buf_cons.as_mut_base().pop_slice(&mut read_buf);
+                if n > 0 {
+                    buf_writer.write_all(&read_buf[..n]).await?;
+                }
                 buf_writer.flush().await?;
             }
             n = buf_cons.read(&mut read_buf) => {
