@@ -648,13 +648,11 @@ async fn handle_writer_auto_flush(
     let mut buf_writer = BufWriter::with_capacity(send_buf_size, write);
     let mut flush_tick = tokio::time::interval(duration);
     flush_tick.set_missed_tick_behavior(MissedTickBehavior::Skip);
-    let mut has_data = false;
     loop {
         // when the ring buffer has data,
         // proceed immediately without
         // getting stuck into the future.
         if write_from_ring_buf(&mut buf_cons, &mut buf_writer).await? > 0 {
-            has_data = true;
             continue;
         }
         // n = 0, now check if the ring buffer is closed
@@ -675,18 +673,17 @@ async fn handle_writer_auto_flush(
                 write_from_ring_buf(&mut buf_cons, &mut buf_writer).await?;
                 buf_writer.flush().await?;
                 // disable ticked flush when there is no data.
-                has_data = false;
             }
-            _ = buf_cons.wait(1) => {
-                // wait until we see some data in the ring buffer
-                // or if the ring buffer is closed.
+            _ = buf_cons.wait(RING_BUFFER_SIZE / 2) => {
+                // when data volume is larger than
+                // `(RING_BUFFER_SIZE / 2) / tick_interval`,
+                // this future will be woken up before flush_tick.
             }
-            _ = flush_tick.tick(), if has_data => {
+            _ = flush_tick.tick() => {
                 // flush everything.
                 write_from_ring_buf(&mut buf_cons, &mut buf_writer).await?;
                 buf_writer.flush().await?;
                 // disable ticked flush when there is no data.
-                has_data = false;
             }
             _ = stop.closed() => {
                 tracing::debug!("connection stopped (socket manager dropped)");
