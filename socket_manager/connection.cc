@@ -27,7 +27,7 @@ namespace socket_manager {
     receiver = std::move(msg_receiver);
 
     // return the sender
-    return std::shared_ptr<MsgSender>(new MsgSender(sender));
+    return std::shared_ptr<MsgSender>(new MsgSender(sender, shared_from_this()));
   }
 
   void Connection::close() {

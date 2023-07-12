@@ -14,11 +14,15 @@ namespace socket_manager {
   static unsigned long long DEFAULT_READ_MSG_FLUSH_MILLI_SEC = 1; // 1 millisecond
   static size_t DEFAULT_MSG_BUF_SIZE = 64 * 1024; // 64KB
 
+  class MsgSender;
+
+  class Waker;
+
   /**
    * Use Connection to send and receive messages from
    * established connections.
    */
-  class Connection {
+  class Connection : public std::enable_shared_from_this<Connection> {
 
   public:
 
@@ -82,10 +86,15 @@ namespace socket_manager {
 
   private:
 
-    friend char* ::socket_manager_extern_on_conn(void *this_, ConnStates conn);
+    friend class MsgSender;
+
+    friend char* ::socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates conn);
 
     // keep the msg_receiver alive
     std::unique_ptr<MsgReceiver> receiver;
+
+    // keep the waker alive
+    std::shared_ptr<Waker> waker;
 
     explicit Connection(CConnection *inner);
 

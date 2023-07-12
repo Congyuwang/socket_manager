@@ -10,8 +10,26 @@ static char *string_dup(const std::string &str) {
   return buffer;
 }
 
-extern char *socket_manager_extern_on_msg(void *receiver_ptr, ConnMsg msg) {
-  auto receiver = reinterpret_cast<socket_manager::MsgReceiver *>(receiver_ptr);
+/**
+ * Waker for the sender.
+ */
+extern void socket_manager_extern_sender_waker_wake(struct WakerObj this_) {
+  auto wr = reinterpret_cast<socket_manager::Waker *>(this_.This);
+  wr->wake();
+}
+
+extern void socket_manager_extern_sender_waker_release(struct WakerObj this_) {
+  auto wr = reinterpret_cast<socket_manager::Waker *>(this_.This);
+  wr->release();
+}
+
+extern void socket_manager_extern_sender_waker_clone(struct WakerObj this_) {
+  auto wr = reinterpret_cast<socket_manager::Waker *>(this_.This);
+  wr->clone();
+}
+
+extern char *socket_manager_extern_on_msg(struct OnMsgObj this_, ConnMsg msg) {
+  auto receiver = reinterpret_cast<socket_manager::MsgReceiver *>(this_.This);
   auto data_ptr = std::make_shared<std::string>(msg.Bytes, msg.Len);
   try {
     receiver->on_message(data_ptr);
@@ -23,9 +41,9 @@ extern char *socket_manager_extern_on_msg(void *receiver_ptr, ConnMsg msg) {
   return nullptr;
 }
 
-extern char *socket_manager_extern_on_conn(void *conn_ptr, ConnStates states) {
+extern char *socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates states) {
 
-  auto conn_cb = static_cast<socket_manager::ConnCallback *>(conn_ptr);
+  auto conn_cb = static_cast<socket_manager::ConnCallback *>(this_.This);
   switch (states.Code) {
     case ConnStateCode::Connect: {
       auto on_connect = states.Data.OnConnect;

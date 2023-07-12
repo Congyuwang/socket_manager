@@ -1,46 +1,88 @@
 #undef NDEBUG
+
 #include "test_utils.h"
 #include <chrono>
 #include <thread>
 
 const size_t MSG_BUF_SIZE = 4 * 1024 * 1024;
 
-class SendLargeDataConnCallback : public DoNothingConnCallback {
+const std::string DATA = "helloworld"
+                         "helloworld"
+                         "helloworld"
+                         "helloworld"
+                         "helloworld"
+                         "helloworld"
+                         "helloworld"
+                         "helloworld"
+                         "helloworld"
+                         "helloworld";
+
+class CondWaker : public Waker {
+public:
+  explicit CondWaker(const std::shared_ptr<std::condition_variable> &cond)
+          : cond(cond), waker_ref_count(0) {}
+
+  void wake() override {
+    cond->notify_one();
+  }
+
+  void clone() override {
+    this->waker_ref_count.fetch_add(1, std::memory_order_acq_rel);
+  }
+
+  void release() override {
+    this->waker_ref_count.fetch_sub(1, std::memory_order_acq_rel);
+  }
+
+private:
+  std::shared_ptr<std::condition_variable> cond;
+  std::atomic_size_t waker_ref_count;
+};
+
+class SendLargeDataConnCallbackAsync : public DoNothingConnCallback {
 public:
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
                   const std::shared_ptr<Connection> &conn) override {
     auto rcv = std::make_unique<DoNothingReceiver>();
     auto sender = conn->start(std::move(rcv));
+
     std::thread t([sender]() {
       // send 1000MB data
-      for (int i = 0; i < 10 * 1024 * 1024; ++i) {
-        sender->send("helloworld"
-                     "helloworld"
-                     "helloworld"
-                     "helloworld"
-                     "helloworld"
-                     "helloworld"
-                     "helloworld"
-                     "helloworld"
-                     "helloworld"
-                     "helloworld");
+      int progress = 0;
+      size_t offset = 0;
+      std::mutex mutex;
+      auto cond = std::make_shared<std::condition_variable>();
+      auto waker = std::make_shared<CondWaker>(cond);
+
+      while (progress < 1024 * 1024 * 10) {
+        auto sent = sender->try_send(DATA, offset, waker);
+        if (sent < 0) {
+          std::unique_lock<std::mutex> lk(mutex);
+          cond->wait_for(lk, std::chrono::milliseconds(10));
+        } else {
+          offset += sent;
+        }
+        if (offset == DATA.size()) {
+          offset = 0;
+          progress += 1;
+        }
       }
-      // close connection after sender finished.
     });
+
     t.detach();
   }
 };
 
-class StoreAllData : public MsgReceiver {
+class StoreAllDataAsync : public MsgReceiver {
 public:
-  explicit StoreAllData(int &buffer, int &count) : buffer(buffer), count(count) {}
+  explicit StoreAllDataAsync(int &buffer, int &count) : buffer(buffer), count(count) {}
 
   void on_message(const std::shared_ptr<std::string> &data) override {
     if (count % 100 == 0) {
       std::cout << "received " << count << " messages "
                 << ",size = " << buffer << std::endl;
     }
-    buffer += (int)data->size();
+    buffer += (int) data->size();
     count += 1;
   }
 
@@ -48,12 +90,12 @@ public:
   int &count;
 };
 
-class StoreAllDataNotifyOnCloseCallback : public ConnCallback {
+class StoreAllDataNotifyOnCloseCallbackAsync : public ConnCallback {
 public:
 
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
                   const std::shared_ptr<Connection> &conn) override {
-    auto rcv = std::make_unique<StoreAllData>(add_data, count);
+    auto rcv = std::make_unique<StoreAllDataAsync>(add_data, count);
     // store sender so connection is not dropped.
     sender = conn->start(std::move(rcv), MSG_BUF_SIZE);
   }
@@ -77,11 +119,11 @@ public:
   std::shared_ptr<MsgSender> sender;
 };
 
-int test_transfer_data_large(int argc, char **argv) {
+int test_transfer_data_large_async(int argc, char **argv) {
   const std::string addr = "127.0.0.1:40013";
 
-  auto send_cb = std::make_shared<SendLargeDataConnCallback>();
-  auto store_cb = std::make_shared<StoreAllDataNotifyOnCloseCallback>();
+  auto send_cb = std::make_shared<SendLargeDataConnCallbackAsync>();
+  auto store_cb = std::make_shared<StoreAllDataNotifyOnCloseCallbackAsync>();
   SocketManager send(send_cb);
   SocketManager store(store_cb);
 
