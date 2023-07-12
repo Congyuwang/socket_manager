@@ -14,6 +14,9 @@ use std::ptr::null_mut;
 /// since it might block.
 ///
 /// # Errors
+/// If the connection is closed, the function will return -1 and set `err` to a pointer
+/// with WriteZero error.
+///
 /// Returns -1 on error, 0 on success.
 /// On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
 #[no_mangle]
@@ -45,6 +48,10 @@ pub unsafe extern "C" fn msg_sender_send(
 /// This function is non-blocking, pass the MsgSender class
 /// to the waker_obj to receive notification to continue
 /// sending the message.
+///
+/// # Return
+/// Returns the number of bytes sent on success, 0 on connection closed,
+/// -1 on pending.
 ///
 /// # Errors
 /// On Error, `err` will be set to a pointer to a C string allocated by `malloc`.

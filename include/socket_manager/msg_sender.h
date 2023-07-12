@@ -65,6 +65,10 @@ namespace socket_manager {
      * This method does not implement backpressure
      * (i.e., it caches all the messages in memory).
      *
+     * # Errors
+     * This method throws std::runtime_error when
+     * the connection is closed.
+     *
      * @param data the message to send
      */
     void send(const std::string &data);
@@ -83,8 +87,9 @@ namespace socket_manager {
      * @param waker `waker.wake()` is evoked when try_send
      *   could accept more data. Pass nullptr to use NoopWaker.
      * @return -1 indicates pending, and the waker will be
-     *   woken up when writable. Otherwise, the return value
-     *   is the data written.
+     *   woken up when writable. 0 indicates the connection
+     *   is closed. Otherwise, the return value is the length
+     *   of the message sent.
      */
     long try_send(const std::string &data, size_t offset, const std::shared_ptr<Waker> &waker = nullptr);
 

@@ -223,6 +223,9 @@ extern void socket_manager_extern_sender_waker_clone(struct WakerObj this_);
  * since it might block.
  *
  * # Errors
+ * If the connection is closed, the function will return -1 and set `err` to a pointer
+ * with WriteZero error.
+ *
  * Returns -1 on error, 0 on success.
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
  */
@@ -237,6 +240,10 @@ int msg_sender_send(struct CMsgSender *sender, const char *msg, size_t len, char
  * This function is non-blocking, pass the MsgSender class
  * to the waker_obj to receive notification to continue
  * sending the message.
+ *
+ * # Return
+ * Returns the number of bytes sent on success, 0 on connection closed,
+ * -1 on pending.
  *
  * # Errors
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
