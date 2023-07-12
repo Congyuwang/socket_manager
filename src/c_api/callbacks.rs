@@ -18,7 +18,7 @@ const MSG_SENDER_VTABLE: RawWakerVTable = WakerObj::make_vtable();
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct WakerObj {
-    this: *mut c_void,
+    pub(crate) this: *mut c_void,
 }
 
 impl WakerObj {

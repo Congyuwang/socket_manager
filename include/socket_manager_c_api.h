@@ -242,8 +242,11 @@ int msg_sender_send(struct CMsgSender *sender, const char *msg, size_t len, char
  * sending the message.
  *
  * # Return
- * Returns the number of bytes sent on success, 0 on connection closed,
- * -1 on pending.
+ * If waker is provided, returns the number of bytes sent on success,
+ * and 0 on connection closed, -1 on pending.
+ *
+ * If waker is not provided, returns the number of bytes sent.
+ * 0 might indicate the connection is closed, or the message buffer is full.
  *
  * # Errors
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.

@@ -17,19 +17,12 @@ namespace socket_manager {
     if (offset >= data.length()) {
       throw std::runtime_error("offset >= data.length()");
     }
-    // use NoopWaker if waker is nullptr
-    std::shared_ptr<Waker> wk;
-    if (waker == nullptr) {
-      wk = std::shared_ptr<Waker>(new NoopWaker());
-    } else {
-      wk = waker;
-    }
     char *err = nullptr;
     long n = msg_sender_try_send(
             inner,
             data.data() + offset,
             data.length() - offset,
-            WakerObj{wk.get()},
+            WakerObj{waker.get()},
             &err);
     if (err) {
       const std::string err_str(err);
@@ -37,7 +30,7 @@ namespace socket_manager {
       throw std::runtime_error(err_str);
     }
     // keep waker alive
-    conn->waker = std::move(wk);
+    conn->waker = waker;
     return n;
   }
 

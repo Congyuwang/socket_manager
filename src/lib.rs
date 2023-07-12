@@ -72,20 +72,26 @@ impl CMsgSender {
     /// Try sending bytes.
     ///
     /// Returning -1 to indicate pending.
-    pub fn try_send(&mut self, bytes: &[u8], waker_obj: WakerObj) -> std::io::Result<i64> {
+    pub fn try_send(&mut self, bytes: &[u8], waker_obj: Option<WakerObj>) -> std::io::Result<i64> {
         let n = self.buf_prd.as_mut_base().push_slice(bytes);
+        // return immediately if all bytes are sent
         if n == bytes.len() {
             return Ok(n as i64);
         }
-        let waker = unsafe { waker_obj.make_waker() };
-        match pin!(self.buf_prd.write(&bytes[n..])).poll(&mut Context::from_waker(&waker)) {
-            Ready(r) => r.map(|i| i as i64).map_err(|_| {
-                std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("failed to send bytes (ring buffer should never fail)"),
-                )
-            }),
-            Poll::Pending => Ok(-1),
+        // otherwise, try to send the remaining bytes
+        if let Some(waker_obj) = waker_obj {
+            let waker = unsafe { waker_obj.make_waker() };
+            match pin!(self.buf_prd.write(&bytes[n..])).poll(&mut Context::from_waker(&waker)) {
+                Ready(r) => r.map(|i| i as i64).map_err(|_| {
+                    std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        format!("failed to send bytes (ring buffer should never fail)"),
+                    )
+                }),
+                Poll::Pending => Ok(-1),
+            }
+        } else {
+            Ok(n as i64)
         }
     }
 

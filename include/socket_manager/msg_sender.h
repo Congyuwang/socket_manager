@@ -85,11 +85,12 @@ namespace socket_manager {
      *   That is data[offset..] is the message to send.
      *   Increment the offset based on the return value.
      * @param waker `waker.wake()` is evoked when try_send
-     *   could accept more data. Pass nullptr to use NoopWaker.
-     * @return -1 indicates pending, and the waker will be
-     *   woken up when writable. 0 indicates the connection
-     *   is closed. Otherwise, the return value is the length
-     *   of the message sent.
+     *   could accept more data. Pass nullptr to disable wake
+     *   notification.
+     * @return If waker is provided, returns the number of bytes sent on success,
+     *   and 0 on connection closed, -1 on pending.
+     *   If waker is not provided, returns the number of bytes sent.
+     *   0 might indicate the connection is closed, or the message buffer is full.
      */
     long try_send(const std::string &data, size_t offset, const std::shared_ptr<Waker> &waker = nullptr);
 

@@ -50,8 +50,11 @@ pub unsafe extern "C" fn msg_sender_send(
 /// sending the message.
 ///
 /// # Return
-/// Returns the number of bytes sent on success, 0 on connection closed,
-/// -1 on pending.
+/// If waker is provided, returns the number of bytes sent on success,
+/// and 0 on connection closed, -1 on pending.
+///
+/// If waker is not provided, returns the number of bytes sent.
+/// 0 might indicate the connection is closed, or the message buffer is full.
 ///
 /// # Errors
 /// On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
@@ -65,6 +68,11 @@ pub unsafe extern "C" fn msg_sender_try_send(
 ) -> c_long {
     let sender = &mut (*sender);
     let msg = std::slice::from_raw_parts(msg as *const u8, len);
+    let waker_obj = if waker_obj.this.is_null() {
+        None
+    } else {
+        Some(waker_obj)
+    };
     match sender.try_send(msg, waker_obj) {
         Ok(n) => {
             *err = null_mut();
