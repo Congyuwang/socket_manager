@@ -647,6 +647,13 @@ async fn handle_writer_auto_flush(
         let n = buf_cons.as_mut_base().pop_slice(&mut read_buf);
         if n > 0 {
             buf_writer.write_all(&read_buf[..n]).await?;
+            has_data = true;
+            continue;
+        }
+        if buf_cons.is_closed() {
+            // must check if the ring buffer is closed
+            tracing::debug!("connection stopped (sender dropped)");
+            break;
         }
         // only enter futures when there is no data in the ring buffer
         // at first glance. This reduces the number of waiting on read_buf
@@ -706,6 +713,12 @@ async fn handle_writer_no_auto_flush(
         let n = buf_cons.as_mut_base().pop_slice(&mut read_buf);
         if n > 0 {
             buf_writer.write_all(&read_buf[..n]).await?;
+            continue;
+        }
+        if buf_cons.is_closed() {
+            // must check if the ring buffer is closed
+            tracing::debug!("connection stopped (sender dropped)");
+            break;
         }
         // only enter futures when there is no data in the ring buffer
         // at first glance. This reduces the number of waiting on read_buf
