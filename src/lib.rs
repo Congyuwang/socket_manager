@@ -702,6 +702,7 @@ async fn handle_writer_auto_flush(
         }
     }
     // flush and close
+    write_from_ring_buf(&mut buf_cons, &mut buf_writer).await?;
     buf_writer.flush().await?;
     buf_writer.shutdown().await?;
     Ok(())
@@ -750,6 +751,7 @@ async fn handle_writer_no_auto_flush(
         }
     }
     // flush and close
+    write_from_ring_buf(&mut buf_cons, &mut buf_writer).await?;
     buf_writer.flush().await?;
     buf_writer.shutdown().await?;
     Ok(())
