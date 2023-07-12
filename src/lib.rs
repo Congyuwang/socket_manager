@@ -769,6 +769,7 @@ async fn write_from_ring_buf(
         writer.write_all(right).await?;
         unsafe { ring_buf.as_mut_base().advance(n) };
     }
+    tracing::trace!("write {} bytes", n);
     Ok(n)
 }
 
@@ -808,8 +809,6 @@ async fn handle_reader_auto_flush<
     msg_buf_size: usize,
 ) -> std::io::Result<()> {
     debug_assert!(!duration.is_zero());
-
-    read.readable().await?;
     let recv_buffer_size = socket2::SockRef::from(read.as_ref()).recv_buffer_size()?;
     tracing::trace!("recv buffer size: {}", recv_buffer_size);
     let mut buf_reader = BufReader::with_capacity(recv_buffer_size, read);
@@ -855,7 +854,6 @@ async fn handle_reader_no_auto_flush<
     on_msg: OnMsg,
     msg_buf_size: usize,
 ) -> std::io::Result<()> {
-    read.readable().await?;
     let recv_buffer_size = socket2::SockRef::from(read.as_ref()).recv_buffer_size()?;
     tracing::trace!("recv buffer size: {}", recv_buffer_size);
     let mut buf_reader = BufReader::with_capacity(recv_buffer_size, read);
@@ -882,7 +880,6 @@ async fn handle_reader_no_buf<OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + 
     read: OwnedReadHalf,
     on_msg: OnMsg,
 ) -> std::io::Result<()> {
-    read.readable().await?;
     let recv_buffer_size = socket2::SockRef::from(read.as_ref()).recv_buffer_size()?;
     tracing::trace!("recv buffer size: {}", recv_buffer_size);
     let mut buf_reader = BufReader::with_capacity(recv_buffer_size, read);
