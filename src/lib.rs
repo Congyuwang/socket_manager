@@ -659,9 +659,14 @@ async fn handle_writer_auto_flush(
         // at first glance. This reduces the number of waiting on read_buf
         // which seems to have a slow waker.
         tokio::select! {
-            // biased towards recv, skip flush tick if missed.
+            // biased towards manual flush, skip flush tick if missed.
             // remove the usage of random generator to improve efficiency.
             biased;
+            Some(_) = recv.recv() => {
+                buf_writer.flush().await?;
+                // disable ticked flush when there is no data.
+                has_data = false;
+            }
             n = buf_cons.read(&mut read_buf) => {
                 let n = n?;
                 if n == 0 {
@@ -671,11 +676,6 @@ async fn handle_writer_auto_flush(
                 buf_writer.write_all(&read_buf[..n]).await?;
                 // enable ticked flush when there is data.
                 has_data = true;
-            }
-            Some(_) = recv.recv() => {
-                buf_writer.flush().await?;
-                // disable ticked flush when there is no data.
-                has_data = false;
             }
             _ = flush_tick.tick(), if has_data => {
                 buf_writer.flush().await?;
@@ -724,9 +724,12 @@ async fn handle_writer_no_auto_flush(
         // at first glance. This reduces the number of waiting on read_buf
         // which seems to have a slow waker.
         tokio::select! {
-            // biased towards recv.
+            // biased towards manual.
             // remove the usage of random generator to improve efficiency.
             biased;
+            Some(_) = recv.recv() => {
+                buf_writer.flush().await?;
+            }
             n = buf_cons.read(&mut read_buf) => {
                 let n = n?;
                 if n == 0 {
@@ -734,9 +737,6 @@ async fn handle_writer_no_auto_flush(
                     break;
                 }
                 buf_writer.write_all(&read_buf[..n]).await?;
-            }
-            Some(_) = recv.recv() => {
-                buf_writer.flush().await?;
             }
             _ = stop.closed() => {
                 tracing::debug!("connection stopped (socket manager dropped)");
