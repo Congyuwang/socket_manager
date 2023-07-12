@@ -17,7 +17,7 @@ use std::sync::Arc;
 use std::task::Poll::Ready;
 use std::task::{Context, Poll};
 use std::time::Duration;
-use tokio::io::{AsyncBufReadExt, AsyncWrite, AsyncWriteExt, BufReader, BufWriter};
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader, BufWriter};
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::runtime;
@@ -627,7 +627,7 @@ async fn handle_writer(
 async fn handle_writer_auto_flush(
     mut write: OwnedWriteHalf,
     mut recv: UnboundedReceiver<SendCommand>,
-    buf_cons: AsyncHeapConsumer<u8>,
+    mut buf_cons: AsyncHeapConsumer<u8>,
     duration: Duration,
     mut stop: oneshot::Sender<()>,
 ) -> std::io::Result<()> {
@@ -635,25 +635,34 @@ async fn handle_writer_auto_flush(
     write.writable().await?;
     let send_buf_size = socket2::SockRef::from(write.as_ref()).send_buffer_size()?;
     tracing::trace!("send buffer size: {}", send_buf_size);
-    let mut buf_reader = BufReader::with_capacity(send_buf_size, buf_cons);
+    let mut read_buf = vec![0u8; RING_BUFFER_SIZE];
     let mut buf_writer = BufWriter::with_capacity(send_buf_size, &mut write);
     let mut flush_tick = tokio::time::interval(duration);
     flush_tick.set_missed_tick_behavior(MissedTickBehavior::Skip);
     let mut has_data = false;
     loop {
+        // when the ring buffer has data,
+        // proceed immediately without waiting
+        // for the future.
+        let n = buf_cons.as_mut_base().pop_slice(&mut read_buf);
+        if n > 0 {
+            buf_writer.write_all(&read_buf[..n]).await?;
+            continue;
+        }
+        // only enter futures when there is no data in the ring buffer
+        // at first glance. This reduces the number of waiting on read_buf
+        // which seems to have a slow waker.
         tokio::select! {
             // biased towards recv, skip flush tick if missed.
             // remove the usage of random generator to improve efficiency.
             biased;
-            bytes = buf_reader.fill_buf() => {
-                let bytes = bytes?;
-                let n = bytes.len();
+            n = buf_cons.read(&mut read_buf) => {
+                let n = n?;
                 if n == 0 {
                     tracing::debug!("connection stopped (sender dropped)");
                     break;
                 }
-                buf_writer.write_all(bytes).await?;
-                buf_reader.consume(n);
+                buf_writer.write_all(&read_buf[..n]).await?;
                 // enable ticked flush when there is data.
                 has_data = true;
             }
@@ -683,28 +692,37 @@ async fn handle_writer_auto_flush(
 async fn handle_writer_no_auto_flush(
     mut write: OwnedWriteHalf,
     mut recv: UnboundedReceiver<SendCommand>,
-    buf_cons: AsyncHeapConsumer<u8>,
+    mut buf_cons: AsyncHeapConsumer<u8>,
     mut stop: oneshot::Sender<()>,
 ) -> std::io::Result<()> {
     write.writable().await?;
     let send_buf_size = socket2::SockRef::from(write.as_ref()).send_buffer_size()?;
     tracing::trace!("send buffer size: {}", send_buf_size);
-    let mut buf_reader = BufReader::with_capacity(send_buf_size, buf_cons);
+    let mut read_buf = vec![0u8; RING_BUFFER_SIZE];
     let mut buf_writer = BufWriter::with_capacity(send_buf_size, &mut write);
     loop {
+        // when the ring buffer has data,
+        // proceed immediately without waiting
+        // for the future.
+        let n = buf_cons.as_mut_base().pop_slice(&mut read_buf);
+        if n > 0 {
+            buf_writer.write_all(&read_buf[..n]).await?;
+            continue;
+        }
+        // only enter futures when there is no data in the ring buffer
+        // at first glance. This reduces the number of waiting on read_buf
+        // which seems to have a slow waker.
         tokio::select! {
             // biased towards recv.
             // remove the usage of random generator to improve efficiency.
             biased;
-            bytes = buf_reader.fill_buf() => {
-                let bytes = bytes?;
-                let n = bytes.len();
+            n = buf_cons.read(&mut read_buf) => {
+                let n = n?;
                 if n == 0 {
                     tracing::debug!("connection stopped (sender dropped)");
                     break;
                 }
-                buf_writer.write_all(bytes).await?;
-                buf_reader.consume(n);
+                buf_writer.write_all(&read_buf[..n]).await?;
             }
             Some(_) = recv.recv() => {
                 buf_writer.flush().await?;
