@@ -17,7 +17,7 @@ use std::sync::Arc;
 use std::task::Poll::Ready;
 use std::task::{Context, Poll};
 use std::time::Duration;
-use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader, BufWriter};
+use tokio::io::{AsyncBufReadExt, AsyncWrite, AsyncWriteExt, BufReader, BufWriter};
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::runtime;
@@ -30,7 +30,7 @@ use tracing_subscriber::EnvFilter;
 
 const MAX_WORKER_THREADS: usize = 256;
 const SOCKET_LOG: &str = "SOCKET_LOG";
-const RING_BUFFER_SIZE: usize = 1024 * 1024; // 1MB
+const RING_BUFFER_SIZE: usize = 256 * 1024; // 256KB
 const MIN_MSG_BUFFER_SIZE: usize = 1024 * 8; // 8KB
 const MAX_MSG_BUFFER_SIZE: usize = 1024 * 1024 * 8; // 8MB
 const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
@@ -59,14 +59,21 @@ impl CMsgSender {
     /// Do not use this method in the callback (i.e. async context),
     /// as it might block.
     pub fn send_block(&mut self, bytes: &[u8]) -> std::io::Result<()> {
-        let n = self.buf_prd.as_mut_base().push_slice(bytes);
-        if n < bytes.len() {
-            self.handle
-                .clone()
-                .block_on(self.buf_prd.write_all(&bytes[n..]))
-        } else {
-            Ok(())
+        let mut written = 0;
+        while written < bytes.len() {
+            let n = self.buf_prd.as_mut_base().push_slice(&bytes[written..]);
+            written += n;
+            if n == 0 {
+                self.handle.clone().block_on(self.buf_prd.wait_free(RING_BUFFER_SIZE / 2));
+                if self.buf_prd.is_closed() {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        "connection closed",
+                    ));
+                }
+            }
         }
+        Ok(())
     }
 
     /// Try sending bytes.
@@ -78,13 +85,17 @@ impl CMsgSender {
             // no bytes written, wait on the waker
             (0, Some(waker_obj)) => {
                 let waker = unsafe { waker_obj.make_waker() };
-                match pin!(self.buf_prd.write(&bytes[n..])).poll(&mut Context::from_waker(&waker)) {
-                    Ready(r) => r.map(|i| i as i64).map_err(|_| {
-                        std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            format!("failed to send bytes (ring buffer should never fail)"),
-                        )
-                    }),
+                match pin!(self.buf_prd.wait_free(RING_BUFFER_SIZE / 2))
+                    .poll(&mut Context::from_waker(&waker))
+                {
+                    Ready(_) => {
+                        if self.buf_prd.is_closed() {
+                            Ok(0)
+                        } else {
+                            let n = self.buf_prd.as_mut_base().push_slice(bytes);
+                            Ok(n as i64)
+                        }
+                    }
                     Poll::Pending => Ok(-1),
                 }
             }
@@ -625,29 +636,23 @@ async fn handle_writer(
 }
 
 async fn handle_writer_auto_flush(
-    mut write: OwnedWriteHalf,
+    write: OwnedWriteHalf,
     mut recv: UnboundedReceiver<SendCommand>,
     mut buf_cons: AsyncHeapConsumer<u8>,
     duration: Duration,
     mut stop: oneshot::Sender<()>,
 ) -> std::io::Result<()> {
     debug_assert!(!duration.is_zero());
-    write.writable().await?;
     let send_buf_size = socket2::SockRef::from(write.as_ref()).send_buffer_size()?;
     tracing::trace!("send buffer size: {}", send_buf_size);
-    let mut read_buf = vec![0u8; RING_BUFFER_SIZE];
-    let mut buf_writer = BufWriter::with_capacity(send_buf_size, &mut write);
+    let mut buf_writer = BufWriter::with_capacity(send_buf_size, write);
     let mut flush_tick = tokio::time::interval(duration);
     flush_tick.set_missed_tick_behavior(MissedTickBehavior::Skip);
-    let mut has_data = false;
     loop {
         // when the ring buffer has data,
-        // proceed immediately without waiting
-        // for the future.
-        let n = buf_cons.as_mut_base().pop_slice(&mut read_buf);
-        if n > 0 {
-            buf_writer.write_all(&read_buf[..n]).await?;
-            has_data = true;
+        // proceed immediately without
+        // getting stuck into the future.
+        if write_from_ring_buf(&mut buf_cons, &mut buf_writer).await? > 0 {
             continue;
         }
         // n = 0, now check if the ring buffer is closed
@@ -665,31 +670,20 @@ async fn handle_writer_auto_flush(
             biased;
             Some(_) = recv.recv() => {
                 // on flush, read all data from ring buffer and write to socket.
-                let n = buf_cons.as_mut_base().pop_slice(&mut read_buf);
-                if n > 0 {
-                    buf_writer.write_all(&read_buf[..n]).await?;
-                }
+                write_from_ring_buf(&mut buf_cons, &mut buf_writer).await?;
                 buf_writer.flush().await?;
                 // disable ticked flush when there is no data.
-                has_data = false;
             }
-            n = buf_cons.read(&mut read_buf) => {
-                let n = n?;
-                if n == 0 {
-                    tracing::debug!("connection stopped (sender dropped)");
-                    break;
-                }
-                buf_writer.write_all(&read_buf[..n]).await?;
-                // enable ticked flush when there is data.
-                has_data = true;
+            _ = buf_cons.wait(RING_BUFFER_SIZE / 2) => {
+                // when data volume is larger than
+                // `(RING_BUFFER_SIZE / 2) / tick_interval`,
+                // this future will be woken up before flush_tick.
             }
-            _ = flush_tick.tick(), if has_data => {
-                // auto flush just flush bufwriter,
-                // do not read from ring buffer,
-                // to make it cheaper.
+            _ = flush_tick.tick() => {
+                // flush everything.
+                write_from_ring_buf(&mut buf_cons, &mut buf_writer).await?;
                 buf_writer.flush().await?;
                 // disable ticked flush when there is no data.
-                has_data = false;
             }
             _ = stop.closed() => {
                 tracing::debug!("connection stopped (socket manager dropped)");
@@ -699,29 +693,26 @@ async fn handle_writer_auto_flush(
         }
     }
     // flush and close
+    write_from_ring_buf(&mut buf_cons, &mut buf_writer).await?;
     buf_writer.flush().await?;
     buf_writer.shutdown().await?;
     Ok(())
 }
 
 async fn handle_writer_no_auto_flush(
-    mut write: OwnedWriteHalf,
+    write: OwnedWriteHalf,
     mut recv: UnboundedReceiver<SendCommand>,
     mut buf_cons: AsyncHeapConsumer<u8>,
     mut stop: oneshot::Sender<()>,
 ) -> std::io::Result<()> {
-    write.writable().await?;
     let send_buf_size = socket2::SockRef::from(write.as_ref()).send_buffer_size()?;
     tracing::trace!("send buffer size: {}", send_buf_size);
-    let mut read_buf = vec![0u8; RING_BUFFER_SIZE];
-    let mut buf_writer = BufWriter::with_capacity(send_buf_size, &mut write);
+    let mut buf_writer = BufWriter::with_capacity(send_buf_size, write);
     loop {
         // when the ring buffer has data,
-        // proceed immediately without waiting
-        // for the future.
-        let n = buf_cons.as_mut_base().pop_slice(&mut read_buf);
-        if n > 0 {
-            buf_writer.write_all(&read_buf[..n]).await?;
+        // proceed immediately without
+        // getting stuck into the future.
+        if write_from_ring_buf(&mut buf_cons, &mut buf_writer).await? > 0 {
             continue;
         }
         // n = 0, now check if the ring buffer is closed
@@ -739,20 +730,10 @@ async fn handle_writer_no_auto_flush(
             biased;
             Some(_) = recv.recv() => {
                 // on flush, read all data from ring buffer and write to socket.
-                let n = buf_cons.as_mut_base().pop_slice(&mut read_buf);
-                if n > 0 {
-                    buf_writer.write_all(&read_buf[..n]).await?;
-                }
+                write_from_ring_buf(&mut buf_cons, &mut buf_writer).await?;
                 buf_writer.flush().await?;
             }
-            n = buf_cons.read(&mut read_buf) => {
-                let n = n?;
-                if n == 0 {
-                    tracing::debug!("connection stopped (sender dropped)");
-                    break;
-                }
-                buf_writer.write_all(&read_buf[..n]).await?;
-            }
+            _ = buf_cons.wait(RING_BUFFER_SIZE / 2) => {}
             _ = stop.closed() => {
                 tracing::debug!("connection stopped (socket manager dropped)");
                 break;
@@ -761,9 +742,26 @@ async fn handle_writer_no_auto_flush(
         }
     }
     // flush and close
+    write_from_ring_buf(&mut buf_cons, &mut buf_writer).await?;
     buf_writer.flush().await?;
     buf_writer.shutdown().await?;
     Ok(())
+}
+
+/// directly write from ring buffer to bufwriter.
+async fn write_from_ring_buf(
+    ring_buf: &mut AsyncHeapConsumer<u8>,
+    writer: &mut BufWriter<OwnedWriteHalf>,
+) -> std::io::Result<usize> {
+    let (left, right) = ring_buf.as_base().as_slices();
+    let n = left.len() + right.len();
+    if n > 0 {
+        writer.write_all(left).await?;
+        writer.write_all(right).await?;
+        unsafe { ring_buf.as_mut_base().advance(n) };
+    }
+    tracing::trace!("write {} bytes", n);
+    Ok(n)
 }
 
 /// Receive bytes ReadHalf of TcpStream and call `on_msg` callback.
@@ -802,8 +800,6 @@ async fn handle_reader_auto_flush<
     msg_buf_size: usize,
 ) -> std::io::Result<()> {
     debug_assert!(!duration.is_zero());
-
-    read.readable().await?;
     let recv_buffer_size = socket2::SockRef::from(read.as_ref()).recv_buffer_size()?;
     tracing::trace!("recv buffer size: {}", recv_buffer_size);
     let mut buf_reader = BufReader::with_capacity(recv_buffer_size, read);
@@ -849,7 +845,6 @@ async fn handle_reader_no_auto_flush<
     on_msg: OnMsg,
     msg_buf_size: usize,
 ) -> std::io::Result<()> {
-    read.readable().await?;
     let recv_buffer_size = socket2::SockRef::from(read.as_ref()).recv_buffer_size()?;
     tracing::trace!("recv buffer size: {}", recv_buffer_size);
     let mut buf_reader = BufReader::with_capacity(recv_buffer_size, read);
@@ -876,7 +871,6 @@ async fn handle_reader_no_buf<OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + 
     read: OwnedReadHalf,
     on_msg: OnMsg,
 ) -> std::io::Result<()> {
-    read.readable().await?;
     let recv_buffer_size = socket2::SockRef::from(read.as_ref()).recv_buffer_size()?;
     tracing::trace!("recv buffer size: {}", recv_buffer_size);
     let mut buf_reader = BufReader::with_capacity(recv_buffer_size, read);

@@ -45,7 +45,10 @@ class SendHelloWorldDoNotClose : public DoNothingConnCallback {
                   const std::shared_ptr<Connection> &conn) override {
     auto do_nothing = std::make_unique<DoNothingReceiver>();
     sender = conn->start(std::move(do_nothing));
-    sender->send("hello world");
+    std::thread t([this] {
+      sender->send("hello world");
+    });
+    t.detach();
   }
 
 private:
