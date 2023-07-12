@@ -651,18 +651,10 @@ async fn handle_writer_auto_flush(
                 // enable ticked flush when there is data.
                 has_data = true;
             }
-            cmd = recv.recv() => {
-                match cmd {
-                    Some(SendCommand::Flush) => {
-                        buf_writer.flush().await?;
-                        // disable ticked flush when there is no data.
-                        has_data = false;
-                    },
-                    None => {
-                        tracing::debug!("connection stopped (sender dropped)");
-                        break
-                    },
-                }
+            Some(_) = recv.recv() => {
+                buf_writer.flush().await?;
+                // disable ticked flush when there is no data.
+                has_data = false;
             }
             _ = flush_tick.tick(), if has_data => {
                 buf_writer.flush().await?;
@@ -673,6 +665,7 @@ async fn handle_writer_auto_flush(
                 tracing::debug!("connection stopped (socket manager dropped)");
                 break;
             }
+            else => {}
         }
     }
     // flush and close
@@ -707,19 +700,14 @@ async fn handle_writer_no_auto_flush(
                 buf_writer.write_all(bytes).await?;
                 buf_reader.consume(n);
             }
-            cmd = recv.recv() => {
-                match cmd {
-                    Some(SendCommand::Flush) => buf_writer.flush().await?,
-                    None => {
-                        tracing::debug!("connection stopped (sender dropped)");
-                        break
-                    },
-                }
+            Some(_) = recv.recv() => {
+                buf_writer.flush().await?;
             }
             _ = stop.closed() => {
                 tracing::debug!("connection stopped (socket manager dropped)");
                 break;
             }
+            else => {}
         }
     }
     // flush and close
