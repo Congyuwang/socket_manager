@@ -14,17 +14,17 @@ static char *string_dup(const std::string &str) {
  * Waker for the sender.
  */
 extern void socket_manager_extern_sender_waker_wake(struct WakerObj this_) {
-  auto wr = reinterpret_cast<socket_manager::WakerWrapper *>(this_.This);
+  auto wr = reinterpret_cast<socket_manager::Waker *>(this_.This);
   wr->wake();
 }
 
 extern void socket_manager_extern_sender_waker_release(struct WakerObj this_) {
-  auto wr = reinterpret_cast<socket_manager::WakerWrapper *>(this_.This);
+  auto wr = reinterpret_cast<socket_manager::Waker *>(this_.This);
   wr->release();
 }
 
 extern void socket_manager_extern_sender_waker_clone(struct WakerObj this_) {
-  auto wr = reinterpret_cast<socket_manager::WakerWrapper *>(this_.This);
+  auto wr = reinterpret_cast<socket_manager::Waker *>(this_.This);
   wr->clone();
 }
 

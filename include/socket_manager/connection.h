@@ -16,13 +16,13 @@ namespace socket_manager {
 
   class MsgSender;
 
-  class WakerWrapper;
+  class Waker;
 
   /**
    * Use Connection to send and receive messages from
    * established connections.
    */
-  class Connection {
+  class Connection : public std::enable_shared_from_this<Connection> {
 
   public:
 
@@ -94,7 +94,7 @@ namespace socket_manager {
     std::unique_ptr<MsgReceiver> receiver;
 
     // keep the waker alive
-    std::unique_ptr<WakerWrapper> waker;
+    std::shared_ptr<Waker> waker;
 
     explicit Connection(CConnection *inner);
 

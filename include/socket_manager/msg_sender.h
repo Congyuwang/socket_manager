@@ -21,33 +21,27 @@ namespace socket_manager {
     virtual ~Waker() = default;
 
   private:
-    friend class WakerWrapper;
 
     virtual void wake() = 0;
-  };
 
-  class WakerWrapper {
+    virtual void release() = 0;
 
-  private:
-    friend class MsgSender;
+    virtual void clone() = 0;
 
     friend void ::socket_manager_extern_sender_waker_wake(struct WakerObj this_);
 
     friend void ::socket_manager_extern_sender_waker_release(struct WakerObj this_);
 
     friend void ::socket_manager_extern_sender_waker_clone(struct WakerObj this_);
+  };
 
-    void wake();
+  class NoopWaker : public Waker {
+  public:
+    void wake() override {}
 
-    void release();
+    void release() override {}
 
-    void clone();
-
-    explicit WakerWrapper(std::unique_ptr<Waker>);
-
-    std::atomic_size_t waker_ref_count;
-
-    Waker *waker;
+    void clone() override {}
   };
 
   /**
@@ -87,12 +81,12 @@ namespace socket_manager {
      *   That is data[offset..] is the message to send.
      *   Increment the offset based on the return value.
      * @param waker `waker.wake()` is evoked when try_send
-     *   could accept more data.
+     *   could accept more data. Pass nullptr to use NoopWaker.
      * @return -1 indicates pending, and the waker will be
      *   woken up when writable. Otherwise, the return value
      *   is the data written.
      */
-    long try_send(const std::string &data, size_t offset, std::unique_ptr<Waker> waker);
+    long try_send(const std::string &data, size_t offset, const std::shared_ptr<Waker> &waker = nullptr);
 
     /**
      * Manually flush the internal buffer.
@@ -116,7 +110,7 @@ namespace socket_manager {
 
     friend class Connection;
 
-    explicit MsgSender(CMsgSender *inner);
+    explicit MsgSender(CMsgSender *inner, const std::shared_ptr<Connection>&);
 
     std::shared_ptr<Connection> conn;
 

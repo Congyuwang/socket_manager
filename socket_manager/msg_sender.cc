@@ -3,24 +3,6 @@
 
 namespace socket_manager {
 
-  WakerWrapper::WakerWrapper(std::unique_ptr<Waker> waker) : waker_ref_count(0) {
-    this->waker = waker.release();
-  }
-
-  void WakerWrapper::wake() {
-    this->waker->wake();
-  }
-
-  void WakerWrapper::release() {
-    if (this->waker_ref_count.fetch_sub(1) <= 0) {
-      delete this->waker;
-    }
-  }
-
-  void WakerWrapper::clone() {
-    this->waker_ref_count.fetch_add(1);
-  }
-
   void MsgSender::send(const std::string &data) {
     char *err = nullptr;
     if (msg_sender_send(inner, data.data(), data.length(), &err)) {
@@ -30,17 +12,24 @@ namespace socket_manager {
     }
   }
 
-  long MsgSender::try_send(const std::string &data, size_t offset, std::unique_ptr<Waker> waker) {
+  long MsgSender::try_send(const std::string &data, size_t offset, const std::shared_ptr<Waker> &waker) {
     // check length
     if (offset >= data.length()) {
       throw std::runtime_error("offset >= data.length()");
+    }
+    // use NoopWaker if waker is nullptr
+    std::shared_ptr<Waker> wk;
+    if (waker == nullptr) {
+      wk = std::shared_ptr<Waker>(new NoopWaker());
+    } else {
+      wk = waker;
     }
     char *err = nullptr;
     long n = msg_sender_try_send(
             inner,
             data.data() + offset,
             data.length() - offset,
-            WakerObj { waker.get() },
+            WakerObj{wk.get()},
             &err);
     if (err) {
       const std::string err_str(err);
@@ -48,8 +37,7 @@ namespace socket_manager {
       throw std::runtime_error(err_str);
     }
     // keep waker alive
-    auto wrapper = std::unique_ptr<WakerWrapper>(new WakerWrapper(std::move(waker)));
-    conn->waker = std::move(wrapper);
+    conn->waker = std::move(wk);
     return n;
   }
 
@@ -62,7 +50,8 @@ namespace socket_manager {
     }
   }
 
-  MsgSender::MsgSender(CMsgSender *inner) : inner(inner) {}
+  MsgSender::MsgSender(CMsgSender *inner, const std::shared_ptr<Connection> &conn)
+          : conn(conn), inner(inner) {}
 
   MsgSender::~MsgSender() {
     msg_sender_free(inner);
