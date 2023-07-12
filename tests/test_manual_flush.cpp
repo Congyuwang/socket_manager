@@ -52,8 +52,11 @@ class HelloCallback : public ConnCallback {
     auto rcv = std::make_unique<FinalReceiver>(has_received, mutex, cond);
     // disable write auto flush
     auto sender = conn->start(std::move(rcv), DEFAULT_MSG_BUF_SIZE, 1, 0);
-    sender->send("hello world");
-    sender->flush();
+    std::thread t([sender] {
+      sender->send("hello world");
+      sender->flush();
+    });
+    t.detach();
     _sender = sender;
     std::cout << "hello world sent" << std::endl;
   }
