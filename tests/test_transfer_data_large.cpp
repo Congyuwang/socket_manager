@@ -13,17 +13,12 @@ public:
     auto sender = conn->start(std::move(rcv));
     std::thread t([sender]() {
       // send 1000MB data
-      for (int i = 0; i < 10 * 1024 * 1024; ++i) {
-        sender->send("helloworld"
-                     "helloworld"
-                     "helloworld"
-                     "helloworld"
-                     "helloworld"
-                     "helloworld"
-                     "helloworld"
-                     "helloworld"
-                     "helloworld"
-                     "helloworld");
+      std::string data;
+      for (int i = 0; i < 1024 * 1024; i++) {
+        data.append("helloworld");
+      }
+      for (int i = 0; i < 100; ++i) {
+        sender->send(data);
       }
       // close connection after sender finished.
     });

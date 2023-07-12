@@ -6,17 +6,6 @@
 
 const size_t MSG_BUF_SIZE = 4 * 1024 * 1024;
 
-const std::string DATA = "helloworld"
-                         "helloworld"
-                         "helloworld"
-                         "helloworld"
-                         "helloworld"
-                         "helloworld"
-                         "helloworld"
-                         "helloworld"
-                         "helloworld"
-                         "helloworld";
-
 class CondWaker : public Waker {
 public:
   explicit CondWaker(const std::shared_ptr<std::condition_variable> &cond)
@@ -54,15 +43,20 @@ public:
       auto cond = std::make_shared<std::condition_variable>();
       auto waker = std::make_shared<CondWaker>(cond);
 
-      while (progress < 1024 * 1024 * 10) {
-        auto sent = sender->try_send(DATA, offset, waker);
+      std::string data;
+      for (int i = 0; i < 1024 * 1024; i++) {
+        data.append("helloworld");
+      }
+
+      while (progress < 100) {
+        auto sent = sender->try_send(data, offset, waker);
         if (sent < 0) {
           std::unique_lock<std::mutex> lk(mutex);
           cond->wait_for(lk, std::chrono::milliseconds(10));
         } else {
           offset += sent;
         }
-        if (offset == DATA.size()) {
+        if (offset == data.size()) {
           offset = 0;
           progress += 1;
         }
