@@ -668,8 +668,8 @@ async fn handle_writer_auto_flush(
                     // on flush, read all data from ring buffer and write to socket.
                     write_all_from_ring_buf(&mut ring_buf, &mut write).await?;
                     write.flush().await?;
-                    has_data = false;
                     // disable ticked flush when there is no data.
+                    has_data = false;
                 }
                 _ = ring_buf.wait(RING_BUFFER_SIZE / 2) => {
                     if ring_buf.is_closed() {
@@ -714,66 +714,45 @@ async fn handle_writer_no_auto_flush(
 ) -> std::io::Result<()> {
     let send_buf_size = socket2::SockRef::from(write.as_ref()).send_buffer_size()?;
     tracing::trace!("send buffer size: {}", send_buf_size);
-    loop {
-        // when the ring buffer has data,
-        // proceed immediately without
-        // getting stuck into the future.
-        if write_all_from_ring_buf(&mut ring_buf, &mut write).await? > 0 {
-            continue;
-        }
-        // n = 0, now check if the ring buffer is closed
-        if ring_buf.is_closed() {
-            // must check if the ring buffer is closed
-            tracing::debug!("connection stopped (sender dropped)");
-            break;
-        }
-        // only enter futures when there is no data in the ring buffer
-        // at first glance. This reduces the number of waiting on read_buf
-        // which seems to have a slow waker.
-        tokio::select! {
-            // biased towards manual.
-            // remove the usage of random generator to improve efficiency.
-            biased;
-            Some(_) = recv.recv() => {
-                // on flush, read all data from ring buffer and write to socket.
-                write_all_from_ring_buf(&mut ring_buf, &mut write).await?;
-                write.flush().await?;
+    'closed: loop {
+        // burst mode loop
+        'burst: loop {
+            if ring_buf.is_closed() {
+                // n = 0, now check if the ring buffer is closed
+                break 'closed;
             }
-            _ = ring_buf.wait(RING_BUFFER_SIZE / 2) => {}
-            _ = stop.closed() => {
-                tracing::debug!("connection stopped (socket manager dropped)");
-                break;
+            // exist burst mode loop when there is no data
+            break 'burst;
+        }
+        // when burst mode got no data, switch to waker mode
+        'waker: loop {
+            tokio::select! {
+                biased;
+                Some(_) = recv.recv() => {
+                    // on flush, read all data from ring buffer and write to socket.
+                    write_all_from_ring_buf(&mut ring_buf, &mut write).await?;
+                    write.flush().await?;
+                }
+                _ = ring_buf.wait(RING_BUFFER_SIZE / 2) => {
+                    if ring_buf.is_closed() {
+                        break 'closed;
+                    }
+                    break 'waker;
+                }
+                _ = stop.closed() => {
+                    break 'closed;
+                }
+                else => {}
             }
-            else => {}
         }
     }
     // flush and close
     write_all_from_ring_buf(&mut ring_buf, &mut write).await?;
     write.flush().await?;
     write.shutdown().await?;
+    tracing::debug!("connection stopped (socket manager dropped)");
     Ok(())
 }
-
-/// directly write from ring buffer to bufwriter.
-// async fn write_from_ring_buf(
-//     ring_buf: &mut AsyncHeapConsumer<u8>,
-//     writer: &mut OwnedWriteHalf,
-// ) -> std::io::Result<usize> {
-//     let (left, right) = ring_buf.as_base().as_slices();
-//     let left_len = left.len();
-//     let right_len = right.len();
-//     let mut n = 0;
-//     if left_len > 0 {
-//         n += writer.get_mut().write(left).await?;
-//     }
-//     // proceed to right buf only when left is completely written.
-//     if n == left_len && right_len > 0 {
-//         n += writer.get_mut().write(right).await?;
-//     }
-//     unsafe { ring_buf.as_mut_base().advance(n) };
-//     tracing::trace!("write {} bytes", n);
-//     Ok(n)
-// }
 
 /// directly write from ring buffer to bufwriter.
 async fn write_all_from_ring_buf(
