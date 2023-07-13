@@ -715,14 +715,17 @@ async fn handle_writer_no_auto_flush(
     let send_buf_size = socket2::SockRef::from(write.as_ref()).send_buffer_size()?;
     tracing::trace!("send buffer size: {}", send_buf_size);
     'closed: loop {
-        // burst mode loop
+        // start from burst mode
         'burst: loop {
-            if ring_buf.is_closed() {
-                // n = 0, now check if the ring buffer is closed
-                break 'closed;
+            // burst mode loop
+            if write_all_from_ring_buf(&mut ring_buf, &mut write).await? == 0 {
+                if ring_buf.is_closed() {
+                    // n = 0, now check if the ring buffer is closed
+                    break 'closed;
+                }
+                // exist burst mode loop when there is no data
+                break 'burst;
             }
-            // exist burst mode loop when there is no data
-            break 'burst;
         }
         // when burst mode got no data, switch to waker mode
         'waker: loop {
