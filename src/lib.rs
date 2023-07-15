@@ -59,7 +59,7 @@ impl CMsgSender {
     /// Do not use this method in the callback (i.e. async context),
     /// as it might block.
     pub fn send_block(&mut self, bytes: &[u8]) -> std::io::Result<()> {
-        const MAX_SPIN: i32 = 100;
+        const MAX_SPIN: i32 = 1000;
         let mut spin_count = 0;
         let mut written = 0usize;
         while written < bytes.len() && spin_count < MAX_SPIN {
