@@ -59,17 +59,24 @@ impl CMsgSender {
     /// Do not use this method in the callback (i.e. async context),
     /// as it might block.
     pub fn send_block(&mut self, bytes: &[u8]) -> std::io::Result<()> {
-        let n = self.buf_prd.as_mut_base().push_slice(bytes);
-        // n = 0, check if closed
-        if n == 0 && self.buf_prd.is_closed() {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "connection closed",
-            ));
+        const MAX_SPIN: i32 = 100;
+        let mut spin_count = 0;
+        let mut written = 0usize;
+        while written < bytes.len() && spin_count < MAX_SPIN {
+            let n = self.buf_prd.as_mut_base().push_slice(&bytes[written..]);
+            // n = 0, check if closed
+            if n == 0 && self.buf_prd.is_closed() {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "connection closed",
+                ));
+            }
+            written += n;
+            spin_count += 1;
         }
-        // unfinished, enter into future
-        if n < bytes.len() {
-            self.handle.clone().block_on(self.buf_prd.write_all(&bytes[n..]))?;
+        // unfinished after spinning, enter into future
+        if written < bytes.len() {
+            self.handle.clone().block_on(self.buf_prd.write_all(&bytes[written..]))?;
         }
         Ok(())
     }
