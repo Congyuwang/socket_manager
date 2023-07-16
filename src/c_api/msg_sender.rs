@@ -1,6 +1,6 @@
 use crate::c_api::callbacks::WakerObj;
 use crate::c_api::utils::write_error_c_str;
-use crate::CMsgSender;
+use crate::msg_sender::CMsgSender;
 use libc::size_t;
 use std::ffi::{c_char, c_int, c_long};
 use std::ptr::null_mut;

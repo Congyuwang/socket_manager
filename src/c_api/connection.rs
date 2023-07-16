@@ -1,7 +1,8 @@
 use crate::c_api::callbacks::OnMsgObj;
 use crate::c_api::structs::CConnection;
 use crate::c_api::utils::write_error_c_str;
-use crate::{CMsgSender, ConnConfig};
+use crate::conn::ConnConfig;
+use crate::msg_sender::CMsgSender;
 use libc::size_t;
 use std::ffi::{c_char, c_int};
 use std::num::NonZeroUsize;
