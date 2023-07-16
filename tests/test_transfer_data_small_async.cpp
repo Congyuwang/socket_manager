@@ -1,6 +1,7 @@
 #undef NDEBUG
 
 #include "test_utils.h"
+#include "lightweightsemaphore.h"
 #include <chrono>
 #include <thread>
 
@@ -8,11 +9,13 @@ const size_t MSG_BUF_SIZE = 4 * 1024 * 1024;
 
 class CondWaker : public Waker {
 public:
-  explicit CondWaker(const std::shared_ptr<std::condition_variable> &cond)
-          : cond(cond), waker_ref_count(0) {}
+  explicit CondWaker(const std::shared_ptr<moodycamel::LightweightSemaphore> &sem)
+          : sem(sem), waker_ref_count(0) {}
 
   void wake() override {
-    cond->notify_one();
+    if (this->waker_ref_count.load(std::memory_order_acquire) > 0) {
+      sem->signal();
+    }
   }
 
   void clone() override {
@@ -24,7 +27,7 @@ public:
   }
 
 private:
-  std::shared_ptr<std::condition_variable> cond;
+  std::shared_ptr<moodycamel::LightweightSemaphore> sem;
   std::atomic_size_t waker_ref_count;
 };
 
@@ -39,9 +42,8 @@ public:
       // send 1000MB data
       int progress = 0;
       size_t offset = 0;
-      std::mutex mutex;
-      auto cond = std::make_shared<std::condition_variable>();
-      auto waker = std::make_shared<CondWaker>(cond);
+      auto sem = std::make_shared<moodycamel::LightweightSemaphore>();
+      auto waker = std::make_shared<CondWaker>(sem);
 
       std::string data;
       for (int i = 0; i < 10; i++) {
@@ -51,8 +53,7 @@ public:
       while (progress < 10 * 1024 * 1024) {
         auto sent = sender->try_send(data, offset, waker);
         if (sent < 0) {
-          std::unique_lock<std::mutex> lk(mutex);
-          cond->wait_for(lk, std::chrono::milliseconds(10));
+          sem->wait(1000);
         } else {
           offset += sent;
         }
