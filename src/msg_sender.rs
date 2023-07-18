@@ -27,20 +27,31 @@ impl CMsgSender {
     /// Do not use this method in the callback (i.e. async context),
     /// as it might block.
     pub fn send_block(&mut self, bytes: &[u8]) -> std::io::Result<()> {
-        let n = self.buf_prd.as_mut_base().push_slice(bytes);
-        // n = 0, check if closed
-        if n == 0 && self.buf_prd.is_closed() {
+        let mut written = 0usize;
+        loop {
+            let n = self.buf_prd.as_mut_base().push_slice(&bytes[written..]);
+            if n == 0 {
+                // no bytes written, wait for free space
+                // or check if closed
+                break;
+            }
+            written += n;
+            if written == bytes.len() {
+                // all bytes written, return Ok
+                return Ok(());
+            }
+        }
+        // n = 0
+        if self.buf_prd.is_closed() {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
                 "connection closed",
             ));
         }
         // unfinished, enter into future
-        if n < bytes.len() {
-            self.handle
-                .clone()
-                .block_on(self.buf_prd.write_all(&bytes[n..]))?;
-        }
+        self.handle
+            .clone()
+            .block_on(self.buf_prd.write_all(&bytes[written..]))?;
         Ok(())
     }
 
