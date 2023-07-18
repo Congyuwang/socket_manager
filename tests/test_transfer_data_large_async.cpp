@@ -53,7 +53,7 @@ public:
       while (progress < 100) {
         auto sent = sender->try_send(data, offset, waker);
         if (sent < 0) {
-          sem->wait(1000);
+          sem->wait();
         } else {
           offset += sent;
         }
