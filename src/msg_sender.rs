@@ -22,29 +22,59 @@ pub struct CMsgSender {
     pub(crate) handle: Handle,
 }
 
+enum BurstWriteState {
+    Pending,
+    Finished,
+}
+
+#[inline(always)]
+fn burst_write(
+    offset: &mut usize,
+    buf: &mut AsyncHeapProducer<u8>,
+    bytes: &[u8],
+) -> BurstWriteState {
+    loop {
+        let n = buf.as_mut_base().push_slice(&bytes[*offset..]);
+        if n == 0 {
+            // no bytes read, return
+            break BurstWriteState::Pending;
+        }
+        *offset += n;
+        if *offset == bytes.len() {
+            // all bytes read, return
+            break BurstWriteState::Finished;
+        }
+    }
+}
+
 impl CMsgSender {
     /// The blocking API of sending bytes.
     /// Do not use this method in the callback (i.e. async context),
     /// as it might block.
     pub fn send_block(&mut self, bytes: &[u8]) -> std::io::Result<()> {
-        let mut written = 0usize;
+        let mut offset = 0usize;
         // attempt to write the entire message without blocking
-        loop {
-            let n = self.buf_prd.as_mut_base().push_slice(&bytes[written..]);
-            if n == 0 {
-                // no bytes written, wait for free space
-                break;
-            }
-            written += n;
-            if written == bytes.len() {
-                // all bytes written, return Ok
-                return Ok(());
-            }
+        if let BurstWriteState::Finished = burst_write(&mut offset, &mut self.buf_prd, bytes) {
+            return Ok(());
         }
         // unfinished, enter into future
-        self.handle
-            .clone()
-            .block_on(self.buf_prd.write_all(&bytes[written..]))?;
+        self.handle.clone().block_on(async {
+            loop {
+                self.buf_prd.wait_free(RING_BUFFER_SIZE / 2).await;
+                // check if closed
+                if self.buf_prd.is_closed() {
+                    break Err(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        "connection closed",
+                    ));
+                }
+                if let BurstWriteState::Finished =
+                    burst_write(&mut offset, &mut self.buf_prd, bytes)
+                {
+                    return Ok(());
+                }
+            }
+        })?;
         Ok(())
     }
 
