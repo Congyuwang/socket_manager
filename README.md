@@ -42,7 +42,7 @@ As a shared library:
 ```shell
 cmake -B build -DCMAKE_BUILD_TYPE=Release \
                -DCMAKE_TOOLCHAIN_FILE=toolchain.cmake \
-               -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=true
+               -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON
 cmake --build build --parallel 4 --config Release
 sudo cmake --install build --config Release
 ```
@@ -51,7 +51,7 @@ As a static library:
 ```shell
 cmake -B build -DCMAKE_BUILD_TYPE=Release \
                -DCMAKE_TOOLCHAIN_FILE=toolchain.cmake \
-               -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=true \
+               -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
                -DBUILD_SHARED_LIBS=OFF
 cmake --build build --parallel 4 --config Release
 sudo cmake --install build --config Release
