@@ -2,9 +2,6 @@ if (BUILD_SHARED_LIBS)
 
     add_library(${PROJECT_NAME} SHARED)
     target_link_libraries(${PROJECT_NAME} PRIVATE tokio-socket-manager)
-
-    # enable LTO for linking shared library
-    set_property(TARGET ${PROJECT_NAME} PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 else ()
 
     add_library(${PROJECT_NAME} STATIC)
@@ -21,8 +18,10 @@ else ()
             COMMAND rm -rf ${tokio_obj_dir})
 endif ()
 
-find_package(Threads REQUIRED)
+# enable LTO
+set_property(TARGET ${PROJECT_NAME} PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 
+find_package(Threads REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${CMAKE_DL_LIBS} ${CMAKE_THREAD_LIBS_INIT})
 
 set(header_path ${CMAKE_SOURCE_DIR}/include/${PROJECT_NAME})
