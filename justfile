@@ -28,13 +28,18 @@ debug:
     just test
 
 build:
-    cmake -B build -DCMAKE_BUILD_TYPE=Release
-    cmake --build build --config Release --verbose
+    cmake -B build -DCMAKE_BUILD_TYPE=Release \
+                   -DCMAKE_TOOLCHAIN_FILE=toolchain.cmake \
+                   -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON
+    cmake --build build --parallel 4 --config Release --verbose
     just test
 
 build-static:
-    cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
-    cmake --build build --config Release --verbose
+    cmake -B build -DCMAKE_BUILD_TYPE=Release \
+                   -DCMAKE_TOOLCHAIN_FILE=toolchain.cmake \
+                   -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=true \
+                   -DBUILD_SHARED_LIBS=OFF
+    cmake --build build --parallel 4 --config Release --verbose
     just test
 
 install:

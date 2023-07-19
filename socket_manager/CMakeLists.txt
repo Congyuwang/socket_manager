@@ -5,7 +5,7 @@ if (BUILD_SHARED_LIBS)
 else ()
 
     add_library(${PROJECT_NAME} STATIC)
-    add_dependencies(${PROJECT_NAME} tokio-socket-manager)
+    add_dependencies(${PROJECT_NAME} tokio-socket-manager-static)
 
     # archive tokio-socket-manager
     set(tokio_obj_dir ${CMAKE_CURRENT_BINARY_DIR}/tokio_obj)

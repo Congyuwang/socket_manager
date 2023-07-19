@@ -40,15 +40,20 @@ git submodule update --init
 As a shared library:
 
 ```shell
-cmake -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --config Release
+cmake -B build -DCMAKE_BUILD_TYPE=Release \
+               -DCMAKE_TOOLCHAIN_FILE=toolchain.cmake \
+               -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=true
+cmake --build build --parallel 4 --config Release
 sudo cmake --install build --config Release
 ```
 
 As a static library:
 ```shell
-cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF
-cmake --build build --config Release
+cmake -B build -DCMAKE_BUILD_TYPE=Release \
+               -DCMAKE_TOOLCHAIN_FILE=toolchain.cmake \
+               -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=true \
+               -DBUILD_SHARED_LIBS=OFF
+cmake --build build --parallel 4 --config Release
 sudo cmake --install build --config Release
 ```
 
