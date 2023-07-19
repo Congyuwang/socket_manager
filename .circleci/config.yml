@@ -24,11 +24,12 @@ jobs:
           command: git submodule update --init
       - run:
           name: "Configure CMake"
-          command: cmake -B build \
-                         -DCMAKE_BUILD_TYPE=Release \
-                         -DCMAKE_TOOLCHAIN_FILE=toolchain.cmake \
-                         -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
-                         -DBUILD_SHARED_LIBS=<< parameters.shared >>
+          command: |
+            cmake -B build \
+                  -DCMAKE_BUILD_TYPE=Release \
+                  -DCMAKE_TOOLCHAIN_FILE=toolchain.cmake \
+                  -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
+                  -DBUILD_SHARED_LIBS=<< parameters.shared >>
       - run:
           name: "Build"
           command: cmake --build build --parallel 4 --config Release --verbose
