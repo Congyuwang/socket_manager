@@ -59,7 +59,7 @@ impl CMsgSender {
         // unfinished, enter into future
         self.handle.clone().block_on(async {
             loop {
-                self.buf_prd.wait_free(RING_BUFFER_SIZE / 16).await;
+                self.buf_prd.wait_free(RING_BUFFER_SIZE / 4).await;
                 // check if closed
                 if self.buf_prd.is_closed() {
                     break Err(std::io::Error::new(
@@ -98,7 +98,7 @@ impl CMsgSender {
         if let Some(waker_obj) = waker_obj {
             // some waker, wait on the waker
             let waker = unsafe { waker_obj.make_waker() };
-            match pin!(self.buf_prd.wait_free(RING_BUFFER_SIZE / 16))
+            match pin!(self.buf_prd.wait_free(RING_BUFFER_SIZE / 4))
                 .poll(&mut Context::from_waker(&waker))
             {
                 Ready(_) => {

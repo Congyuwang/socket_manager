@@ -62,7 +62,7 @@ async fn handle_writer_auto_flush(
                     // disable ticked flush when there is no data.
                     has_data = false;
                 }
-                _ = ring_buf.wait(RING_BUFFER_SIZE / 16) => {
+                _ = ring_buf.wait(RING_BUFFER_SIZE / 4) => {
                     if ring_buf.is_closed() {
                         break 'closed;
                     }
@@ -123,7 +123,7 @@ async fn handle_writer_no_auto_flush(
                     write_all_from_ring_buf(&mut ring_buf, &mut write).await?;
                     write.flush().await?;
                 }
-                _ = ring_buf.wait(RING_BUFFER_SIZE / 16) => {
+                _ = ring_buf.wait(RING_BUFFER_SIZE / 4) => {
                     if ring_buf.is_closed() {
                         break 'closed;
                     }
