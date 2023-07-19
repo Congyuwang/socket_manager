@@ -1,5 +1,5 @@
 use crate::conn::{Conn, ConnConfig};
-use crate::msg_sender::{CMsgSender, RING_BUFFER_SIZE, SendCommand};
+use crate::msg_sender::{CMsgSender, SendCommand, RING_BUFFER_SIZE};
 use crate::{read, write, ConnState, ConnectionState, Msg};
 use async_ringbuf::AsyncHeapRb;
 use futures::FutureExt;

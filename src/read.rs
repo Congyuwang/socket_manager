@@ -1,4 +1,5 @@
 use crate::conn::ConnConfig;
+use crate::Msg;
 use std::pin::Pin;
 use std::task::Poll::Ready;
 use std::task::{Context, Poll};
@@ -6,13 +7,14 @@ use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, AsyncWrite, AsyncWriteExt, BufReader, BufWriter};
 use tokio::net::tcp::OwnedReadHalf;
 use tokio::time::MissedTickBehavior;
-use crate::Msg;
 
 pub const MIN_MSG_BUFFER_SIZE: usize = 1024 * 8; // 8KB
 pub const MAX_MSG_BUFFER_SIZE: usize = 1024 * 1024 * 8; // 8MB
 
 /// Receive bytes ReadHalf of TcpStream and call `on_msg` callback.
-pub(crate) async fn handle_reader<OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + Unpin + 'static>(
+pub(crate) async fn handle_reader<
+    OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + Unpin + 'static,
+>(
     read: OwnedReadHalf,
     on_msg: OnMsg,
     config: ConnConfig,
