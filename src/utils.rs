@@ -33,7 +33,9 @@ pub(crate) fn start_runtime(n_threads: usize) -> std::io::Result<tokio::runtime:
     }
 }
 
-pub(crate) fn get_address_from_stream(stream: &TcpStream) -> std::io::Result<(SocketAddr, SocketAddr)> {
+pub(crate) fn get_address_from_stream(
+    stream: &TcpStream,
+) -> std::io::Result<(SocketAddr, SocketAddr)> {
     let local = stream.local_addr()?;
     let peer = stream.peer_addr()?;
     Ok((local, peer))

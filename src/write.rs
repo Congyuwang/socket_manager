@@ -47,10 +47,6 @@ async fn handle_writer_auto_flush(
         'burst: loop {
             // burst mode loop
             if write_all_from_ring_buf(&mut ring_buf, &mut write).await? == 0 {
-                if ring_buf.is_closed() {
-                    // n = 0, now check if the ring buffer is closed
-                    break 'closed;
-                }
                 // exist burst mode loop when there is no data
                 break 'burst;
             }
@@ -114,10 +110,6 @@ async fn handle_writer_no_auto_flush(
         'burst: loop {
             // burst mode loop
             if write_all_from_ring_buf(&mut ring_buf, &mut write).await? == 0 {
-                if ring_buf.is_closed() {
-                    // n = 0, now check if the ring buffer is closed
-                    break 'closed;
-                }
                 // exist burst mode loop when there is no data
                 break 'burst;
             }
