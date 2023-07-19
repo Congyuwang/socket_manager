@@ -63,19 +63,19 @@ impl CMsgSender {
         match (n, waker_obj) {
             // no bytes written, wait on the waker
             (0, Some(waker_obj)) => {
-                let waker = unsafe { waker_obj.make_waker() };
-                match pin!(self.buf_prd.wait_free(RING_BUFFER_SIZE / 2))
-                    .poll(&mut Context::from_waker(&waker))
-                {
-                    Ready(_) => {
-                        if self.buf_prd.is_closed() {
-                            Ok(0)
-                        } else {
+                if self.buf_prd.is_closed() {
+                    Ok(0)
+                } else {
+                    let waker = unsafe { waker_obj.make_waker() };
+                    match pin!(self.buf_prd.wait_free(RING_BUFFER_SIZE / 2))
+                        .poll(&mut Context::from_waker(&waker))
+                    {
+                        Ready(_) => {
                             let n = self.buf_prd.as_mut_base().push_slice(bytes);
                             Ok(n as i64)
                         }
+                        Poll::Pending => Ok(-1),
                     }
-                    Poll::Pending => Ok(-1),
                 }
             }
             // no bytes written, no waker, return 0
