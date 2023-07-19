@@ -4,7 +4,6 @@ use std::future::Future;
 use std::pin::pin;
 use std::task::Poll::Ready;
 use std::task::{Context, Poll};
-use tokio::io::AsyncWriteExt;
 use tokio::runtime::Handle;
 use tokio::sync::mpsc::UnboundedSender;
 
