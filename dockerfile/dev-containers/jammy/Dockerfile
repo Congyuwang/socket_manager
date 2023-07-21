@@ -17,7 +17,8 @@ RUN apt-get update && \
         git \
         vim \
         wget \
-        curl
+        curl \
+        screen
 
 # install llvm@16
 WORKDIR /root
