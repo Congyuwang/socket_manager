@@ -38,4 +38,6 @@ RUN rm update-alternatives-clang.sh
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain nightly
 ENV PATH="/root/.cargo/bin:${PATH}"
 
+RUN chsh -s /bin/bash
+
 ENTRYPOINT ["/bin/bash"]
