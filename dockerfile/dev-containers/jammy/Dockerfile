@@ -21,8 +21,8 @@ RUN apt-get update && \
 
 # install llvm@16
 WORKDIR /root
-COPY ./dockerfile/dev-containers/llvm.sh /root
 COPY ./update-alternatives-clang.sh /root
+RUN wget https://apt.llvm.org/llvm.sh
 RUN chmod +x llvm.sh
 RUN ./llvm.sh 16 all
 # use tsinghua mirror in China, comment out if you are not in China
