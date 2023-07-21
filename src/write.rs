@@ -58,7 +58,6 @@ async fn handle_writer_auto_flush(
                 Some(_) = recv.recv() => {
                     // on flush, read all data from ring buffer and write to socket.
                     write_all_from_ring_buf(&mut ring_buf, &mut write).await?;
-                    write.flush().await?;
                     // disable ticked flush when there is no data.
                     has_data = false;
                 }
@@ -79,7 +78,6 @@ async fn handle_writer_auto_flush(
                 _ = flush_tick.tick(), if has_data => {
                     // flush everything.
                     write_all_from_ring_buf(&mut ring_buf, &mut write).await?;
-                    write.flush().await?;
                     // disable ticked flush when there is no data.
                     has_data = false;
                 }
@@ -91,7 +89,6 @@ async fn handle_writer_auto_flush(
         }
     }
     write_all_from_ring_buf(&mut ring_buf, &mut write).await?;
-    write.flush().await?;
     write.shutdown().await?;
     tracing::debug!("connection stopped (socket manager dropped)");
     Ok(())
@@ -121,7 +118,6 @@ async fn handle_writer_no_auto_flush(
                 Some(_) = recv.recv() => {
                     // on flush, read all data from ring buffer and write to socket.
                     write_all_from_ring_buf(&mut ring_buf, &mut write).await?;
-                    write.flush().await?;
                 }
                 _ = ring_buf.wait(RING_BUFFER_SIZE / 4) => {
                     if ring_buf.is_closed() {
@@ -138,7 +134,6 @@ async fn handle_writer_no_auto_flush(
     }
     // flush and close
     write_all_from_ring_buf(&mut ring_buf, &mut write).await?;
-    write.flush().await?;
     write.shutdown().await?;
     tracing::debug!("connection stopped (socket manager dropped)");
     Ok(())
