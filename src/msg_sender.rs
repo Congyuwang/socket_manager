@@ -7,8 +7,6 @@ use std::task::{Context, Poll};
 use tokio::runtime::Handle;
 use tokio::sync::mpsc::UnboundedSender;
 
-pub const RING_BUFFER_SIZE: usize = 256 * 1024; // 256KB
-
 /// Sender Commands other than bytes.
 pub(crate) enum SendCommand {
     Flush,
@@ -59,8 +57,6 @@ impl CMsgSender {
         // unfinished, enter into future
         self.handle.clone().block_on(async {
             loop {
-                // consumer always consumes all ring buf
-                // when notifying.
                 self.buf_prd.wait_free(1).await;
                 // check if closed
                 if self.buf_prd.is_closed() {
