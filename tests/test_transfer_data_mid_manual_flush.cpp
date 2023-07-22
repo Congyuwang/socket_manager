@@ -28,18 +28,18 @@ public:
 
 class StoreAllDataMidManual : public MsgReceiver {
 public:
-  explicit StoreAllDataMidManual(int &buffer, int &count) : buffer(buffer), count(count) {}
+  explicit StoreAllDataMidManual(size_t &buffer, int &count) : buffer(buffer), count(count) {}
 
-  void on_message(const std::shared_ptr<std::string> &data) override {
+  void on_message(std::string_view data) override {
     if (count % 100 == 0) {
       std::cout << "received " << count << " messages "
                 << ",size = " << buffer << std::endl;
     }
-    buffer += (int)data->size();
+    buffer += data.length();
     count += 1;
   }
 
-  int &buffer;
+  size_t &buffer;
   int &count;
 };
 
@@ -67,7 +67,7 @@ public:
   std::mutex mutex;
   std::condition_variable cond;
   std::atomic_bool has_closed{false};
-  int add_data{0};
+  size_t add_data{0};
   int count{0};
   std::shared_ptr<MsgSender> sender;
 };

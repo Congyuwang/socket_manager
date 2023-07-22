@@ -22,7 +22,7 @@ class OnConnectErrorAfterStartCallback : public DoNothingConnCallback {
 };
 
 class OnMsgErrorReceiver : public MsgReceiver {
-  void on_message(const std::shared_ptr<std::string> &data) override {
+  void on_message(std::string_view data) override {
     throw std::runtime_error("throw some error on receiving message");
   }
 };
