@@ -14,10 +14,11 @@ public:
     std::thread t([sender]() {
       // send 1000MB data
       std::string data;
-      for (int i = 0; i < 1024 * 1024; i++) {
+      data.reserve(1024 * 1000);
+      for (int i = 0; i < 100 * 1024; i++) {
         data.append("helloworld");
       }
-      for (int i = 0; i < 100; ++i) {
+      for (int i = 0; i < 1024; ++i) {
         sender->send(data);
       }
       // close connection after sender finished.

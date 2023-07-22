@@ -46,11 +46,12 @@ public:
       auto waker = std::make_shared<CondWaker>(sem);
 
       std::string data;
-      for (int i = 0; i < 1024 * 1024; i++) {
+      data.reserve(1024 * 1000);
+      for (int i = 0; i < 100 * 1024; i++) {
         data.append("helloworld");
       }
 
-      while (progress < 100) {
+      while (progress < 1024) {
         auto sent = sender->try_send(data, offset, waker);
         if (sent < 0) {
           sem->wait();
