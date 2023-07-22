@@ -11,7 +11,7 @@ public:
                      std::unordered_map<std::string, std::shared_ptr<socket_manager::MsgSender>> &senders)
           : conn_id(std::move(conn_id)), mutex(mutex), senders(senders) {}
 
-  void on_message(const std::shared_ptr<std::string> &data) override {
+  void on_message(std::string_view data) override {
     try {
       std::unique_lock<std::mutex> my_lock(mutex);
       auto sender = senders.at(conn_id);

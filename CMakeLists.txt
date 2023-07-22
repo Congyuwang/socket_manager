@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 3.9)
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 
 # read toolchain file before project
 set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/toolchain.cmake)
 
 # define project
-project(socket_manager LANGUAGES C CXX VERSION 0.2.0)
+project(socket_manager LANGUAGES C CXX VERSION 0.3.0)
 
 # set default build type as shared
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)

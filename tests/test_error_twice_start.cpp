@@ -5,7 +5,7 @@
 
 class DoNothingMsgReceiver : public MsgReceiver {
 public:
-  void on_message(const std::shared_ptr<std::string> &data) override {}
+  void on_message(std::string_view data) override {}
 };
 
 class TwiceStartCallback : public ConnCallback {

@@ -3,7 +3,7 @@
 
 namespace socket_manager {
 
-  void MsgSender::send(const std::string &data) {
+  void MsgSender::send(std::string_view data) {
     char *err = nullptr;
     if (msg_sender_send(inner, data.data(), data.length(), &err)) {
       const std::string err_str(err);
@@ -12,7 +12,7 @@ namespace socket_manager {
     }
   }
 
-  long MsgSender::try_send(const std::string &data, size_t offset, const std::shared_ptr<Waker> &waker) {
+  long MsgSender::try_send(std::string_view data, size_t offset, const std::shared_ptr<Waker> &waker) {
     // check length
     if (offset >= data.length()) {
       throw std::runtime_error("offset >= data.length()");

@@ -10,8 +10,8 @@ public:
                      std::atomic_bool &received)
           : mutex(mutex), cond(cond), received(received) {}
 
-  void on_message(const std::shared_ptr<std::string> &data) override {
-    if (*data == "hello world") {
+  void on_message(std::string_view data) override {
+    if (data == "hello world") {
       received.store(true);
       std::unique_lock<std::mutex> u_lock(mutex);
       cond.notify_all();

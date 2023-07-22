@@ -1,5 +1,5 @@
 use crate::conn::{Conn, ConnConfig};
-use crate::msg_sender::{CMsgSender, SendCommand, RING_BUFFER_SIZE};
+use crate::msg_sender::{CMsgSender, SendCommand};
 use crate::{read, write, ConnState, ConnectionState, Msg};
 use async_ringbuf::AsyncHeapRb;
 use futures::FutureExt;
@@ -10,6 +10,8 @@ use tokio::runtime::Handle;
 use tokio::sync::mpsc::unbounded_channel;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
+
+pub const RING_BUFFER_SIZE: usize = 256 * 1024; // 256KB
 
 /// This function handles connection from a client.
 pub(crate) fn handle_connection<

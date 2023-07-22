@@ -30,9 +30,8 @@ extern void socket_manager_extern_sender_waker_clone(struct WakerObj this_) {
 
 extern char *socket_manager_extern_on_msg(struct OnMsgObj this_, ConnMsg msg) {
   auto receiver = reinterpret_cast<socket_manager::MsgReceiver *>(this_.This);
-  auto data_ptr = std::make_shared<std::string>(msg.Bytes, msg.Len);
   try {
-    receiver->on_message(data_ptr);
+    receiver->on_message(std::string_view(msg.Bytes, msg.Len));
   } catch (std::runtime_error &e) {
     return string_dup(e.what());
   } catch (...) {

@@ -14,6 +14,7 @@ public:
     std::thread t([sender]() {
       // send 1000MB data
       std::string data;
+      data.reserve(1024 * 1024 * 100);
       for (int i = 0; i < 1024 * 1024; i++) {
         data.append("helloworld");
       }
@@ -26,20 +27,20 @@ public:
   }
 };
 
-class StoreAllData : public MsgReceiver {
+class StoreAllDataLarge : public MsgReceiver {
 public:
-  explicit StoreAllData(int &buffer, int &count) : buffer(buffer), count(count) {}
+  explicit StoreAllDataLarge(size_t &buffer, int &count) : buffer(buffer), count(count) {}
 
-  void on_message(const std::shared_ptr<std::string> &data) override {
+  void on_message(std::string_view data) override {
     if (count % 100 == 0) {
       std::cout << "received " << count << " messages "
                 << ",size = " << buffer << std::endl;
     }
-    buffer += (int)data->size();
+    buffer += data.length();
     count += 1;
   }
 
-  int &buffer;
+  size_t &buffer;
   int &count;
 };
 
@@ -48,7 +49,7 @@ public:
 
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
                   const std::shared_ptr<Connection> &conn) override {
-    auto rcv = std::make_unique<StoreAllData>(add_data, count);
+    auto rcv = std::make_unique<StoreAllDataLarge>(add_data, count);
     // store sender so connection is not dropped.
     sender = conn->start(std::move(rcv), MSG_BUF_SIZE);
   }
@@ -67,7 +68,7 @@ public:
   std::mutex mutex;
   std::condition_variable cond;
   std::atomic_bool has_closed{false};
-  int add_data{0};
+  size_t add_data{0};
   int count{0};
   std::shared_ptr<MsgSender> sender;
 };

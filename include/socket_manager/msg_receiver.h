@@ -1,7 +1,7 @@
 #ifndef SOCKET_MANAGER_MSG_RECEIVER_H
 #define SOCKET_MANAGER_MSG_RECEIVER_H
 
-#include <string>
+#include <string_view>
 #include <stdexcept>
 #include <memory>
 #include <cstdlib>
@@ -27,6 +27,10 @@ namespace socket_manager {
     /**
      * Called when a message is received.
      *
+     * # MEMORY SAFETY
+     * The `data` is only valid during the call of this function.
+     * If you want to keep the data, you should copy it.
+     *
      * # Thread Safety
      * This callback must be thread safe.
      * It should also be non-blocking.
@@ -37,7 +41,7 @@ namespace socket_manager {
      *
      * @param data the message received.
      */
-    virtual void on_message(const std::shared_ptr<std::string> &data) = 0;
+    virtual void on_message(std::string_view data) = 0;
 
     friend char* ::socket_manager_extern_on_msg(struct OnMsgObj this_, ConnMsg msg);
 

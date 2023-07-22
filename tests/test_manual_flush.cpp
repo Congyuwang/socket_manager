@@ -13,8 +13,8 @@ public:
 
 private:
 
-  void on_message(const std::shared_ptr<std::string> &data) override {
-    assert(*data == "hello world");
+  void on_message(std::string_view data) override {
+    assert(data == "hello world");
     std::unique_lock<std::mutex> lk(mutex);
     has_received = true;
     cond.notify_one();
@@ -32,10 +32,10 @@ public:
           : has_received(hasReceived), _data(data), mutex(mutex), cond(cond) {}
 
 private:
-  void on_message(const std::shared_ptr<std::string> &data) override {
+  void on_message(std::string_view data) override {
     std::unique_lock<std::mutex> lk(mutex);
     has_received = true;
-    _data.append(*data);
+    _data.append(data);
     cond.notify_one();
     std::cout << "echo received" << std::endl;
   }
