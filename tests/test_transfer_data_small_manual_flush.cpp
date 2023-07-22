@@ -3,7 +3,7 @@
 #include <chrono>
 #include <thread>
 
-const size_t MSG_BUF_SIZE = 4 * 1024 * 1024;
+const size_t MSG_BUF_SIZE = 256 * 1024;
 
 class SendSmallManualDataConnCallback : public DoNothingConnCallback {
 public:
