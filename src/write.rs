@@ -38,6 +38,7 @@ async fn handle_writer_auto_flush(
     debug_assert!(!duration.is_zero());
     let send_buf_size = socket2::SockRef::from(write.as_ref()).send_buffer_size()?;
     tracing::trace!("send buffer size: {}", send_buf_size);
+    let chunk_size = send_buf_size.min(ring_buf.capacity());
     let mut flush_tick = tokio::time::interval(duration);
     flush_tick.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
@@ -45,16 +46,16 @@ async fn handle_writer_auto_flush(
     loop {
         tokio::select! {
             biased;
-            _ = ring_buf.wait(send_buf_size) => {
+            _ = ring_buf.wait(chunk_size) => {
                 if ring_buf.is_closed() {
                     break;
                 }
-                copy_from_ring_buf(&mut ring_buf, &mut write, send_buf_size).await?;
+                copy_from_ring_buf(&mut ring_buf, &mut write, chunk_size).await?;
                 has_data = false;
             }
             Some(_) = recv.recv() => {
                 // on flush, read all data from ring buffer and write to socket.
-                copy_from_ring_buf(&mut ring_buf, &mut write, send_buf_size).await?;
+                copy_from_ring_buf(&mut ring_buf, &mut write, chunk_size).await?;
                 // disable ticked flush when there is no data.
                 has_data = false;
             }
@@ -67,7 +68,7 @@ async fn handle_writer_auto_flush(
             }
             _ = flush_tick.tick(), if has_data => {
                 // flush everything.
-                copy_from_ring_buf(&mut ring_buf, &mut write, send_buf_size).await?;
+                copy_from_ring_buf(&mut ring_buf, &mut write, chunk_size).await?;
                 // disable ticked flush when there is no data.
                 has_data = false;
             }
@@ -77,7 +78,7 @@ async fn handle_writer_auto_flush(
             else => {}
         }
     }
-    copy_from_ring_buf(&mut ring_buf, &mut write, send_buf_size).await?;
+    copy_from_ring_buf(&mut ring_buf, &mut write, chunk_size).await?;
     write.shutdown().await?;
     tracing::debug!("connection stopped (socket manager dropped)");
     Ok(())
@@ -90,19 +91,20 @@ async fn handle_writer_no_auto_flush(
     mut stop: oneshot::Sender<()>,
 ) -> std::io::Result<()> {
     let send_buf_size = socket2::SockRef::from(write.as_ref()).send_buffer_size()?;
+    let chunk_size = send_buf_size.min(ring_buf.capacity());
     tracing::trace!("send buffer size: {}", send_buf_size);
     loop {
         tokio::select! {
             biased;
-            _ = ring_buf.wait(send_buf_size) => {
+            _ = ring_buf.wait(chunk_size) => {
                 if ring_buf.is_closed() {
                     break;
                 }
-                copy_from_ring_buf(&mut ring_buf, &mut write, send_buf_size).await?;
+                copy_from_ring_buf(&mut ring_buf, &mut write, chunk_size).await?;
             }
             Some(_) = recv.recv() => {
                 // on flush, read all data from ring buffer and write to socket.
-                copy_from_ring_buf(&mut ring_buf, &mut write, send_buf_size).await?;
+                copy_from_ring_buf(&mut ring_buf, &mut write, chunk_size).await?;
             }
             _ = stop.closed() => {
                 break;
@@ -111,7 +113,7 @@ async fn handle_writer_no_auto_flush(
         }
     }
     // flush and close
-    copy_from_ring_buf(&mut ring_buf, &mut write, send_buf_size).await?;
+    copy_from_ring_buf(&mut ring_buf, &mut write, chunk_size).await?;
     write.shutdown().await?;
     tracing::debug!("connection stopped (socket manager dropped)");
     Ok(())
