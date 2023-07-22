@@ -12,8 +12,6 @@ use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 
 pub const RING_BUFFER_SIZE: usize = 256 * 1024; // 256KB
-pub const MIN_RING_BUFFER_SIZE: usize = 256 * 1024; // 256KB
-pub const MAX_RING_BUFFER_SIZE: usize = 32 * 1024 * 1024; // 32MB
 
 /// This function handles connection from a client.
 pub(crate) fn handle_connection<
