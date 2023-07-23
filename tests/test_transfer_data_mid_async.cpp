@@ -1,7 +1,8 @@
 #undef NDEBUG
 
 #include "test_utils.h"
-#include "../concurrentqueue/lightweightsemaphore.h"
+#include <concurrentqueue.h>
+#include <lightweightsemaphore.h>
 #include <chrono>
 #include <thread>
 
