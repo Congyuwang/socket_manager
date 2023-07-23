@@ -14,6 +14,8 @@ namespace socket_manager {
   static unsigned long long DEFAULT_READ_MSG_FLUSH_MILLI_SEC = 5; // 5 millisecond
   static size_t DEFAULT_MSG_BUF_SIZE = 64 * 1024; // 64KB
 
+  class MsgSender;
+
   class Waker;
 
   /**
@@ -80,6 +82,8 @@ namespace socket_manager {
     ~Connection();
 
   private:
+
+    friend class MsgSender;
 
     friend char* ::socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates conn);
 
