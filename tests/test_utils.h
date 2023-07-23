@@ -62,7 +62,7 @@ private:
 class DoNothingConnCallback : public ConnCallback {
 public:
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  const std::shared_ptr<Connection> &conn) override {
+                  std::shared_ptr<Connection> conn, std::shared_ptr<MsgSender> sender) override {
     conn->close();
   }
 
@@ -80,7 +80,7 @@ public:
           : mutex(mutex), cond(cond), sig(sig), buffer(buffer) {}
 
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  const std::shared_ptr<Connection> &conn) override {
+                  std::shared_ptr<Connection> conn, std::shared_ptr<MsgSender> sender) override {
     set_sig(CONNECTED);
     auto conn_id = local_addr + "->" + peer_addr;
     auto msg_storer = std::make_unique<MsgStoreReceiver>(conn_id, mutex, cond, buffer);
@@ -125,12 +125,12 @@ public:
           : connected_count(0), clean_sender_on_close(clean_sender_on_close) {}
 
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  const std::shared_ptr<Connection> &conn) override {
+                  std::shared_ptr<Connection> conn, std::shared_ptr<MsgSender> sender) override {
     std::unique_lock<std::mutex> lock(mutex);
     auto conn_id = local_addr + "->" + peer_addr;
     events.emplace_back(CONNECTED, conn_id);
     auto msg_storer = std::make_unique<MsgStoreReceiver>(conn_id, mutex, cond, buffer);
-    auto sender = conn->start(std::move(msg_storer));
+    conn->start(std::move(msg_storer));
     senders.emplace(conn_id, sender);
     connected_count.fetch_add(1, std::memory_order_seq_cst);
     cond.notify_all();

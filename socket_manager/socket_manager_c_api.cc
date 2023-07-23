@@ -50,6 +50,7 @@ extern char *socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates st
       auto peer_addr = std::string(on_connect.Peer);
 
       std::shared_ptr<socket_manager::Connection> conn(new socket_manager::Connection(on_connect.Conn));
+      std::shared_ptr<socket_manager::MsgSender> sender(new socket_manager::MsgSender(on_connect.Send, conn));
 
       // keep the connection alive
       {
@@ -57,7 +58,7 @@ extern char *socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates st
         conn_cb->conns[local_addr + peer_addr] = conn;
       }
       try {
-        conn_cb->on_connect(local_addr, peer_addr, conn);
+        conn_cb->on_connect(local_addr, peer_addr, std::move(conn), std::move(sender));
       } catch (std::runtime_error &e) {
         return string_dup(e.what());
       } catch (...) {

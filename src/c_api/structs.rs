@@ -1,6 +1,7 @@
 use crate::c_api::callbacks::OnMsgObj;
 use libc::size_t;
 use std::ffi::c_char;
+use crate::CMsgSender;
 
 /// The data pointer is only valid for the duration of the callback.
 #[repr(C)]
@@ -40,6 +41,7 @@ pub union ConnStateData {
 pub struct OnConnect {
     pub(crate) local: *const c_char,
     pub(crate) peer: *const c_char,
+    pub(crate) send: *mut CMsgSender,
     pub(crate) conn: *mut CConnection,
 }
 

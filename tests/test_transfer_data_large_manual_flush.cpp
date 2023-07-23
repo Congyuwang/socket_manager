@@ -1,4 +1,5 @@
 #undef NDEBUG
+
 #include "test_utils.h"
 #include <chrono>
 #include <thread>
@@ -8,9 +9,9 @@ const size_t MSG_BUF_SIZE = 256 * 1024;
 class SendLargeManualDataConnCallback : public DoNothingConnCallback {
 public:
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  const std::shared_ptr<Connection> &conn) override {
+                  std::shared_ptr<Connection> conn, std::shared_ptr<MsgSender> sender) override {
     auto rcv = std::make_unique<DoNothingReceiver>();
-    auto sender = conn->start(std::move(rcv));
+    conn->start(std::move(rcv));
     std::thread t([sender]() {
       // send 1000MB data
       std::string data;
@@ -48,10 +49,11 @@ class StoreAllDataNotifyOnCloseCallback : public ConnCallback {
 public:
 
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  const std::shared_ptr<Connection> &conn) override {
+                  std::shared_ptr<Connection> conn, std::shared_ptr<MsgSender> send) override {
     auto rcv = std::make_unique<StoreAllDataLargeManual>(add_data, count);
     // store sender so connection is not dropped.
-    sender = conn->start(std::move(rcv), MSG_BUF_SIZE);
+    this->sender = send;
+    conn->start(std::move(rcv), MSG_BUF_SIZE);
   }
 
   void on_connection_close(const std::string &local_addr, const std::string &peer_addr) override {

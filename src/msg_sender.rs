@@ -49,6 +49,9 @@ impl CMsgSender {
     /// Do not use this method in the callback (i.e. async context),
     /// as it might block.
     pub fn send_block(&mut self, bytes: &[u8]) -> std::io::Result<()> {
+        if bytes.is_empty() {
+            return Ok(());
+        }
         let mut offset = 0usize;
         // attempt to write the entire message without blocking
         if let BurstWriteState::Finished = burst_write(&mut offset, &mut self.buf_prd, bytes) {

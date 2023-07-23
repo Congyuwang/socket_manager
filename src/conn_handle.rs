@@ -41,7 +41,8 @@ pub(crate) fn handle_connection<
         on_conn(ConnState::OnConnect {
             local_addr,
             peer_addr,
-            conn: Conn::new(conn_config_setter, send),
+            send,
+            conn: Conn::new(conn_config_setter),
         })
         .map_err(|_| ())?;
 

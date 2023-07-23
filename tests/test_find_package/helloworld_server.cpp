@@ -33,9 +33,10 @@ public:
 
   void on_connect(const std::string &local_addr,
                   const std::string &peer_addr,
-                  const std::shared_ptr<socket_manager::Connection> &conn) override {
+                  std::shared_ptr<socket_manager::Connection> conn,
+                  std::shared_ptr<socket_manager::MsgSender> sender) override {
     auto id = local_addr + "->" + peer_addr;
-    auto sender = conn->start(std::make_unique<HelloWorldReceiver>(id, mutex, senders));
+    conn->start(std::make_unique<HelloWorldReceiver>(id, mutex, senders));
     {
       std::unique_lock<std::mutex> my_lock(mutex);
       senders[id] = sender;

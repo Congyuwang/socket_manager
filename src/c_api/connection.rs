@@ -2,7 +2,6 @@ use crate::c_api::callbacks::OnMsgObj;
 use crate::c_api::structs::CConnection;
 use crate::c_api::utils::write_error_c_str;
 use crate::conn::ConnConfig;
-use crate::msg_sender::CMsgSender;
 use libc::size_t;
 use std::ffi::{c_char, c_int};
 use std::num::NonZeroUsize;
@@ -35,12 +34,9 @@ use std::time::Duration;
 ///    Set to 0 to disable auto flush.
 /// * `err` - A pointer to a pointer to a C string allocated by `malloc` on error.
 ///
-/// # Returns
-/// A pointer to a `CMsgSender` on success, null on error.
-///
 /// # Errors
+/// Returns -1 on error, 0 on success.
 /// On Error, `err` will be set to a pointer to a C string allocated by `malloc`,
-/// and the returned pointer will be null.
 #[no_mangle]
 pub unsafe extern "C" fn connection_start(
     conn: *mut CConnection,
@@ -49,7 +45,7 @@ pub unsafe extern "C" fn connection_start(
     read_msg_flush_interval: c_ulonglong,
     write_flush_interval: c_ulonglong,
     err: *mut *mut c_char,
-) -> *mut CMsgSender {
+) -> c_int {
     let conn = &mut (*conn).conn;
     let write_flush_interval = if write_flush_interval == 0 {
         None
@@ -70,13 +66,13 @@ pub unsafe extern "C" fn connection_start(
             msg_buffer_size,
         },
     ) {
-        Ok(sender) => {
+        Ok(_) => {
             *err = null_mut();
-            Box::into_raw(Box::new(sender))
+            0
         }
         Err(e) => {
             write_error_c_str(e, err);
-            null_mut()
+            -1
         }
     }
 }

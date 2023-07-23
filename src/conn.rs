@@ -1,4 +1,3 @@
-use crate::msg_sender::CMsgSender;
 use crate::Msg;
 use std::num::NonZeroUsize;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -13,19 +12,16 @@ pub struct Conn<OnMsg> {
 
 struct ConnInner<OnMsg> {
     conn_config_setter: oneshot::Sender<(OnMsg, ConnConfig)>,
-    send: CMsgSender,
 }
 
 impl<OnMsg> Conn<OnMsg> {
     pub(crate) fn new(
         conn_config_setter: oneshot::Sender<(OnMsg, ConnConfig)>,
-        send: CMsgSender,
     ) -> Self {
         Self {
             consumed: AtomicBool::new(false),
             inner: Some(ConnInner {
                 conn_config_setter,
-                send,
             }),
         }
     }
@@ -45,7 +41,7 @@ impl<OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + 'static + Clone> Conn<OnM
         &mut self,
         on_msg: OnMsg,
         config: ConnConfig,
-    ) -> std::io::Result<CMsgSender> {
+    ) -> std::io::Result<()> {
         self.consumed
             .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
             .map_err(|_| {
@@ -64,10 +60,10 @@ impl<OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + 'static + Clone> Conn<OnM
                 "callback config setter send failed",
             ));
         }
-        Ok(conn.send)
+        Ok(())
     }
 
-    /// close the connection without using it.
+    /// attempt to close the connection without using it.
     pub fn close(&mut self) -> std::io::Result<()> {
         self.consumed
             .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)

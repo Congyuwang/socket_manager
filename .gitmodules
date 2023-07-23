@@ -1,3 +1,6 @@
 [submodule "corrosion"]
 	path = corrosion
 	url = https://github.com/corrosion-rs/corrosion.git
+[submodule "concurrentqueue"]
+	path = concurrentqueue
+	url = https://github.com/cameron314/concurrentqueue.git

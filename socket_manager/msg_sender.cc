@@ -13,15 +13,12 @@ namespace socket_manager {
   }
 
   long MsgSender::try_send(std::string_view data, size_t offset, const std::shared_ptr<Waker> &waker) {
-    // check length
-    if (offset >= data.length()) {
-      throw std::runtime_error("offset >= data.length()");
-    }
+    auto dat_view = data.substr(offset);
     char *err = nullptr;
     long n = msg_sender_try_send(
             inner,
-            data.data() + offset,
-            data.length() - offset,
+            dat_view.data(),
+            dat_view.length(),
             WakerObj{waker.get()},
             &err);
     if (err) {
