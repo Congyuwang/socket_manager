@@ -1,4 +1,5 @@
 #undef NDEBUG
+
 #include "test_utils.h"
 #include <chrono>
 #include <thread>
@@ -14,7 +15,7 @@ public:
   TwiceStartCallback() : error_thrown(0) {};
 
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  const std::shared_ptr<Connection> &conn) override {
+                  std::shared_ptr<Connection> conn, std::shared_ptr<MsgSender> sender) override {
     auto receiver = std::make_unique<DoNothingMsgReceiver>();
     auto receiver2 = std::make_unique<DoNothingMsgReceiver>();
     conn->start(std::move(receiver));

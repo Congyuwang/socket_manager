@@ -1,4 +1,5 @@
 #undef NDEBUG
+
 #include "test_utils.h"
 #include <chrono>
 #include <thread>
@@ -26,9 +27,10 @@ public:
 class HelloWorldManager : public DoNothingConnCallback {
 public:
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  const std::shared_ptr<Connection> &conn) override {
+                  std::shared_ptr<Connection> conn, std::shared_ptr<MsgSender> send) override {
     auto do_nothing = std::make_unique<ReceiverHelloWorld>(mutex, cond, received);
-    sender = conn->start(std::move(do_nothing));
+    conn->start(std::move(do_nothing));
+    this->sender = send;
     sender->send("hello world");
   }
 
@@ -42,11 +44,12 @@ private:
 
 class SendHelloWorldDoNotClose : public DoNothingConnCallback {
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  const std::shared_ptr<Connection> &conn) override {
+                  std::shared_ptr<Connection> conn, std::shared_ptr<MsgSender> sender) override {
     auto do_nothing = std::make_unique<DoNothingReceiver>();
-    sender = conn->start(std::move(do_nothing));
+    conn->start(std::move(do_nothing));
+    this->sender = sender;
     std::thread t([this] {
-      sender->send("hello world");
+      this->sender->send("hello world");
     });
     t.detach();
   }
