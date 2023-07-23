@@ -1,6 +1,6 @@
 /target
 /Cargo.lock
-.idea
+**/.idea
 build
 build-debug
 cmake-build-debug
