@@ -1,0 +1,16 @@
+clean:
+    rm -rf build
+
+debug:
+    cmake -B build -DCMAKE_TOOLCHAIN_FILE=toolchain.cmake \
+                   -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON
+    cmake --build build --parallel 4 --config Release --verbose
+
+build:
+    cmake -B build -DCMAKE_BUILD_TYPE=Release \
+                   -DCMAKE_TOOLCHAIN_FILE=toolchain.cmake \
+                   -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON
+    cmake --build build --parallel 4 --config Release --verbose
+
+run:
+    SOCKET_LOG=info ./build/echo_server
