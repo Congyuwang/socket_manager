@@ -26,7 +26,7 @@ public:
     while (true) {
       try {
         // attempt to send some bytes
-        size_t sent = sender->try_send(data, offset, shared_from_this());
+        long sent = sender->try_send(data, offset, shared_from_this());
         if (sent > 0) {
           offset += sent;
         } else {
@@ -56,7 +56,7 @@ private:
   void clone() override {}
 
   std::string data;
-  size_t offset;
+  long offset;
   std::shared_ptr<socket_manager::MsgSender> sender;
   std::shared_ptr<moodycamel::LightweightSemaphore> send_sem;
   std::shared_ptr<moodycamel::ConcurrentQueue<std::shared_ptr<SendTask>>> send_queue;
@@ -114,7 +114,7 @@ private:
                   std::shared_ptr<socket_manager::Connection> conn,
                   std::shared_ptr<socket_manager::MsgSender> sender) override {
     auto recv = std::make_unique<EchoReceiver>(send_sem, send_queue, std::move(sender));
-    conn->start(std::move(recv));
+    conn->start(std::move(recv), 256 * 1024);
   }
 
   void on_connection_close(const std::string &local_addr, const std::string &peer_addr) override {
