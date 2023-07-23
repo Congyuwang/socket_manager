@@ -80,6 +80,7 @@ typedef struct OnConnObj {
 typedef struct OnConnect {
   const char *Local;
   const char *Peer;
+  struct CMsgSender *Send;
   struct CConnection *Conn;
 } OnConnect;
 
@@ -154,19 +155,16 @@ extern "C" {
  *    Set to 0 to disable auto flush.
  * * `err` - A pointer to a pointer to a C string allocated by `malloc` on error.
  *
- * # Returns
- * A pointer to a `CMsgSender` on success, null on error.
- *
  * # Errors
+ * Returns -1 on error, 0 on success.
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`,
- * and the returned pointer will be null.
  */
-struct CMsgSender *connection_start(struct CConnection *conn,
-                                    struct OnMsgObj on_msg,
-                                    size_t msg_buffer_size,
-                                    unsigned long long read_msg_flush_interval,
-                                    unsigned long long write_flush_interval,
-                                    char **err);
+int connection_start(struct CConnection *conn,
+                     struct OnMsgObj on_msg,
+                     size_t msg_buffer_size,
+                     unsigned long long read_msg_flush_interval,
+                     unsigned long long write_flush_interval,
+                     char **err);
 
 /**
  * Close the connection without using it.

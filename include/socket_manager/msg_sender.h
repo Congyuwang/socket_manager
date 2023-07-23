@@ -112,8 +112,12 @@ namespace socket_manager {
 
     friend class Connection;
 
+    friend char* ::socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates conn);
+
     explicit MsgSender(CMsgSender *inner, const std::shared_ptr<Connection>&);
 
+    // keep a reference of connection for storing waker object
+    // in connection, to prevent dangling pointer of waker.
     std::shared_ptr<Connection> conn;
 
     CMsgSender *inner;

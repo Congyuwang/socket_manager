@@ -147,10 +147,12 @@ impl OnConnObj {
             crate::ConnState::OnConnect {
                 local_addr,
                 peer_addr,
+                send,
                 conn,
             } => {
                 let local = CString::new(local_addr.to_string()).unwrap();
                 let peer = CString::new(peer_addr.to_string()).unwrap();
+                let send = Box::into_raw(Box::new(send));
                 let conn = Box::into_raw(Box::new(CConnection { conn }));
                 let conn_msg = ConnStates {
                     code: ConnStateCode::Connect,
@@ -158,6 +160,7 @@ impl OnConnObj {
                         on_connect: OnConnect {
                             local: local.as_ptr(),
                             peer: peer.as_ptr(),
+                            send,
                             conn,
                         },
                     },

@@ -53,6 +53,7 @@ pub enum ConnState<OnMsg> {
     OnConnect {
         local_addr: SocketAddr,
         peer_addr: SocketAddr,
+        send: CMsgSender,
         conn: Conn<OnMsg>,
     },
     /// sent on connection closed

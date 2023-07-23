@@ -14,8 +14,6 @@ namespace socket_manager {
   static unsigned long long DEFAULT_READ_MSG_FLUSH_MILLI_SEC = 5; // 5 millisecond
   static size_t DEFAULT_MSG_BUF_SIZE = 64 * 1024; // 64KB
 
-  class MsgSender;
-
   class Waker;
 
   /**
@@ -42,9 +40,6 @@ namespace socket_manager {
      * Thread safe, but should be called exactly once,
      * otherwise throws error.
      *
-     * To close the connection, drop the returned
-     * MsgSender object.
-     *
      * @param msg_receiver the message receiver callback to
      *                    receive messages from the peer.
      * @param msg_buffer_size The size of the message buffer in bytes.
@@ -60,7 +55,7 @@ namespace socket_manager {
      *    manual flush, and small messages might get stuck in buffer).
      *    Default to 1 millisecond.
      */
-    std::shared_ptr<MsgSender> start(
+    void start(
             std::unique_ptr<MsgReceiver> msg_receiver,
             size_t msg_buffer_size = DEFAULT_MSG_BUF_SIZE,
             unsigned long long read_msg_flush_interval = DEFAULT_READ_MSG_FLUSH_MILLI_SEC,
@@ -85,8 +80,6 @@ namespace socket_manager {
     ~Connection();
 
   private:
-
-    friend class MsgSender;
 
     friend char* ::socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates conn);
 
