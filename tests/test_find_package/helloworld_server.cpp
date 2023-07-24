@@ -15,7 +15,7 @@ public:
     try {
       std::unique_lock<std::mutex> my_lock(mutex);
       auto sender = senders.at(conn_id);
-      sender->send("HTTP/1.1 200 OK\r\nContent-Length: 12\r\nConnection: close\r\n\r\nHello, world");
+      sender->send_block("HTTP/1.1 200 OK\r\nContent-Length: 12\r\nConnection: close\r\n\r\nHello, world");
       senders.erase(conn_id);
     } catch (const std::out_of_range &e) {
       std::cerr << "Exception at " << e.what() << std::endl;

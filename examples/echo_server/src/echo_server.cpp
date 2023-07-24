@@ -5,13 +5,13 @@
 #include <memory>
 
 /**
- * Let the sender directly wakes the receiver.
+ * Let the sender directly wake the receiver.
  */
-class RcvSendWaker : public socket_manager::NoopWaker {
+class RcvSendWaker : public socket_manager::Notifier {
 public:
-  explicit RcvSendWaker(RcvWaker &&wake) : waker(std::move(wake)) {}
+  explicit RcvSendWaker(socket_manager::Waker &&wake) : waker(std::move(wake)) {}
 
-  void set_waker(RcvWaker &&wake) {
+  void set_waker(socket_manager::Waker &&wake) {
     waker = std::move(wake);
   }
 
@@ -20,7 +20,7 @@ private:
     waker.wake();
   }
 
-  RcvWaker waker;
+  socket_manager::Waker waker;
 };
 
 /**
@@ -33,16 +33,15 @@ class EchoReceiver :
         public socket_manager::MsgReceiverAsync,
         public std::enable_shared_from_this<EchoReceiver> {
 public:
-  explicit EchoReceiver(std::shared_ptr<socket_manager::MsgSender> &&sender)
-          : sender(std::move(sender)) {
-    // create an empty waker container
-    waker = std::make_shared<RcvSendWaker>(RcvWaker());
-  };
+  explicit EchoReceiver(
+          std::shared_ptr<socket_manager::MsgSender> &&sender,
+          const std::shared_ptr<RcvSendWaker> &waker
+  ) : waker(waker), sender(std::move(sender)) {};
 
 private:
-  long on_message_async(std::string_view data, RcvWaker &&wake) override {
+  long on_message_async(std::string_view data, socket_manager::Waker &&wake) override {
     waker->set_waker(std::move(wake));
-    return sender->try_send(data, 0, waker);
+    return sender->send_async(data);
   };
   std::shared_ptr<RcvSendWaker> waker;
   std::shared_ptr<socket_manager::MsgSender> sender;
@@ -56,8 +55,9 @@ private:
   void on_connect(const std::string &_local_addr, const std::string &_peer_addr,
                   std::shared_ptr<socket_manager::Connection> conn,
                   std::shared_ptr<socket_manager::MsgSender> sender) override {
-    auto recv = std::make_shared<EchoReceiver>(std::move(sender));
-    conn->start(recv);
+    auto waker = std::make_shared<RcvSendWaker>(socket_manager::Waker());
+    auto recv = std::make_shared<EchoReceiver>(std::move(sender), waker);
+    conn->start(std::move(recv), std::move(waker));
   }
 
   void on_connection_close(const std::string &local_addr, const std::string &peer_addr) override {
