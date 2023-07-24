@@ -16,15 +16,11 @@ pub(crate) async fn handle_writer(
     config: ConnConfig,
     stop: oneshot::Sender<()>,
 ) -> std::io::Result<()> {
-    match config.write_flush_interval {
-        None => handle_writer_no_auto_flush(write, recv, ring_buf, stop).await,
-        Some(duration) => {
-            if duration.is_zero() {
-                handle_writer_no_auto_flush(write, recv, ring_buf, stop).await
-            } else {
-                handle_writer_auto_flush(write, recv, ring_buf, duration, stop).await
-            }
-        }
+    let duration = config.write_flush_interval;
+    if duration.is_zero() {
+        handle_writer_no_auto_flush(write, recv, ring_buf, stop).await
+    } else {
+        handle_writer_auto_flush(write, recv, ring_buf, duration, stop).await
     }
 }
 

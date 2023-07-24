@@ -8,7 +8,8 @@ use tokio::io::{AsyncBufReadExt, AsyncWrite, AsyncWriteExt, BufReader, BufWriter
 use tokio::net::tcp::OwnedReadHalf;
 use tokio::time::MissedTickBehavior;
 
-pub const MIN_MSG_BUFFER_SIZE: usize = 1024 * 8; // 8KB
+pub const MIN_MSG_BUFFER_SIZE: usize = 1024 * 8;
+// 8KB
 pub const MAX_MSG_BUFFER_SIZE: usize = 1024 * 1024 * 8; // 8MB
 
 /// Receive bytes ReadHalf of TcpStream and call `on_msg` callback.
@@ -24,15 +25,11 @@ pub(crate) async fn handle_reader<
             .get()
             .min(MAX_MSG_BUFFER_SIZE)
             .max(MIN_MSG_BUFFER_SIZE);
-        match config.read_msg_flush_interval {
-            None => handle_reader_no_auto_flush(read, on_msg, msg_buf_size).await,
-            Some(duration) => {
-                if duration.is_zero() {
-                    handle_reader_no_auto_flush(read, on_msg, msg_buf_size).await
-                } else {
-                    handle_reader_auto_flush(read, on_msg, duration, msg_buf_size).await
-                }
-            }
+        let duration = config.read_msg_flush_interval;
+        if duration.is_zero() {
+            handle_reader_no_auto_flush(read, on_msg, msg_buf_size).await
+        } else {
+            handle_reader_auto_flush(read, on_msg, duration, msg_buf_size).await
         }
     } else {
         handle_reader_no_buf(read, on_msg).await

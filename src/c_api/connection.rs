@@ -47,16 +47,8 @@ pub unsafe extern "C" fn socket_manager_connection_start(
     err: *mut *mut c_char,
 ) -> c_int {
     let conn = &mut (*conn).conn;
-    let write_flush_interval = if write_flush_interval == 0 {
-        None
-    } else {
-        Some(Duration::from_millis(write_flush_interval))
-    };
-    let read_msg_flush_interval = if read_msg_flush_interval == 0 {
-        None
-    } else {
-        Some(Duration::from_millis(read_msg_flush_interval))
-    };
+    let write_flush_interval = Duration::from_millis(write_flush_interval);
+    let read_msg_flush_interval = Duration::from_millis(read_msg_flush_interval);
     let msg_buffer_size = NonZeroUsize::new(msg_buffer_size);
     match conn.start_connection(
         on_msg,

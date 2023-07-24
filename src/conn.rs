@@ -27,8 +27,10 @@ impl<OnMsg> Conn<OnMsg> {
 /// Connection configuration
 #[derive(Copy, Clone)]
 pub struct ConnConfig {
-    pub write_flush_interval: Option<Duration>,
-    pub read_msg_flush_interval: Option<Duration>,
+    /// zero represent no auto flush
+    pub write_flush_interval: Duration,
+    /// zero represent no auto flush
+    pub read_msg_flush_interval: Duration,
     pub msg_buffer_size: Option<NonZeroUsize>,
 }
 
