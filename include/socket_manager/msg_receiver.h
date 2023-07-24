@@ -7,18 +7,27 @@
 #include <cstdlib>
 #include <cstring>
 #include "socket_manager_c_api.h"
-#include "recv_waker.h"
+#include "socket_manager/common/waker.h"
 
 namespace socket_manager {
 
   /**
-   * return `PENDING` to interrupt message receiving.
-   * and call `waker.wake()` to resume message receiving.
-   */
-  const long PENDING = -1;
-
-  /**
    * Implement this class to receive messages from Connection.
+   *
+   * Must read the following details to implement correctly!
+   *
+   * # Asynchronous Message Receiving
+   * The caller should return the exact number of bytes written
+   * to the runtime if some bytes are written. The runtime
+   * will increment the read offset accordingly.
+   *
+   * If the caller is unable to receive any bytes,
+   * it should return `PENDING = -1` to the runtime
+   * to interrupt message receiving task. The read offset
+   * will not be incremented.
+   *
+   * When the caller is able to receive bytes again,
+   * it should call `waker.wake()` to wake up the runtime.
    *
    * # Thread Safety
    * The callback should be thread safe.
@@ -34,9 +43,18 @@ namespace socket_manager {
     /**
      * Called when a message is received.
      *
-     * # Async Return Rule
-     * - negative number: pending.
-     * - positive number: n bytes received, ready.
+     * # Asynchronous Message Receiving
+     * The caller should return the exact number of bytes written
+     * to the runtime if some bytes are written. The runtime
+     * will increment the read offset accordingly.
+     *
+     * If the caller is unable to receive any bytes,
+     * it should return `PENDING = -1` to the runtime
+     * to interrupt message receiving task. The read offset
+     * will not be incremented.
+     *
+     * When the caller is able to receive bytes again,
+     * it should call `waker.wake()` to wake up the runtime.
      *
      * # MEMORY SAFETY
      * The `data` is only valid during the call of this function.
@@ -47,17 +65,32 @@ namespace socket_manager {
      * It should also be non-blocking.
      *
      * # Error Handling
-     * Throwing error in `on_message` callback will cause
+     * Throwing runtime_error in `on_message` callback will cause
      * the connection to close.
      *
      * @param data the message received.
      */
-    virtual long on_message_async(std::string_view data, RecvWaker &&waker) = 0;
+    virtual long on_message_async(std::string_view data, Waker &&waker) = 0;
 
-    friend long::socket_manager_extern_on_msg(struct OnMsgObj this_, ConnMsg msg, CWaker waker, char **err);
+    friend long::socket_manager_extern_on_msg(
+            struct SOCKET_MANAGER_C_API_OnMsgObj this_,
+            SOCKET_MANAGER_C_API_ConnMsg msg,
+            SOCKET_MANAGER_C_API_CWaker waker,
+            char **err);
 
   };
 
+  /**
+   * If the caller has unlimited buffer implementation,
+   * it can use this simplified class to receive messages.
+   *
+   * The caller should implement `on_message` method to
+   * store the received message in buffer or queue and immediately
+   * return `on_message` method, and should not block the runtime.
+   *
+   * # Thread Safety
+   * This callback must be thread safe.
+   */
   class MsgReceiver : public MsgReceiverAsync {
   public:
 
@@ -67,7 +100,7 @@ namespace socket_manager {
 
     virtual void on_message(std::string_view data) = 0;
 
-    long on_message_async(std::string_view data, RecvWaker &&waker) override;
+    long on_message_async(std::string_view data, Waker &&waker) override;
   };
 
 } // namespace socket_manager
