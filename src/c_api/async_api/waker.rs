@@ -1,10 +1,8 @@
+//! A CWaker is a C compatible version of `std::task::Waker`,
+//! that is used for c/c++ code to wake rust tasks.
 use std::ffi::c_void;
 use std::task::{RawWaker, RawWakerVTable, Waker};
 
-/// This is a C compatible version of `std::task::Waker`,
-/// which is used to wake the `receiver` task.
-/// But it can be used to wake any async rust task.
-///
 /// # Safety
 /// Do not use this struct directly.
 /// Properly wrap it in c++ class.
@@ -12,24 +10,24 @@ use std::task::{RawWaker, RawWakerVTable, Waker};
 /// This struct is equivalent to a raw pointer.
 /// Manager with care.
 #[repr(C)]
-pub struct RecvWaker {
+pub struct CWaker {
     data: *const c_void,
     vtable: *const c_void,
 }
 
 /// Call the waker to wake the `receiver` task.
 #[no_mangle]
-pub unsafe extern "C" fn socket_manager_recv_waker_wake(waker: &RecvWaker) {
+pub unsafe extern "C" fn socket_manager_recv_waker_wake(waker: &CWaker) {
     waker.wake_by_ref();
 }
 
 /// Release the waker.
 #[no_mangle]
-pub unsafe extern "C" fn socket_manager_recv_waker_free(waker: RecvWaker) {
+pub unsafe extern "C" fn socket_manager_recv_waker_free(waker: CWaker) {
     drop(waker.into_waker());
 }
 
-impl RecvWaker {
+impl CWaker {
     /// Take ownership of the waker.
     pub(crate) fn from_waker(waker: Waker) -> Self {
         let raw_waker = waker.as_raw();
