@@ -1,19 +1,35 @@
 use std::ffi::c_void;
 use std::task::{RawWaker, RawWakerVTable, Waker};
 
-/// Do not use this struct directly.
-/// Properly wrap it in c++ code.
+/// This is a C compatible version of `std::task::Waker`,
+/// which is used to wake the `receiver` task.
+/// But it can be used to wake any async rust task.
 ///
 /// # Safety
+/// Do not use this struct directly.
+/// Properly wrap it in c++ class.
+///
 /// This struct is equivalent to a raw pointer.
 /// Manager with care.
 #[repr(C)]
-pub struct CWaker {
+pub struct RecvWaker {
     data: *const c_void,
     vtable: *const c_void,
 }
 
-impl CWaker {
+/// Call the waker to wake the `receiver` task.
+#[no_mangle]
+pub unsafe extern "C" fn socket_manager_recv_waker_wake(waker: &RecvWaker) {
+    waker.wake_by_ref();
+}
+
+/// Release the waker.
+#[no_mangle]
+pub unsafe extern "C" fn socket_manager_recv_waker_free(waker: RecvWaker) {
+    drop(waker.into_waker());
+}
+
+impl RecvWaker {
     /// Take ownership of the waker.
     pub(crate) fn from_waker(waker: Waker) -> Self {
         let raw_waker = waker.as_raw();
@@ -46,14 +62,4 @@ impl CWaker {
         );
         Waker::from_raw(raw_waker)
     }
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn msg_waker_wake(waker: &CWaker) {
-    waker.wake_by_ref();
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn msg_waker_free(waker: CWaker) {
-    drop(waker.into_waker());
 }
