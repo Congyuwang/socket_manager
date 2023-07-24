@@ -7,7 +7,7 @@
 #include <cstdlib>
 #include <cstring>
 #include "socket_manager_c_api.h"
-#include "socket_manager/common/waker.h"
+#include "waker.h"
 
 namespace socket_manager {
 

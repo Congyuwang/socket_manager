@@ -44,6 +44,8 @@ target_sources(${PROJECT_NAME} PRIVATE ${src})
 
 target_include_directories(${PROJECT_NAME} PUBLIC
         $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include/>
+        $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include/socket_manager/>
+        $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include/socket_manager/common/>
         $<INSTALL_INTERFACE:${include_dest}>)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES

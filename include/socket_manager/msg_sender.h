@@ -3,7 +3,7 @@
 
 #include "socket_manager_c_api.h"
 #include "connection.h"
-#include "socket_manager/common/notifier.h"
+#include "notifier.h"
 #include <functional>
 #include <string>
 #include <memory>
