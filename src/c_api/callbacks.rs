@@ -111,7 +111,8 @@ impl OnMsgObj {
             bytes: conn_msg.bytes.as_ptr() as *const c_char,
             len,
         };
-        let waker = Box::into_raw(Box::new(CWaker { waker }));
+        // takes the ownership of the waker
+        let waker = CWaker::from_waker(waker);
         unsafe {
             let mut err: *mut c_char = null_mut();
             let cb_result = socket_manager_extern_on_msg(*self, conn_msg, waker, &mut err);

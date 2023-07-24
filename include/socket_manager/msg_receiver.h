@@ -54,7 +54,7 @@ namespace socket_manager {
      */
     virtual long on_message_async(std::string_view data, RcvWaker &&waker) = 0;
 
-    friend long::socket_manager_extern_on_msg(struct OnMsgObj this_, ConnMsg msg, CWaker *waker, char **err);
+    friend long::socket_manager_extern_on_msg(struct OnMsgObj this_, ConnMsg msg, CWaker waker, char **err);
 
   };
 

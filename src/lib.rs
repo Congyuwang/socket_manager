@@ -1,5 +1,6 @@
 #![feature(unboxed_closures)]
 #![feature(fn_traits)]
+#![feature(waker_getters)]
 #![allow(improper_ctypes)]
 
 mod c_api;

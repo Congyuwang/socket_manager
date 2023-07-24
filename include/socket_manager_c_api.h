@@ -28,8 +28,6 @@ typedef struct CMsgSender CMsgSender;
  */
 typedef struct CSocketManager CSocketManager;
 
-typedef struct CWaker CWaker;
-
 /**
  * Callback function for receiving messages.
  *
@@ -57,6 +55,19 @@ typedef struct ConnMsg {
   const char *Bytes;
   size_t Len;
 } ConnMsg;
+
+/**
+ * Do not use this struct directly.
+ * Properly wrap it in c++ code.
+ *
+ * # Safety
+ * This struct is equivalent to a raw pointer.
+ * Manager with care.
+ */
+typedef struct CWaker {
+  const void *Data;
+  const void *Vtable;
+} CWaker;
 
 /**
  * Callback function for connection state changes.
@@ -195,7 +206,7 @@ void connection_free(struct CConnection *conn);
  */
 extern long socket_manager_extern_on_msg(struct OnMsgObj this_,
                                          struct ConnMsg msg,
-                                         struct CWaker *waker,
+                                         struct CWaker waker,
                                          char **err);
 
 /**
@@ -378,9 +389,9 @@ int socket_manager_join(struct CSocketManager *manager, char **err);
  */
 void socket_manager_free(struct CSocketManager *manager);
 
-void msg_waker_wake(struct CWaker *waker);
+void msg_waker_wake(const struct CWaker *waker);
 
-void msg_waker_destroy(struct CWaker *waker);
+void msg_waker_destroy(struct CWaker waker);
 
 #ifdef __cplusplus
 } // extern "C"

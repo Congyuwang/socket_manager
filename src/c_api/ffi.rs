@@ -11,7 +11,7 @@ extern "C" {
     pub(crate) fn socket_manager_extern_on_msg(
         this: OnMsgObj,
         msg: ConnMsg,
-        waker: *mut CWaker,
+        waker: CWaker,
         err: *mut *mut c_char,
     ) -> c_long;
 

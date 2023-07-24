@@ -29,7 +29,7 @@ extern void socket_manager_extern_sender_waker_clone(struct WakerObj this_) {
   wr->clone();
 }
 
-extern long socket_manager_extern_on_msg(struct OnMsgObj this_, ConnMsg msg, CWaker *waker, char **err) {
+extern long socket_manager_extern_on_msg(struct OnMsgObj this_, ConnMsg msg, CWaker waker, char **err) {
   auto receiver = reinterpret_cast<socket_manager::MsgReceiverAsync *>(this_.This);
   try {
     auto recv = receiver->on_message_async(
