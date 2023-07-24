@@ -83,9 +83,7 @@ pub unsafe extern "C" fn socket_manager_msg_sender_send_async(
             write_error_c_str(e, err);
             0 as c_long
         }
-        Poll::Pending => {
-            PENDING
-        }
+        Poll::Pending => PENDING,
     }
 }
 
