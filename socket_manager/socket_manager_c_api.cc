@@ -1,7 +1,7 @@
 #include "socket_manager_c_api.h"
 #include "socket_manager/msg_receiver.h"
 #include "socket_manager/conn_callback.h"
-#include "socket_manager/recv_waker.h"
+#include "socket_manager/common/waker.h"
 
 inline
 static char *string_dup(const std::string &str) {
@@ -14,27 +14,30 @@ static char *string_dup(const std::string &str) {
 /**
  * RecvWaker for the sender.
  */
-extern void socket_manager_extern_sender_waker_wake(struct WakerObj this_) {
-  auto wr = reinterpret_cast<socket_manager::SendWaker *>(this_.This);
+extern "C" void socket_manager_extern_notifier_wake(struct SOCKET_MANAGER_C_API_Notifier this_) {
+  auto wr = reinterpret_cast<socket_manager::Notifier *>(this_.This);
   wr->wake();
 }
 
-extern void socket_manager_extern_sender_waker_release(struct WakerObj this_) {
-  auto wr = reinterpret_cast<socket_manager::SendWaker *>(this_.This);
+extern "C" void socket_manager_extern_notifier_release(struct SOCKET_MANAGER_C_API_Notifier this_) {
+  auto wr = reinterpret_cast<socket_manager::Notifier *>(this_.This);
   wr->release();
 }
 
-extern void socket_manager_extern_sender_waker_clone(struct WakerObj this_) {
-  auto wr = reinterpret_cast<socket_manager::SendWaker *>(this_.This);
+extern "C" void socket_manager_extern_notifier_clone(struct SOCKET_MANAGER_C_API_Notifier this_) {
+  auto wr = reinterpret_cast<socket_manager::Notifier *>(this_.This);
   wr->clone();
 }
 
-extern long socket_manager_extern_on_msg(struct OnMsgObj this_, ConnMsg msg, CWaker waker, char **err) {
+extern "C" long socket_manager_extern_on_msg(struct SOCKET_MANAGER_C_API_OnMsgObj this_,
+                                             SOCKET_MANAGER_C_API_ConnMsg msg,
+                                             SOCKET_MANAGER_C_API_CWaker waker,
+                                             char **err) {
   auto receiver = reinterpret_cast<socket_manager::MsgReceiverAsync *>(this_.This);
   try {
     auto recv = receiver->on_message_async(
             std::string_view(msg.Bytes, msg.Len),
-            RecvWaker(waker)
+            socket_manager::Waker(waker)
     );
     *err = nullptr;
     return recv;
@@ -47,11 +50,14 @@ extern long socket_manager_extern_on_msg(struct OnMsgObj this_, ConnMsg msg, CWa
   }
 }
 
-extern void socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates states, char **error) {
+extern "C" void socket_manager_extern_on_conn(
+        struct SOCKET_MANAGER_C_API_OnConnObj this_,
+        SOCKET_MANAGER_C_API_ConnStates states,
+        char **error) {
 
   auto conn_cb = static_cast<socket_manager::ConnCallback *>(this_.This);
   switch (states.Code) {
-    case ConnStateCode::Connect: {
+    case SOCKET_MANAGER_C_API_ConnStateCode::Connect: {
       auto on_connect = states.Data.OnConnect;
       auto local_addr = std::string(on_connect.Local);
       auto peer_addr = std::string(on_connect.Peer);
@@ -74,7 +80,7 @@ extern void socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates sta
       }
       break;
     }
-    case ConnStateCode::ConnectionClose: {
+    case SOCKET_MANAGER_C_API_ConnStateCode::ConnectionClose: {
       auto on_connection_close = states.Data.OnConnectionClose;
       auto local_addr = std::string(on_connection_close.Local);
       auto peer_addr = std::string(on_connection_close.Peer);
@@ -94,7 +100,7 @@ extern void socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates sta
       }
       break;
     }
-    case ConnStateCode::ListenError: {
+    case SOCKET_MANAGER_C_API_ConnStateCode::ListenError: {
       auto listen_error = states.Data.OnListenError;
       auto addr = std::string(listen_error.Addr);
       auto err = std::string(listen_error.Err);
@@ -108,7 +114,7 @@ extern void socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates sta
       }
       break;
     }
-    case ConnStateCode::ConnectError: {
+    case SOCKET_MANAGER_C_API_ConnStateCode::ConnectError: {
       auto connect_error = states.Data.OnConnectError;
       auto addr = std::string(connect_error.Addr);
       auto err = std::string(connect_error.Err);
