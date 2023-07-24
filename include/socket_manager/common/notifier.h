@@ -35,7 +35,7 @@ namespace socket_manager {
     friend void::socket_manager_extern_notifier_clone(struct SOCKET_MANAGER_C_API_Notifier this_);
   };
 
-  class NoopWaker : public Notifier {
+  class NoopNotifier : public Notifier {
   public:
     void wake() override {}
   };
