@@ -1,5 +1,5 @@
-use crate::c_api::callbacks::OnMsgObj;
 use crate::c_api::conn_events::Connection;
+use crate::c_api::on_msg::OnMsgObj;
 use crate::c_api::utils::write_error_c_str;
 use crate::conn::ConnConfig;
 use libc::size_t;

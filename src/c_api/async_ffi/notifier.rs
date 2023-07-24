@@ -46,21 +46,29 @@ impl Notifier {
         const fn make_vtable() -> RawWakerVTable {
             RawWakerVTable::new(
                 |dat| unsafe {
-                    let this = Notifier { this: dat as *mut c_void };
+                    let this = Notifier {
+                        this: dat as *mut c_void,
+                    };
                     socket_manager_extern_notifier_clone(this);
                     RawWaker::new(dat, &MSG_SENDER_WAKER_VTABLE)
                 },
                 |dat| unsafe {
-                    let this = Notifier { this: dat as *mut c_void };
+                    let this = Notifier {
+                        this: dat as *mut c_void,
+                    };
                     socket_manager_extern_notifier_wake(this);
                     socket_manager_extern_notifier_release(this);
                 },
                 |dat| unsafe {
-                    let this = Notifier { this: dat as *mut c_void };
+                    let this = Notifier {
+                        this: dat as *mut c_void,
+                    };
                     socket_manager_extern_notifier_wake(this);
                 },
                 |dat| unsafe {
-                    let this = Notifier { this: dat as *mut c_void };
+                    let this = Notifier {
+                        this: dat as *mut c_void,
+                    };
                     socket_manager_extern_notifier_release(this);
                 },
             )
