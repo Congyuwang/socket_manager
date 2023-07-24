@@ -42,7 +42,7 @@ public:
       while (progress < 10 * 1024) {
         auto sent = sender->send_async(data_view.substr(offset));
         if (sent < 0) {
-          sem->wait();
+          sem->wait(1000);
         } else {
           offset += sent;
         }
