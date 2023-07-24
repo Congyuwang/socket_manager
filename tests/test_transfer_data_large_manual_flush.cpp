@@ -53,7 +53,7 @@ public:
     auto rcv = std::make_unique<StoreAllDataLargeManual>(add_data, count);
     // store sender so connection is not dropped.
     this->sender = send;
-    conn->start(std::move(rcv), MSG_BUF_SIZE);
+    conn->start(std::move(rcv), nullptr, MSG_BUF_SIZE);
   }
 
   void on_connection_close(const std::string &local_addr, const std::string &peer_addr) override {

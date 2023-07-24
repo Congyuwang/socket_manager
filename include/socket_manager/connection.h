@@ -19,6 +19,8 @@ namespace socket_manager {
 
   class Notifier;
 
+  class NoopNotifier;
+
   /**
    * Use Connection to send and receive messages from
    * established connections.
@@ -43,8 +45,11 @@ namespace socket_manager {
      * Thread safe, but should be called exactly once,
      * otherwise throws error.
      *
-     * @param msg_receiver the message receiver callback to
-     *                    receive messages from the peer.
+     * @param msg_receiver the message receiver callback to receive
+     *    messages from the peer. Non-null.
+     * @param send_notifier the notifier for getting notified when the
+     *    send buffer is ready. Pass nullptr to use a noop notifier.
+     *    This parameter is needed only for async sending.
      * @param msg_buffer_size The size of the message buffer in bytes.
      *    Set to 0 to use no buffer (i.e., call `on_msg` immediately on receiving
      *    any data, expecting the user to implement buffer if needed).
@@ -60,6 +65,7 @@ namespace socket_manager {
      */
     void start(
             std::shared_ptr<MsgReceiverAsync> msg_receiver,
+            std::shared_ptr<Notifier> send_notifier = nullptr,
             size_t msg_buffer_size = DEFAULT_MSG_BUF_SIZE,
             unsigned long long read_msg_flush_interval = DEFAULT_READ_MSG_FLUSH_MILLI_SEC,
             unsigned long long write_flush_interval = DEFAULT_WRITE_FLUSH_MILLI_SEC);

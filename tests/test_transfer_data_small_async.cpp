@@ -25,23 +25,22 @@ public:
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
                   std::shared_ptr<Connection> conn, std::shared_ptr<MsgSender> sender) override {
     auto rcv = std::make_unique<DoNothingReceiver>();
-    conn->start(std::move(rcv));
+    auto sem = std::make_shared<moodycamel::LightweightSemaphore>();
+    auto waker = std::make_shared<CondWaker>(sem);
+    conn->start(std::move(rcv), waker);
 
-    std::thread t([sender]() {
+    std::string data;
+    for (int i = 0; i < 10; i++) {
+      data.append("helloworld");
+    }
+
+    std::thread t([=]() {
       // send 1000MB data
       int progress = 0;
       size_t offset = 0;
-      auto sem = std::make_shared<moodycamel::LightweightSemaphore>();
-      auto waker = std::make_shared<CondWaker>(sem);
-
-      std::string data;
-      for (int i = 0; i < 10; i++) {
-        data.append("helloworld");
-      }
       std::string_view data_view(data);
-
       while (progress < 10 * 1024 * 1024) {
-        auto sent = sender->send_async(data_view.substr(offset), waker);
+        auto sent = sender->send_async(data_view.substr(offset));
         if (sent < 0) {
           sem->wait();
         } else {
@@ -83,7 +82,7 @@ public:
     auto rcv = std::make_unique<StoreAllDataAsyncSmall>(add_data, count);
     // store sender so connection is not dropped.
     this->sender = send;
-    conn->start(std::move(rcv), MSG_BUF_SIZE);
+    conn->start(std::move(rcv), nullptr, MSG_BUF_SIZE);
   }
 
   void on_connection_close(const std::string &local_addr, const std::string &peer_addr) override {

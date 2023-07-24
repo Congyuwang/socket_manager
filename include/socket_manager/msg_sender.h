@@ -24,6 +24,9 @@ namespace socket_manager {
     /**
      * Non blocking message sending.
      *
+     * To use the method, provide a `notifier` when starting
+     * the connection.
+     *
      * # Async control flow (IMPORTANT)
      *
      * This function is non-blocking, it returns `PENDING = -1`
@@ -35,10 +38,6 @@ namespace socket_manager {
      *
      * The caller is responsible for updating the buffer offset!!
      *
-     * The function requires a `waker` reference, and the caller is recommended
-     * to store the waker in the `connection` and reuse it to reduce the overhead
-     * of allocation.
-     *
      * @param data the message to send
      * @param notifier `notifier.wake()` is evoked when send_async
      *   could accept more data.
@@ -46,7 +45,7 @@ namespace socket_manager {
      *   or return `PENDING = -1` if the send buffer is full.
      * @throws std::runtime_error when the connection is closed.
      */
-    long send_async(std::string_view data, const std::shared_ptr<Notifier> &notifier);
+    long send_async(std::string_view data);
 
     /**
      * Send a message to the peer.

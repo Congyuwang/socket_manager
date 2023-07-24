@@ -13,25 +13,19 @@ namespace socket_manager {
     }
   }
 
-  long MsgSender::send_async(std::string_view data, const std::shared_ptr<Notifier> &notifier) {
+  long MsgSender::send_async(std::string_view data) {
     char *err = nullptr;
-    if (notifier == nullptr) {
-      // does not allow nullptr
-      throw std::runtime_error("waker is nullptr");
-    }
     long n = socket_manager_msg_sender_send_async(
             inner.get(),
             data.data(),
             data.length(),
-            SOCKET_MANAGER_C_API_Notifier{notifier.get()},
+            SOCKET_MANAGER_C_API_Notifier{conn->notifier.get()},
             &err);
     if (err) {
       const std::string err_str(err);
       free(err);
       throw std::runtime_error(err_str);
     }
-    // keep waker alive
-    conn->notifier = notifier;
     return n;
   }
 
