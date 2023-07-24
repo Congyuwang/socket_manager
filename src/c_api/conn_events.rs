@@ -1,4 +1,4 @@
-use crate::c_api::callbacks::OnMsgObj;
+use crate::c_api::on_msg::OnMsgObj;
 use crate::CMsgSender;
 use libc::size_t;
 use std::ffi::c_char;

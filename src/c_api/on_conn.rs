@@ -1,83 +1,11 @@
 use crate::c_api::conn_events::{
-    Connection, ConnMsg, ConnStateCode, ConnStateData, ConnStates, OnConnect, OnConnectError,
+    ConnStateCode, ConnStateData, ConnStates, Connection, OnConnect, OnConnectError,
     OnConnectionClose, OnListenError,
 };
-use crate::c_api::extern_c::{
-    socket_manager_extern_on_conn, socket_manager_extern_on_msg,
-    socket_manager_extern_sender_waker_clone, socket_manager_extern_sender_waker_release,
-    socket_manager_extern_sender_waker_wake,
-};
+use crate::c_api::on_msg::OnMsgObj;
 use crate::c_api::utils::parse_c_err_str;
-use crate::c_api::recv_waker::RecvWaker;
-use std::ffi::{c_char, c_long, c_void, CString};
+use std::ffi::{c_char, c_void, CString};
 use std::ptr::null_mut;
-use std::task::{Poll, RawWaker, RawWakerVTable, Waker};
-
-const MSG_SENDER_VTABLE: RawWakerVTable = WakerObj::make_vtable();
-
-/// Send the msg sender obj to receive
-/// writable notification.
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct WakerObj {
-    pub(crate) this: *mut c_void,
-}
-
-impl WakerObj {
-    pub(crate) unsafe fn make_waker(&self) -> Waker {
-        let raw_waker = RawWaker::new(self.this as *const (), &MSG_SENDER_VTABLE);
-        // Increment the ref count since a new waker is created.
-        socket_manager_extern_sender_waker_clone(*self);
-        Waker::from_raw(raw_waker)
-    }
-
-    const fn make_vtable() -> RawWakerVTable {
-        RawWakerVTable::new(
-            |dat| unsafe {
-                let this = dat as *mut c_void;
-                let msg_obj = WakerObj { this };
-                socket_manager_extern_sender_waker_clone(msg_obj);
-                RawWaker::new(dat, &MSG_SENDER_VTABLE)
-            },
-            |dat| unsafe {
-                let this = dat as *mut c_void;
-                let msg_obj = WakerObj { this };
-                socket_manager_extern_sender_waker_wake(msg_obj);
-                socket_manager_extern_sender_waker_release(msg_obj);
-            },
-            |dat| unsafe {
-                let this = dat as *mut c_void;
-                let msg_obj = WakerObj { this };
-                socket_manager_extern_sender_waker_wake(msg_obj);
-            },
-            |dat| unsafe {
-                let this = dat as *mut c_void;
-                let msg_obj = WakerObj { this };
-                socket_manager_extern_sender_waker_release(msg_obj);
-            },
-        )
-    }
-}
-
-/// Callback function for receiving messages.
-///
-/// `callback_self` is feed to the first argument of the callback.
-///
-/// # Error Handling
-/// Returns null_ptr on success, otherwise returns a pointer to a malloced
-/// C string containing the error message (the c string should be freed by the
-/// caller).
-///
-/// # Safety
-/// The callback pointer must be valid before connection is closed!!
-///
-/// # Thread Safety
-/// Must be thread safe!
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct OnMsgObj {
-    this: *mut c_void,
-}
 
 /// Callback function for connection state changes.
 ///
@@ -100,53 +28,14 @@ pub struct OnConnObj {
     this: *mut c_void,
 }
 
-impl OnMsgObj {
-    pub fn call_inner(
-        &self,
-        conn_msg: crate::Msg<'_>,
-        waker: Waker,
-    ) -> Poll<Result<usize, String>> {
-        let len = conn_msg.bytes.len();
-        let conn_msg = ConnMsg {
-            bytes: conn_msg.bytes.as_ptr() as *const c_char,
-            len,
-        };
-        // takes the ownership of the waker
-        let waker = RecvWaker::from_waker(waker);
-        unsafe {
-            let mut err: *mut c_char = null_mut();
-            let cb_result = socket_manager_extern_on_msg(*self, conn_msg, waker, &mut err);
-            if let Err(e) = parse_c_err_str(err) {
-                tracing::error!("Error thrown in OnMsg callback: {e}");
-                Poll::Ready(Err(e))
-            } else if cb_result > 0 {
-                assert!(cb_result <= len as c_long);
-                Poll::Ready(Ok(cb_result as usize))
-            } else {
-                Poll::Pending
-            }
-        }
-    }
-}
-
-impl FnMut<(crate::Msg<'_>, Waker)> for OnMsgObj {
-    extern "rust-call" fn call_mut(&mut self, args: (crate::Msg<'_>, Waker)) -> Self::Output {
-        self.call_inner(args.0, args.1)
-    }
-}
-
-impl FnOnce<(crate::Msg<'_>, Waker)> for OnMsgObj {
-    type Output = Poll<Result<usize, String>>;
-
-    extern "rust-call" fn call_once(self, args: (crate::Msg<'_>, Waker)) -> Self::Output {
-        self.call_inner(args.0, args.1)
-    }
-}
-
-impl Fn<(crate::Msg<'_>, Waker)> for OnMsgObj {
-    extern "rust-call" fn call(&self, args: (crate::Msg<'_>, Waker)) -> Self::Output {
-        self.call_inner(args.0, args.1)
-    }
+#[link(name = "socket_manager")]
+extern "C" {
+    /// Callback function for connection state changes.
+    pub(crate) fn socket_manager_extern_on_conn(
+        this: OnConnObj,
+        conn: ConnStates,
+        err: *mut *mut c_char,
+    );
 }
 
 impl OnConnObj {
@@ -274,10 +163,6 @@ impl Fn<(crate::ConnState<OnMsgObj>,)> for OnConnObj {
         self.call_inner(conn_msg.0)
     }
 }
-
-unsafe impl Send for OnMsgObj {}
-
-unsafe impl Sync for OnMsgObj {}
 
 unsafe impl Send for OnConnObj {}
 
