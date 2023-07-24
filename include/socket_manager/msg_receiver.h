@@ -55,7 +55,7 @@ namespace socket_manager {
   class MsgReceiver : public MsgReceiverAsync {
   public:
 
-    virtual ~MsgReceiver() = default;
+    ~MsgReceiver() override = default;
 
   private:
 
