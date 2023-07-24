@@ -23,7 +23,7 @@ class OnConnectErrorAfterStartCallback : public DoNothingConnCallback {
 };
 
 class OnMsgErrorReceiver : public MsgReceiver {
-  long on_message(std::string_view data, std::shared_ptr<RcvWaker> waker) override {
+  void on_message(std::string_view data) override {
     throw std::runtime_error("throw some error on receiving message");
   }
 };

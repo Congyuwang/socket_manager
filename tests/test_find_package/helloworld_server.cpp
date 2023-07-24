@@ -11,13 +11,12 @@ public:
                      std::unordered_map<std::string, std::shared_ptr<socket_manager::MsgSender>> &senders)
           : conn_id(std::move(conn_id)), mutex(mutex), senders(senders) {}
 
-  long on_message(std::string_view data, std::shared_ptr<RcvWaker> waker) override {
+  void on_message(std::string_view data) override {
     try {
       std::unique_lock<std::mutex> my_lock(mutex);
       auto sender = senders.at(conn_id);
       sender->send("HTTP/1.1 200 OK\r\nContent-Length: 12\r\nConnection: close\r\n\r\nHello, world");
       senders.erase(conn_id);
-      return (long) data.length();
     } catch (const std::out_of_range &e) {
       std::cerr << "Exception at " << e.what() << std::endl;
     }

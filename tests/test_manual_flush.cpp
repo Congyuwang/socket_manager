@@ -13,13 +13,12 @@ public:
 
 private:
 
-  long on_message(std::string_view data, std::shared_ptr<RcvWaker> waker) override {
+  void on_message(std::string_view data) override {
     assert(data == "hello world");
     std::unique_lock<std::mutex> lk(mutex);
     has_received = true;
     cond.notify_one();
     std::cout << "final received" << std::endl;
-    return (long) data.length();
   }
 
   bool &has_received;
@@ -33,13 +32,12 @@ public:
           : has_received(hasReceived), _data(data), mutex(mutex), cond(cond) {}
 
 private:
-  long on_message(std::string_view data, std::shared_ptr<RcvWaker> waker) override {
+  void on_message(std::string_view data) override {
     std::unique_lock<std::mutex> lk(mutex);
     has_received = true;
     _data.append(data);
     cond.notify_one();
     std::cout << "echo received" << std::endl;
-    return (long) data.length();
   }
 
   bool &has_received;

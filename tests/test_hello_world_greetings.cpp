@@ -28,7 +28,9 @@ int test_hello_world_greetings(int argc, char **argv) {
 
   // wait for connection success (client side)
   while (true) {
+    std::cout << "client before lock" << std::endl;
     std::unique_lock<std::mutex> u_lock(client_cb->mutex);
+    std::cout << "client lock" << std::endl;
     if (client_cb->events.size() == 1) {
       std::cout << "Client connection established: " << std::get<1>(client_cb->events[0]) << std::endl;
       assert(std::get<0>(client_cb->events[0]) == CONNECTED);

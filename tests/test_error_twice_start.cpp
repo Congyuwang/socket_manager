@@ -6,9 +6,7 @@
 
 class DoNothingMsgReceiver : public MsgReceiver {
 public:
-  long on_message(std::string_view data, std::shared_ptr<RcvWaker> waker) override {
-    return (long) data.length();
-  }
+  void on_message(std::string_view data) override {}
 };
 
 class TwiceStartCallback : public ConnCallback {
