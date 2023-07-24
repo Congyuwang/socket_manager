@@ -12,6 +12,12 @@
 namespace socket_manager {
 
   /**
+   * return `PENDING` to interrupt message receiving.
+   * and call `waker.wake()` to resume message receiving.
+   */
+  const long PENDING = -1;
+
+  /**
    * Implement this class to receive messages from Connection.
    *
    * # Thread Safety

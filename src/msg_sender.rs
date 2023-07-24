@@ -7,6 +7,8 @@ use std::task::{Context, Poll};
 use tokio::runtime::Handle;
 use tokio::sync::mpsc::UnboundedSender;
 
+pub const PENDING_CODE: i64 = -1;
+
 /// Sender Commands other than bytes.
 pub(crate) enum SendCommand {
     Flush,
@@ -111,7 +113,7 @@ impl CMsgSender {
                     let n = self.buf_prd.as_mut_base().push_slice(bytes);
                     Ok(n as i64)
                 }
-                Poll::Pending => Ok(-1),
+                Poll::Pending => Ok(PENDING_CODE),
             }
         } else {
             // no waker, return 0
