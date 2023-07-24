@@ -176,12 +176,12 @@ extern void socket_manager_extern_notifier_clone(struct SOCKET_MANAGER_C_API_Not
 /**
  * Call the waker to wake the relevant task of context.
  */
-void socket_manager_recv_waker_wake(const struct SOCKET_MANAGER_C_API_CWaker *waker);
+void socket_manager_waker_wake(const struct SOCKET_MANAGER_C_API_CWaker *waker);
 
 /**
  * Release the waker.
  */
-void socket_manager_recv_waker_free(struct SOCKET_MANAGER_C_API_CWaker waker);
+void socket_manager_waker_free(struct SOCKET_MANAGER_C_API_CWaker waker);
 
 /**
  * Start a connection with the given `OnMsgCallback`, and return a pointer to a `MsgSender`.
