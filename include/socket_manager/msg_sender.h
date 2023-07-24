@@ -3,6 +3,7 @@
 
 #include "socket_manager_c_api.h"
 #include "connection.h"
+#include "send_waker.h"
 #include <string>
 #include <memory>
 #include <functional>
@@ -10,35 +11,6 @@
 namespace socket_manager {
 
   class Connection;
-
-  /**
-   * Used for receiving writable notification for
-   * `try_send` method.
-   *
-   * Each `try_test()` call releases the waker,
-   * when `wake()` is actually invoked
-   * (i.e., the number of calls of `release` and `clone`
-   * are equal).
-   */
-  class Waker {
-
-  public:
-    virtual ~Waker() = default;
-
-  private:
-
-    virtual void wake() = 0;
-
-    virtual void release() = 0;
-
-    virtual void clone() = 0;
-
-    friend void::socket_manager_extern_sender_waker_wake(struct WakerObj this_);
-
-    friend void::socket_manager_extern_sender_waker_release(struct WakerObj this_);
-
-    friend void::socket_manager_extern_sender_waker_clone(struct WakerObj this_);
-  };
 
   /**
    * Use MsgSender to send messages to the peer.

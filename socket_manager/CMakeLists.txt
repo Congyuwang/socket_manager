@@ -30,6 +30,7 @@ set(header ${CMAKE_SOURCE_DIR}/include/socket_manager_c_api.h
            ${header_path}/connection.h
            ${header_path}/conn_callback.h
            ${header_path}/msg_sender.h
+           ${header_path}/send_waker.h
            ${header_path}/recv_waker.h
            ${header_path}/msg_receiver.h)
 set(src socket_manager_c_api.cc
