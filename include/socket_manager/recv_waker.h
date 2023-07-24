@@ -3,12 +3,19 @@
 
 #include "socket_manager_c_api.h"
 
+/**
+ * The RcvWaker is returned by `on_message_async`,
+ * and is to resume the receiver process.
+ *
+ * When the workload is large, the implementation of
+ * `on_message_async` can return `PENDING = -1`,
+ * to interrupt the receiver callback, while resuming
+ * the receiver using RcvWaker later.
+ */
 class RcvWaker {
 public:
   /**
-   * Call wake() to wake up the receiver,
-   * and return `PENDING` in `on_message_async`
-   * to interrupt the receiver.
+   * Call wake() to wake up the receiver process.
    */
   void wake();
 
