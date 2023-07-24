@@ -27,7 +27,7 @@ impl CWaker {
     }
 
     /// Do Not restore ownership of the waker.
-    pub unsafe fn wake_by_ref(&self) {
+    unsafe fn wake_by_ref(&self) {
         let raw_waker = RawWaker::new(
             self.data as *const (),
             &*(self.vtable as *const RawWakerVTable),
@@ -39,7 +39,7 @@ impl CWaker {
     }
 
     /// Restore ownership of the waker.
-    pub unsafe fn into_waker(self) -> Waker {
+    unsafe fn into_waker(self) -> Waker {
         let raw_waker = RawWaker::new(
             self.data as *const (),
             &*(self.vtable as *const RawWakerVTable),
