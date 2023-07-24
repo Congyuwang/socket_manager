@@ -48,6 +48,7 @@ async fn handle_writer_auto_flush(
             biased;
             _ = ring_buf.wait(chunk_size) => {
                 if ring_buf.is_closed() {
+                    tracing::debug!("connection stopped (sender dropped)");
                     break;
                 }
                 copy_from_ring_buf(&mut ring_buf, &mut write, chunk_size).await?;
@@ -61,6 +62,7 @@ async fn handle_writer_auto_flush(
             }
             _ = ring_buf.wait(1), if !has_data => {
                 if ring_buf.is_closed() {
+                    tracing::debug!("connection stopped (sender dropped)");
                     break;
                 }
                 // got small amount of data, enable ticking flush,
@@ -73,6 +75,7 @@ async fn handle_writer_auto_flush(
                 has_data = false;
             }
             _ = stop.closed() => {
+                tracing::debug!("connection stopped (socket manager dropped)");
                 break;
             }
             else => {}
@@ -80,7 +83,6 @@ async fn handle_writer_auto_flush(
     }
     copy_from_ring_buf(&mut ring_buf, &mut write, chunk_size).await?;
     write.shutdown().await?;
-    tracing::debug!("connection stopped (socket manager dropped)");
     Ok(())
 }
 
@@ -98,6 +100,7 @@ async fn handle_writer_no_auto_flush(
             biased;
             _ = ring_buf.wait(chunk_size) => {
                 if ring_buf.is_closed() {
+                    tracing::debug!("connection stopped (sender dropped)");
                     break;
                 }
                 copy_from_ring_buf(&mut ring_buf, &mut write, chunk_size).await?;
@@ -107,6 +110,7 @@ async fn handle_writer_no_auto_flush(
                 copy_from_ring_buf(&mut ring_buf, &mut write, chunk_size).await?;
             }
             _ = stop.closed() => {
+                tracing::debug!("connection stopped (socket manager dropped)");
                 break;
             }
             else => {}
@@ -115,7 +119,6 @@ async fn handle_writer_no_auto_flush(
     // flush and close
     copy_from_ring_buf(&mut ring_buf, &mut write, chunk_size).await?;
     write.shutdown().await?;
-    tracing::debug!("connection stopped (socket manager dropped)");
     Ok(())
 }
 

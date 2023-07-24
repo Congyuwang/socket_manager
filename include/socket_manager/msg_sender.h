@@ -33,11 +33,11 @@ namespace socket_manager {
 
     virtual void clone() = 0;
 
-    friend void ::socket_manager_extern_sender_waker_wake(struct WakerObj this_);
+    friend void::socket_manager_extern_sender_waker_wake(struct WakerObj this_);
 
-    friend void ::socket_manager_extern_sender_waker_release(struct WakerObj this_);
+    friend void::socket_manager_extern_sender_waker_release(struct WakerObj this_);
 
-    friend void ::socket_manager_extern_sender_waker_clone(struct WakerObj this_);
+    friend void::socket_manager_extern_sender_waker_clone(struct WakerObj this_);
   };
 
   /**
@@ -112,9 +112,9 @@ namespace socket_manager {
 
     friend class Connection;
 
-    friend char* ::socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates conn);
+    friend void::socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates conn, char **err);
 
-    explicit MsgSender(CMsgSender *inner, const std::shared_ptr<Connection>&);
+    explicit MsgSender(CMsgSender *inner, const std::shared_ptr<Connection> &);
 
     // keep a reference of connection for storing waker object
     // in connection, to prevent dangling pointer of waker.

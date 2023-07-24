@@ -9,7 +9,7 @@ use crate::c_api::structs::{
 };
 use crate::c_api::utils::parse_c_err_str;
 use crate::c_api::waker::CWaker;
-use std::ffi::{c_char, c_void, CString};
+use std::ffi::{c_char, c_long, c_void, CString};
 use std::ptr::null_mut;
 use std::task::{Poll, RawWaker, RawWakerVTable, Waker};
 
@@ -106,9 +106,10 @@ impl OnMsgObj {
         conn_msg: crate::Msg<'_>,
         waker: Waker,
     ) -> Poll<Result<usize, String>> {
+        let len = conn_msg.bytes.len();
         let conn_msg = ConnMsg {
             bytes: conn_msg.bytes.as_ptr() as *const c_char,
-            len: conn_msg.bytes.len(),
+            len,
         };
         let waker = Box::into_raw(Box::new(CWaker { waker }));
         unsafe {
@@ -118,6 +119,7 @@ impl OnMsgObj {
                 tracing::error!("Error thrown in OnMsg callback: {e}");
                 Poll::Ready(Err(e))
             } else if cb_result > 0 {
+                assert!(cb_result <= len as c_long);
                 Poll::Ready(Ok(cb_result as usize))
             } else {
                 Poll::Pending

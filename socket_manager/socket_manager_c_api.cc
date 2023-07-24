@@ -29,7 +29,7 @@ extern void socket_manager_extern_sender_waker_clone(struct WakerObj this_) {
   wr->clone();
 }
 
-extern int socket_manager_extern_on_msg(struct OnMsgObj this_, ConnMsg msg, CWaker *waker, char **err) {
+extern long socket_manager_extern_on_msg(struct OnMsgObj this_, ConnMsg msg, CWaker *waker, char **err) {
   auto receiver = reinterpret_cast<socket_manager::MsgReceiver *>(this_.This);
   try {
     auto recv = receiver->on_message(
@@ -72,6 +72,7 @@ extern void socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates sta
       } catch (...) {
         *error = string_dup("unknown error");
       }
+      break;
     }
     case ConnStateCode::ConnectionClose: {
       auto on_connection_close = states.Data.OnConnectionClose;
@@ -91,6 +92,7 @@ extern void socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates sta
       } catch (...) {
         *error = string_dup("unknown error");
       }
+      break;
     }
     case ConnStateCode::ListenError: {
       auto listen_error = states.Data.OnListenError;
@@ -104,6 +106,7 @@ extern void socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates sta
       } catch (...) {
         *error = string_dup("unknown error");
       }
+      break;
     }
     case ConnStateCode::ConnectError: {
       auto connect_error = states.Data.OnConnectError;
@@ -117,6 +120,7 @@ extern void socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates sta
       } catch (...) {
         *error = string_dup("unknown error");
       }
+      break;
     }
     default: {
       // should never reach here

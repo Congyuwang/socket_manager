@@ -193,10 +193,10 @@ void connection_free(struct CConnection *conn);
  * Return positive number for `Ready`,
  * and negative number for `Pending`.
  */
-extern int socket_manager_extern_on_msg(struct OnMsgObj this_,
-                                        struct ConnMsg msg,
-                                        struct CWaker *waker,
-                                        char **err);
+extern long socket_manager_extern_on_msg(struct OnMsgObj this_,
+                                         struct ConnMsg msg,
+                                         struct CWaker *waker,
+                                         char **err);
 
 /**
  * Callback function for connection state changes.

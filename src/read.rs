@@ -105,8 +105,8 @@ async fn handle_reader_no_auto_flush<
         if n == 0 {
             break;
         }
-        tracing::trace!("received {n} bytes");
         msg_writer.write_all(bytes).await?;
+        tracing::trace!("received {n} bytes");
         buf_reader.consume(n);
     }
 
@@ -132,8 +132,8 @@ async fn handle_reader_no_buf<
         if n == 0 {
             break;
         }
-        tracing::trace!("received {n} bytes");
         on_msg.write_all(bytes).await?;
+        tracing::trace!("received {n} bytes");
         buf_reader.consume(n);
     }
     Ok(())

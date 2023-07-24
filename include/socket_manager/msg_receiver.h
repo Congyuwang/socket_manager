@@ -46,9 +46,9 @@ namespace socket_manager {
      *
      * @param data the message received.
      */
-    virtual int on_message(std::string_view data, std::shared_ptr<RcvWaker> waker) = 0;
+    virtual long on_message(std::string_view data, std::shared_ptr<RcvWaker> waker) = 0;
 
-    friend int ::socket_manager_extern_on_msg(struct OnMsgObj this_, ConnMsg msg, CWaker *waker, char **err);
+    friend long::socket_manager_extern_on_msg(struct OnMsgObj this_, ConnMsg msg, CWaker *waker, char **err);
 
   };
 

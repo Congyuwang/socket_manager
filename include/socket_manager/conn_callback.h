@@ -49,7 +49,7 @@ namespace socket_manager {
 
   private:
 
-    friend char* ::socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates conn);
+    friend void::socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates conn, char **err);
 
     /**
      * Called when a new connection is established.

@@ -1,8 +1,7 @@
 use crate::c_api::callbacks::{OnConnObj, OnMsgObj, WakerObj};
 use crate::c_api::structs::{ConnMsg, ConnStates};
 use crate::c_api::waker::CWaker;
-use libc::c_int;
-use std::ffi::c_char;
+use std::ffi::{c_char, c_long};
 
 #[link(name = "socket_manager")]
 extern "C" {
@@ -14,7 +13,7 @@ extern "C" {
         msg: ConnMsg,
         waker: *mut CWaker,
         err: *mut *mut c_char,
-    ) -> c_int;
+    ) -> c_long;
 
     /// Callback function for connection state changes.
     pub(crate) fn socket_manager_extern_on_conn(
