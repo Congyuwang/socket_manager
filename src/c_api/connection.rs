@@ -72,7 +72,7 @@ pub unsafe extern "C" fn socket_manager_connection_start(
         }
         Err(e) => {
             write_error_c_str(e, err);
-            -1
+            1
         }
     }
 }
@@ -101,7 +101,7 @@ pub unsafe extern "C" fn socket_manager_connection_close(
         }
         Err(e) => {
             write_error_c_str(e, err);
-            -1
+            1
         }
     }
 }

@@ -14,7 +14,7 @@ use std::ptr::null_mut;
 /// since it might block.
 ///
 /// # Errors
-/// If the connection is closed, the function will return -1 and set `err` to a pointer
+/// If the connection is closed, the function will return 1 and set `err` to a pointer
 /// with WriteZero error.
 ///
 /// Returns 1 on error, 0 on success.
@@ -35,7 +35,7 @@ pub unsafe extern "C" fn socket_manager_msg_sender_send(
         }
         Err(e) => {
             write_error_c_str(e, err);
-            -1
+            1
         }
     }
 }
@@ -106,7 +106,7 @@ pub unsafe extern "C" fn socket_manager_msg_sender_flush(
         }
         Err(e) => {
             write_error_c_str(e, err);
-            -1
+            1
         }
     }
 }

@@ -48,7 +48,7 @@ pub unsafe extern "C" fn socket_manager_init(
 /// Thread safe.
 ///
 /// # Errors
-/// Returns -1 on error, 0 on success.
+/// Returns 1 on error, 0 on success.
 /// On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
 #[no_mangle]
 pub unsafe extern "C" fn socket_manager_listen_on_addr(
@@ -65,12 +65,12 @@ pub unsafe extern "C" fn socket_manager_listen_on_addr(
             }
             Err(e) => {
                 write_error_c_str(e, err);
-                -1
+                1
             }
         },
         Err(e) => {
             write_error_c_str(e, err);
-            -1
+            1
         }
     }
 }
@@ -81,7 +81,7 @@ pub unsafe extern "C" fn socket_manager_listen_on_addr(
 /// Thread safe.
 ///
 /// # Errors
-/// Returns -1 on error, 0 on success.
+/// Returns 1 on error, 0 on success.
 /// On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
 #[no_mangle]
 pub unsafe extern "C" fn socket_manager_connect_to_addr(
@@ -98,12 +98,12 @@ pub unsafe extern "C" fn socket_manager_connect_to_addr(
             }
             Err(e) => {
                 write_error_c_str(e, err);
-                -1
+                1
             }
         },
         Err(e) => {
             write_error_c_str(e, err);
-            -1
+            1
         }
     }
 }
@@ -114,7 +114,7 @@ pub unsafe extern "C" fn socket_manager_connect_to_addr(
 /// Thread safe.
 ///
 /// # Errors
-/// Returns -1 on error, 0 on success.
+/// Returns 1 on error, 0 on success.
 /// On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
 #[no_mangle]
 pub unsafe extern "C" fn socket_manager_cancel_listen_on_addr(
@@ -131,12 +131,12 @@ pub unsafe extern "C" fn socket_manager_cancel_listen_on_addr(
             }
             Err(e) => {
                 write_error_c_str(e, err);
-                -1
+                1
             }
         },
         Err(e) => {
             write_error_c_str(e, err);
-            -1
+            1
         }
     }
 }
@@ -150,7 +150,7 @@ pub unsafe extern "C" fn socket_manager_cancel_listen_on_addr(
 /// - `wait`: if true, wait for the background runtime to finish.
 ///
 /// # Errors
-/// Returns -1 on error, 0 on success.
+/// Returns 1 on error, 0 on success.
 /// On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
 #[no_mangle]
 pub unsafe extern "C" fn socket_manager_abort(
@@ -166,7 +166,7 @@ pub unsafe extern "C" fn socket_manager_abort(
         }
         Err(e) => {
             write_error_c_str(e, err);
-            -1
+            1
         }
     }
 }
@@ -194,7 +194,7 @@ pub unsafe extern "C" fn socket_manager_join(
         }
         Err(e) => {
             write_error_c_str(e, err);
-            -1
+            1
         }
     }
 }
