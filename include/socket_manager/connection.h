@@ -4,6 +4,7 @@
 #include <atomic>
 #include <memory>
 #include <stdexcept>
+#include <functional>
 #include "msg_receiver.h"
 #include "msg_sender.h"
 #include "socket_manager_c_api.h"
@@ -75,12 +76,6 @@ namespace socket_manager {
      */
     void close();
 
-    Connection(const Connection &) = delete;
-
-    Connection &operator=(const Connection &) = delete;
-
-    ~Connection();
-
   private:
 
     friend class MsgSender;
@@ -95,7 +90,7 @@ namespace socket_manager {
 
     explicit Connection(CConnection *inner);
 
-    CConnection *inner;
+    std::unique_ptr<CConnection, std::function<void(CConnection *)>> inner;
 
   };
 

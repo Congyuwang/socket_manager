@@ -3,7 +3,8 @@
 
 namespace socket_manager {
 
-  Connection::Connection(CConnection *inner) : inner(inner) {}
+  Connection::Connection(CConnection *inner)
+          : inner(inner, [](CConnection *ptr) { connection_free(ptr); }) {}
 
   void Connection::start(
           std::shared_ptr<MsgReceiverAsync> msg_receiver,
@@ -14,7 +15,7 @@ namespace socket_manager {
     // start the connection.
     // calling twice `connection_start` will throw exception.
     char *err = nullptr;
-    if (connection_start(inner, OnMsgObj{
+    if (connection_start(inner.get(), OnMsgObj{
             msg_receiver.get(),
     }, msg_buffer_size, read_msg_flush_interval, write_flush_interval, &err)) {
       const std::string err_str(err);
@@ -28,15 +29,11 @@ namespace socket_manager {
 
   void Connection::close() {
     char *err = nullptr;
-    if (connection_close(inner, &err)) {
+    if (connection_close(inner.get(), &err)) {
       const std::string err_str(err);
       free(err);
       throw std::runtime_error(err_str);
     }
-  }
-
-  Connection::~Connection() {
-    connection_free(inner);
   }
 
 } // namespace socket_manager

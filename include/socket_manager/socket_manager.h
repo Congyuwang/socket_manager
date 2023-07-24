@@ -3,6 +3,7 @@
 
 #include "conn_callback.h"
 #include "socket_manager_c_api.h"
+#include <functional>
 #include <string>
 #include <memory>
 
@@ -104,15 +105,9 @@ namespace socket_manager {
      */
     void join();
 
-    ~SocketManager();
-
-    SocketManager(const SocketManager &) = delete;
-
-    SocketManager &operator=(const SocketManager &) = delete;
-
   private:
 
-    CSocketManager *inner;
+    std::unique_ptr<CSocketManager, std::function<void(CSocketManager *)>> inner;
     std::shared_ptr<ConnCallback> conn_cb;
 
   };

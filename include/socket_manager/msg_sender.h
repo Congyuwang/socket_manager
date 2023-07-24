@@ -4,6 +4,7 @@
 #include "socket_manager_c_api.h"
 #include "connection.h"
 #include "send_waker.h"
+#include <functional>
 #include <string>
 #include <memory>
 #include <functional>
@@ -71,15 +72,6 @@ namespace socket_manager {
      */
     void flush();
 
-    /**
-     * Drop the sender to close the connection.
-     */
-    ~MsgSender();
-
-    MsgSender(const MsgSender &) = delete;
-
-    MsgSender &operator=(const MsgSender &) = delete;
-
   private:
 
     friend class Connection;
@@ -92,7 +84,7 @@ namespace socket_manager {
     // in connection, to prevent dangling pointer of waker.
     std::shared_ptr<Connection> conn;
 
-    CMsgSender *inner;
+    std::unique_ptr<CMsgSender, std::function<void(CMsgSender *)>> inner;
 
   };
 
