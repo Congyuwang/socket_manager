@@ -12,7 +12,7 @@ static char *string_dup(const std::string &str) {
 }
 
 /**
- * RcvWaker for the sender.
+ * RecvWaker for the sender.
  */
 extern void socket_manager_extern_sender_waker_wake(struct WakerObj this_) {
   auto wr = reinterpret_cast<socket_manager::SendWaker *>(this_.This);
@@ -34,7 +34,7 @@ extern long socket_manager_extern_on_msg(struct OnMsgObj this_, ConnMsg msg, CWa
   try {
     auto recv = receiver->on_message_async(
             std::string_view(msg.Bytes, msg.Len),
-            RcvWaker(waker)
+            RecvWaker(waker)
     );
     *err = nullptr;
     return recv;

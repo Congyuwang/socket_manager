@@ -4,38 +4,38 @@
 #include "socket_manager_c_api.h"
 
 /**
- * The RcvWaker is returned by `on_message_async`,
+ * The RecvWaker is returned by `on_message_async`,
  * and is to resume the receiver process.
  *
  * When the workload is large, the implementation of
  * `on_message_async` can return `PENDING = -1`,
  * to interrupt the receiver callback, while resuming
- * the receiver using RcvWaker later.
+ * the receiver using RecvWaker later.
  */
-class RcvWaker {
+class RecvWaker {
 public:
   /**
    * Call wake() to wake up the receiver process.
    */
   void wake();
 
-  ~RcvWaker();
+  ~RecvWaker();
 
   /**
    * Create an empty waker.
    */
-  explicit RcvWaker();
+  explicit RecvWaker();
 
-  RcvWaker(const RcvWaker &) = delete;
+  RecvWaker(const RecvWaker &) = delete;
 
-  RcvWaker &operator=(const RcvWaker &) = delete;
+  RecvWaker &operator=(const RecvWaker &) = delete;
 
-  RcvWaker(RcvWaker &&) noexcept ;
+  RecvWaker(RecvWaker &&) noexcept ;
 
-  RcvWaker &operator=(RcvWaker &&) noexcept ;
+  RecvWaker &operator=(RecvWaker &&) noexcept ;
 
 private:
-  explicit RcvWaker(CWaker waker);
+  explicit RecvWaker(CWaker waker);
 
   friend long::socket_manager_extern_on_msg(struct OnMsgObj this_, ConnMsg msg, CWaker waker, char **err);
 

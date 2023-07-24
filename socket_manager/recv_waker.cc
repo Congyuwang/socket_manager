@@ -1,29 +1,29 @@
 #include "socket_manager/recv_waker.h"
 
-RcvWaker::RcvWaker()
+RecvWaker::RecvWaker()
         : waker(CWaker{nullptr, nullptr}) {}
 
-RcvWaker::RcvWaker(CWaker waker) : waker(waker) {}
+RecvWaker::RecvWaker(CWaker waker) : waker(waker) {}
 
-RcvWaker::RcvWaker(RcvWaker &&other) noexcept: waker(other.waker) {
+RecvWaker::RecvWaker(RecvWaker &&other) noexcept: waker(other.waker) {
   other.waker.Data = nullptr;
   other.waker.Vtable = nullptr;
 }
 
-RcvWaker &RcvWaker::operator=(RcvWaker &&other) noexcept {
+RecvWaker &RecvWaker::operator=(RecvWaker &&other) noexcept {
   waker = other.waker;
   other.waker.Data = nullptr;
   other.waker.Vtable = nullptr;
   return *this;
 }
 
-void RcvWaker::wake() {
+void RecvWaker::wake() {
   if (waker.Data != nullptr && waker.Vtable != nullptr) {
     msg_waker_wake(&waker);
   }
 }
 
-RcvWaker::~RcvWaker() {
+RecvWaker::~RecvWaker() {
   if (waker.Data != nullptr && waker.Vtable != nullptr) {
     msg_waker_free(waker);
   }
