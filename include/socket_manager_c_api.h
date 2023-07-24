@@ -391,7 +391,7 @@ void socket_manager_free(struct CSocketManager *manager);
 
 void msg_waker_wake(const struct CWaker *waker);
 
-void msg_waker_destroy(struct CWaker waker);
+void msg_waker_free(struct CWaker waker);
 
 #ifdef __cplusplus
 } // extern "C"

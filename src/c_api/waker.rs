@@ -54,6 +54,6 @@ pub unsafe extern "C" fn msg_waker_wake(waker: &CWaker) {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn msg_waker_destroy(waker: CWaker) {
+pub unsafe extern "C" fn msg_waker_free(waker: CWaker) {
     drop(waker.into_waker());
 }

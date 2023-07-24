@@ -16,6 +16,7 @@ namespace socket_manager {
   long MsgSender::try_send(std::string_view data, size_t offset, const std::shared_ptr<Waker> &waker) {
     auto dat_view = data.substr(offset);
     char *err = nullptr;
+    // waker_obj inner null_ptr is handled in C code.
     long n = msg_sender_try_send(
             inner.get(),
             dat_view.data(),
@@ -28,10 +29,7 @@ namespace socket_manager {
       throw std::runtime_error(err_str);
     }
     // keep waker alive
-    std::cout << "keep waker alive" << std::endl;
-    std::cout << "keep waker alive (after clone)" << std::endl;
-//    conn->waker = waker;
-    std::cout << "keep waker alive (after move)" << std::endl;
+    conn->waker = waker;
     return n;
   }
 
