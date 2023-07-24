@@ -9,7 +9,7 @@ use std::os::raw::c_ulonglong;
 use std::ptr::null_mut;
 use std::time::Duration;
 
-/// Start a connection with the given `OnMsgCallback`, and return a pointer to a `CMsgSender`.
+/// Start a connection with the given `OnMsgCallback`, and return a pointer to a `MsgSender`.
 ///
 /// Only one of `connection_start` or `connection_close` should be called,
 /// or it will result in runtime error.

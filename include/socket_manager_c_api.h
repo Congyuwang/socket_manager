@@ -184,7 +184,7 @@ void socket_manager_recv_waker_wake(const struct SOCKET_MANAGER_C_API_CWaker *wa
 void socket_manager_recv_waker_free(struct SOCKET_MANAGER_C_API_CWaker waker);
 
 /**
- * Start a connection with the given `OnMsgCallback`, and return a pointer to a `CMsgSender`.
+ * Start a connection with the given `OnMsgCallback`, and return a pointer to a `MsgSender`.
  *
  * Only one of `connection_start` or `connection_close` should be called,
  * or it will result in runtime error.
@@ -241,7 +241,7 @@ int socket_manager_connection_close(struct SOCKET_MANAGER_C_API_Connection *conn
 void socket_manager_connection_free(struct SOCKET_MANAGER_C_API_Connection *conn);
 
 /**
- * Send a message via the given `CMsgSender` synchronously.
+ * Send a message via the given `MsgSender` synchronously.
  * This is a blocking API.
  *
  * # Thread Safety
@@ -263,7 +263,7 @@ int socket_manager_msg_sender_send_block(struct SOCKET_MANAGER_C_API_MsgSender *
                                          char **err);
 
 /**
- * Try to send a message via the given `CMsgSender` asynchronously.
+ * Try to send a message via the given `MsgSender` asynchronously.
  *
  * # Thread Safety
  * Thread safe.

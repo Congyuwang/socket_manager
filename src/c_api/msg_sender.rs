@@ -8,7 +8,7 @@ use std::task::Poll;
 
 pub const PENDING: c_long = -1;
 
-/// Send a message via the given `CMsgSender` synchronously.
+/// Send a message via the given `MsgSender` synchronously.
 /// This is a blocking API.
 ///
 /// # Thread Safety
@@ -44,7 +44,7 @@ pub unsafe extern "C" fn socket_manager_msg_sender_send_block(
     }
 }
 
-/// Try to send a message via the given `CMsgSender` asynchronously.
+/// Try to send a message via the given `MsgSender` asynchronously.
 ///
 /// # Thread Safety
 /// Thread safe.
