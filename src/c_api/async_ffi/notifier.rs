@@ -41,7 +41,7 @@ extern "C" {
 
 impl Notifier {
     #[inline]
-    pub(crate) unsafe fn to_waker(&self) -> Waker {
+    pub(crate) unsafe fn to_waker(self) -> Waker {
         const MSG_SENDER_WAKER_VTABLE: RawWakerVTable = make_vtable();
 
         const fn make_vtable() -> RawWakerVTable {
@@ -78,7 +78,7 @@ impl Notifier {
         let raw_waker = RawWaker::new(self.this as *const (), &MSG_SENDER_WAKER_VTABLE);
         // creating a new waker also increment the ref-count, though
         // which could be decremented immediately if its a temp value.
-        socket_manager_extern_notifier_clone(*self);
+        socket_manager_extern_notifier_clone(self);
         Waker::from_raw(raw_waker)
     }
 }
