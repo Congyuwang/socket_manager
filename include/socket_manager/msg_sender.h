@@ -3,7 +3,7 @@
 
 #include "socket_manager_c_api.h"
 #include "connection.h"
-#include "send_waker.h"
+#include "socket_manager/common/notifier.h"
 #include <functional>
 #include <string>
 #include <memory>
@@ -21,47 +21,50 @@ namespace socket_manager {
   class MsgSender {
 
   public:
+    /**
+     * Non blocking message sending.
+     *
+     * # Async control flow (IMPORTANT)
+     *
+     * This function is non-blocking, it returns `PENDING = -1`
+     * if the send buffer is full. So the caller should wait
+     * by passing a `Notifier` which will be called when the
+     * buffer is ready.
+     *
+     * When the buffer is ready, the function returns number of bytes sent.
+     *
+     * The caller is responsible for updating the buffer offset!!
+     *
+     * The function requires a `waker` reference, and the caller is recommended
+     * to store the waker in the `connection` and reuse it to reduce the overhead
+     * of allocation.
+     *
+     * @param data the message to send
+     * @param notifier `notifier.wake()` is evoked when send_async
+     *   could accept more data.
+     * @return return the number of bytes successfully sent,
+     *   or return `PENDING = -1` if the send buffer is full.
+     * @throws std::runtime_error when the connection is closed.
+     */
+    long send_async(std::string_view data, const std::shared_ptr<Notifier> &notifier);
 
     /**
      * Send a message to the peer.
      *
      * # Blocking!!
-     * This method might block, so it should
-     * never be used within the callbacks.
+     * This method might block, so it should never be used within the callbacks.
      *
      * # Thread Safety
      * This method is thread safe.
-     * This method does not implement backpressure
-     * (i.e., it caches all the messages in memory).
      *
      * # Errors
      * This method throws std::runtime_error when
      * the connection is closed.
      *
      * @param data the message to send
+     * @throws std::runtime_error when the connection is closed.
      */
-    void send(std::string_view data);
-
-    /**
-     * Non blocking message sending.
-     *
-     * DO NOT USE THIS METHOD in mixture with `send` method.
-     * Since send method is blocking, it preserves the order,
-     * while this method must be used with the waker class.
-     *
-     * @param data the message to send
-     * @param offset the offset of the message to send.
-     *   That is data[offset..] is the message to send.
-     *   Increment the offset based on the return value.
-     * @param waker `waker.wake()` is evoked when try_send
-     *   could accept more data. Pass nullptr to disable wake
-     *   notification.
-     * @return If waker is provided, returns the number of bytes sent on success,
-     *   and 0 on connection closed, -1 on pending.
-     *   If waker is not provided, returns the number of bytes sent.
-     *   0 might indicate the connection is closed, or the message buffer is full.
-     */
-    long try_send(std::string_view data, size_t offset, const std::shared_ptr<SendWaker> &waker = nullptr);
+    void send_block(std::string_view data);
 
     /**
      * Manually flush the internal buffer.
@@ -76,15 +79,19 @@ namespace socket_manager {
 
     friend class Connection;
 
-    friend void::socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates conn, char **err);
+    friend void::socket_manager_extern_on_conn(
+            struct SOCKET_MANAGER_C_API_OnConnObj this_,
+            SOCKET_MANAGER_C_API_ConnStates conn,
+            char **err);
 
-    explicit MsgSender(CMsgSender *inner, const std::shared_ptr<Connection> &);
+    explicit MsgSender(SOCKET_MANAGER_C_API_MsgSender *inner, const std::shared_ptr<Connection> &);
 
     // keep a reference of connection for storing waker object
     // in connection, to prevent dangling pointer of waker.
     std::shared_ptr<Connection> conn;
 
-    std::unique_ptr<CMsgSender, std::function<void(CMsgSender *)>> inner;
+    std::unique_ptr<SOCKET_MANAGER_C_API_MsgSender,
+            std::function<void(SOCKET_MANAGER_C_API_MsgSender *)>> inner;
 
   };
 

@@ -3,24 +3,27 @@
 
 namespace socket_manager {
 
-  void MsgSender::send(std::string_view data) {
+  void MsgSender::send_block(std::string_view data) {
     char *err = nullptr;
-    if (msg_sender_send(inner.get(), data.data(), data.length(), &err)) {
+    if (socket_manager_msg_sender_send_block(
+            inner.get(), data.data(), data.length(), &err)) {
       const std::string err_str(err);
       free(err);
       throw std::runtime_error(err_str);
     }
   }
 
-  long MsgSender::try_send(std::string_view data, size_t offset, const std::shared_ptr<SendWaker> &waker) {
-    auto dat_view = data.substr(offset);
+  long MsgSender::send_async(std::string_view data, const std::shared_ptr<Notifier> &notifier) {
     char *err = nullptr;
-    // waker_obj inner null_ptr is handled in C code.
-    long n = msg_sender_try_send(
+    if (notifier == nullptr) {
+      // does not allow nullptr
+      throw std::runtime_error("waker is nullptr");
+    }
+    long n = socket_manager_msg_sender_send_async(
             inner.get(),
-            dat_view.data(),
-            dat_view.length(),
-            WakerObj{waker.get()},
+            data.data(),
+            data.length(),
+            SOCKET_MANAGER_C_API_Notifier{notifier.get()},
             &err);
     if (err) {
       const std::string err_str(err);
@@ -28,22 +31,24 @@ namespace socket_manager {
       throw std::runtime_error(err_str);
     }
     // keep waker alive
-    conn->waker = waker;
+    conn->notifier = notifier;
     return n;
   }
 
   void MsgSender::flush() {
     char *err = nullptr;
-    if (msg_sender_flush(inner.get(), &err)) {
+    if (socket_manager_msg_sender_flush(inner.get(), &err)) {
       const std::string err_str(err);
       free(err);
       throw std::runtime_error(err_str);
     }
   }
 
-  MsgSender::MsgSender(CMsgSender *inner, const std::shared_ptr<Connection> &conn)
+  MsgSender::MsgSender(SOCKET_MANAGER_C_API_MsgSender *inner, const std::shared_ptr<Connection> &conn)
           : conn(conn),
-            inner(inner, [](CMsgSender *ptr) { msg_sender_free(ptr); }) {
-  }
+            inner(inner,
+                  [](SOCKET_MANAGER_C_API_MsgSender *ptr) {
+                    socket_manager_msg_sender_free(ptr);
+                  }) {}
 
 } // namespace socket_manager
