@@ -217,7 +217,7 @@ extern void socket_manager_extern_on_conn(struct OnConnObj this_,
                                           char **err);
 
 /**
- * Waker for the try_send method.
+ * SendWaker for the try_send method.
  */
 extern void socket_manager_extern_sender_waker_wake(struct WakerObj this_);
 

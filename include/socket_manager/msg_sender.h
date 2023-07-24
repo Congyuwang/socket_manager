@@ -61,7 +61,7 @@ namespace socket_manager {
      *   If waker is not provided, returns the number of bytes sent.
      *   0 might indicate the connection is closed, or the message buffer is full.
      */
-    long try_send(std::string_view data, size_t offset, const std::shared_ptr<Waker> &waker = nullptr);
+    long try_send(std::string_view data, size_t offset, const std::shared_ptr<SendWaker> &waker = nullptr);
 
     /**
      * Manually flush the internal buffer.

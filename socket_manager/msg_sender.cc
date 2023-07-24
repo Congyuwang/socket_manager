@@ -12,7 +12,7 @@ namespace socket_manager {
     }
   }
 
-  long MsgSender::try_send(std::string_view data, size_t offset, const std::shared_ptr<Waker> &waker) {
+  long MsgSender::try_send(std::string_view data, size_t offset, const std::shared_ptr<SendWaker> &waker) {
     auto dat_view = data.substr(offset);
     char *err = nullptr;
     // waker_obj inner null_ptr is handled in C code.

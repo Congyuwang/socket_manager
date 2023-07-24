@@ -13,10 +13,10 @@ namespace socket_manager {
  * (i.e., the number of calls of `release` and `clone`
  * are equal).
  */
-  class Waker {
+  class SendWaker {
 
   public:
-    virtual ~Waker() = default;
+    virtual ~SendWaker() = default;
 
   private:
 
@@ -33,7 +33,7 @@ namespace socket_manager {
     friend void::socket_manager_extern_sender_waker_clone(struct WakerObj this_);
   };
 
-  class NoopWaker : public Waker {
+  class NoopWaker : public SendWaker {
   public:
     void wake() override {}
 

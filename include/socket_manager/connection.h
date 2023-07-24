@@ -17,7 +17,7 @@ namespace socket_manager {
 
   class MsgSender;
 
-  class Waker;
+  class SendWaker;
 
   /**
    * Use Connection to send and receive messages from
@@ -86,7 +86,7 @@ namespace socket_manager {
     std::shared_ptr<MsgReceiverAsync> receiver;
 
     // keep the waker alive
-    std::shared_ptr<Waker> waker;
+    std::shared_ptr<SendWaker> waker;
 
     explicit Connection(CConnection *inner);
 

@@ -8,7 +8,7 @@
 
 const size_t MSG_BUF_SIZE = 256 * 1024;
 
-class CondWaker : public Waker {
+class CondWaker : public SendWaker {
 public:
   explicit CondWaker(const std::shared_ptr<moodycamel::LightweightSemaphore> &sem)
           : sem(sem), waker_ref_count(0) {}
