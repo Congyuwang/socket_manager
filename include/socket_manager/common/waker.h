@@ -30,7 +30,7 @@ namespace socket_manager {
     ~Waker();
 
     /**
-     * Create an empty waker.
+     * Create an empty noop waker.
      */
     explicit Waker();
 
