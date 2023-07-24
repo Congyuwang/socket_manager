@@ -17,10 +17,10 @@ use std::ptr::null_mut;
 /// If the connection is closed, the function will return -1 and set `err` to a pointer
 /// with WriteZero error.
 ///
-/// Returns -1 on error, 0 on success.
+/// Returns 1 on error, 0 on success.
 /// On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
 #[no_mangle]
-pub unsafe extern "C" fn msg_sender_send(
+pub unsafe extern "C" fn socket_manager_msg_sender_send(
     sender: *mut CMsgSender,
     msg: *const c_char,
     len: size_t,
@@ -59,7 +59,7 @@ pub unsafe extern "C" fn msg_sender_send(
 /// # Errors
 /// On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
 #[no_mangle]
-pub unsafe extern "C" fn msg_sender_try_send(
+pub unsafe extern "C" fn socket_manager_msg_sender_try_send(
     sender: *mut CMsgSender,
     msg: *const c_char,
     len: size_t,
@@ -91,10 +91,13 @@ pub unsafe extern "C" fn msg_sender_try_send(
 /// Thread safe.
 ///
 /// # Errors
-/// Returns -1 on error, 0 on success.
+/// Returns 1 on error, 0 on success.
 /// On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
 #[no_mangle]
-pub unsafe extern "C" fn msg_sender_flush(sender: *mut CMsgSender, err: *mut *mut c_char) -> c_int {
+pub unsafe extern "C" fn socket_manager_msg_sender_flush(
+    sender: *mut CMsgSender,
+    err: *mut *mut c_char,
+) -> c_int {
     let sender = &mut (*sender);
     match sender.flush() {
         Ok(_) => {
@@ -111,6 +114,6 @@ pub unsafe extern "C" fn msg_sender_flush(sender: *mut CMsgSender, err: *mut *mu
 /// Destructor of `MsgSender`.
 /// Drop sender to actively close the connection.
 #[no_mangle]
-pub unsafe extern "C" fn msg_sender_free(sender: *mut CMsgSender) {
+pub unsafe extern "C" fn socket_manager_msg_sender_free(sender: *mut CMsgSender) {
     drop(Box::from_raw(sender))
 }
