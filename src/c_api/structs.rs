@@ -1,8 +1,8 @@
 use crate::c_api::callbacks::OnMsgObj;
 use crate::CMsgSender;
+use crate::CMsgSender;
 use libc::size_t;
 use std::ffi::c_char;
-use crate::CMsgSender;
 
 /// The data pointer is only valid for the duration of the callback.
 #[repr(C)]
