@@ -11,13 +11,13 @@
 
 namespace socket_manager {
 
-  static unsigned long long DEFAULT_WRITE_FLUSH_MILLI_SEC = 5; // 5 millisecond
-  static unsigned long long DEFAULT_READ_MSG_FLUSH_MILLI_SEC = 5; // 5 millisecond
-  static size_t DEFAULT_MSG_BUF_SIZE = 64 * 1024; // 64KB
+  const unsigned long long DEFAULT_WRITE_FLUSH_MILLI_SEC = 5; // 5 millisecond
+  const unsigned long long DEFAULT_READ_MSG_FLUSH_MILLI_SEC = 5; // 5 millisecond
+  const size_t DEFAULT_MSG_BUF_SIZE = 64 * 1024; // 64KB
 
   class MsgSender;
 
-  class SendWaker;
+  class Notifier;
 
   /**
    * Use Connection to send and receive messages from
@@ -80,17 +80,22 @@ namespace socket_manager {
 
     friend class MsgSender;
 
-    friend void::socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates conn, char **err);
+    friend void::socket_manager_extern_on_conn(
+            struct SOCKET_MANAGER_C_API_OnConnObj this_,
+            SOCKET_MANAGER_C_API_ConnStates conn,
+            char **err);
 
     // keep the msg_receiver alive
     std::shared_ptr<MsgReceiverAsync> receiver;
 
-    // keep the waker alive
-    std::shared_ptr<SendWaker> waker;
+    // keep the notifier alive
+    std::shared_ptr<Notifier> notifier;
 
-    explicit Connection(CConnection *inner);
+    explicit Connection(SOCKET_MANAGER_C_API_Connection *inner);
 
-    std::unique_ptr<CConnection, std::function<void(CConnection *)>> inner;
+    std::unique_ptr<
+            SOCKET_MANAGER_C_API_Connection,
+            std::function<void(SOCKET_MANAGER_C_API_Connection *)>> inner;
 
   };
 
