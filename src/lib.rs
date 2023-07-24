@@ -239,6 +239,18 @@ async fn main<
 }
 
 /// This function connects to a port.
+///
+/// The design of the function guarantees that either `OnConnect` or `OnConnectError`
+/// will be called, but not both. And after `OnConnect` is called, `OnConnectionClose`
+/// is guaranteed to be called.
+///
+/// The follow diagram shows the possible state transitions:
+///
+/// ```text
+/// connect_command --> either --> OnConnect --> OnConnectionClose
+///                          |
+///                          --> OnConnectError
+/// ```
 fn connect_to_addr<
     OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + 'static + Clone,
     OnMsg: Fn(Msg<'_>, Waker) -> Poll<Result<usize, String>> + Send + Unpin + 'static,
