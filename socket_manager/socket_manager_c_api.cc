@@ -34,7 +34,7 @@ extern long socket_manager_extern_on_msg(struct OnMsgObj this_, ConnMsg msg, CWa
   try {
     auto recv = receiver->on_message_async(
             std::string_view(msg.Bytes, msg.Len),
-            std::shared_ptr<RcvWaker>(new RcvWaker(waker))
+            RcvWaker(waker)
     );
     *err = nullptr;
     return recv;
