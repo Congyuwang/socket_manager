@@ -11,7 +11,11 @@ public:
 
   RcvWaker(const RcvWaker &) = delete;
 
-  void operator=(const RcvWaker &) = delete;
+  RcvWaker(RcvWaker &&) = default;
+
+  RcvWaker &operator=(const RcvWaker &) = delete;
+
+  RcvWaker &operator=(RcvWaker &&) = default;
 
 private:
   explicit RcvWaker(CWaker *waker);

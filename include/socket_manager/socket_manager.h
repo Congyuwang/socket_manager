@@ -108,7 +108,7 @@ namespace socket_manager {
 
     SocketManager(const SocketManager &) = delete;
 
-    void operator=(const SocketManager &) = delete;
+    SocketManager &operator=(const SocketManager &) = delete;
 
   private:
 

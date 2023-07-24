@@ -106,7 +106,7 @@ namespace socket_manager {
 
     MsgSender(const MsgSender &) = delete;
 
-    void operator=(const MsgSender &) = delete;
+    MsgSender &operator=(const MsgSender &) = delete;
 
   private:
 

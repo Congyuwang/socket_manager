@@ -77,7 +77,7 @@ namespace socket_manager {
 
     Connection(const Connection &) = delete;
 
-    void operator=(const Connection &) = delete;
+    Connection &operator=(const Connection &) = delete;
 
     ~Connection();
 
