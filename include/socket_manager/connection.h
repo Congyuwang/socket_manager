@@ -58,7 +58,7 @@ namespace socket_manager {
      *    Default to 1 millisecond.
      */
     void start(
-            std::unique_ptr<MsgReceiver> msg_receiver,
+            std::shared_ptr<MsgReceiverAsync> msg_receiver,
             size_t msg_buffer_size = DEFAULT_MSG_BUF_SIZE,
             unsigned long long read_msg_flush_interval = DEFAULT_READ_MSG_FLUSH_MILLI_SEC,
             unsigned long long write_flush_interval = DEFAULT_WRITE_FLUSH_MILLI_SEC);
@@ -88,7 +88,7 @@ namespace socket_manager {
     friend void::socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates conn, char **err);
 
     // keep the msg_receiver alive
-    std::unique_ptr<MsgReceiver> receiver;
+    std::shared_ptr<MsgReceiverAsync> receiver;
 
     // keep the waker alive
     std::shared_ptr<Waker> waker;

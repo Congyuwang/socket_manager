@@ -6,7 +6,7 @@ namespace socket_manager {
   Connection::Connection(CConnection *inner) : inner(inner) {}
 
   void Connection::start(
-          std::unique_ptr<MsgReceiver> msg_receiver,
+          std::shared_ptr<MsgReceiverAsync> msg_receiver,
           size_t msg_buffer_size,
           unsigned long long read_msg_flush_interval,
           unsigned long long write_flush_interval) {
