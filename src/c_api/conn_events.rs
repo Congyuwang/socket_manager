@@ -42,7 +42,7 @@ pub struct OnConnect {
     pub(crate) local: *const c_char,
     pub(crate) peer: *const c_char,
     pub(crate) send: *mut CMsgSender,
-    pub(crate) conn: *mut CConnection,
+    pub(crate) conn: *mut Connection,
 }
 
 #[repr(C)]
@@ -66,6 +66,6 @@ pub struct OnConnectError {
     pub(crate) err: *const c_char,
 }
 
-pub struct CConnection {
+pub struct Connection {
     pub(crate) conn: crate::Conn<OnMsgObj>,
 }

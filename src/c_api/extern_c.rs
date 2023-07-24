@@ -1,6 +1,7 @@
+//! This module contains the C functions that are called by the Rust code.
 use crate::c_api::callbacks::{OnConnObj, OnMsgObj, WakerObj};
-use crate::c_api::structs::{ConnMsg, ConnStates};
-use crate::c_api::waker::CWaker;
+use crate::c_api::conn_events::{ConnMsg, ConnStates};
+use crate::c_api::recv_waker::RecvWaker;
 use std::ffi::{c_char, c_long};
 
 #[link(name = "socket_manager")]
@@ -11,7 +12,7 @@ extern "C" {
     pub(crate) fn socket_manager_extern_on_msg(
         this: OnMsgObj,
         msg: ConnMsg,
-        waker: CWaker,
+        waker: RecvWaker,
         err: *mut *mut c_char,
     ) -> c_long;
 

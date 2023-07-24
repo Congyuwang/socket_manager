@@ -1,14 +1,14 @@
-use crate::c_api::ffi::{
+use crate::c_api::conn_events::{
+    Connection, ConnMsg, ConnStateCode, ConnStateData, ConnStates, OnConnect, OnConnectError,
+    OnConnectionClose, OnListenError,
+};
+use crate::c_api::extern_c::{
     socket_manager_extern_on_conn, socket_manager_extern_on_msg,
     socket_manager_extern_sender_waker_clone, socket_manager_extern_sender_waker_release,
     socket_manager_extern_sender_waker_wake,
 };
-use crate::c_api::structs::{
-    CConnection, ConnMsg, ConnStateCode, ConnStateData, ConnStates, OnConnect, OnConnectError,
-    OnConnectionClose, OnListenError,
-};
 use crate::c_api::utils::parse_c_err_str;
-use crate::c_api::waker::CWaker;
+use crate::c_api::recv_waker::RecvWaker;
 use std::ffi::{c_char, c_long, c_void, CString};
 use std::ptr::null_mut;
 use std::task::{Poll, RawWaker, RawWakerVTable, Waker};
@@ -112,7 +112,7 @@ impl OnMsgObj {
             len,
         };
         // takes the ownership of the waker
-        let waker = CWaker::from_waker(waker);
+        let waker = RecvWaker::from_waker(waker);
         unsafe {
             let mut err: *mut c_char = null_mut();
             let cb_result = socket_manager_extern_on_msg(*self, conn_msg, waker, &mut err);
@@ -167,7 +167,7 @@ impl OnConnObj {
                 let local = CString::new(local_addr.to_string()).unwrap();
                 let peer = CString::new(peer_addr.to_string()).unwrap();
                 let send = Box::into_raw(Box::new(send));
-                let conn = Box::into_raw(Box::new(CConnection { conn }));
+                let conn = Box::into_raw(Box::new(Connection { conn }));
                 let conn_msg = ConnStates {
                     code: ConnStateCode::Connect,
                     data: ConnStateData {

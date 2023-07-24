@@ -1,8 +1,8 @@
 pub(crate) mod callbacks;
+mod conn_events;
 mod connection;
-pub(crate) mod ffi;
+pub(crate) mod extern_c;
 mod msg_sender;
 mod socket_manager;
-mod structs;
 mod utils;
-pub(crate) mod waker;
+pub(crate) mod recv_waker;

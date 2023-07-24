@@ -1,5 +1,5 @@
 use crate::c_api::callbacks::OnMsgObj;
-use crate::c_api::structs::CConnection;
+use crate::c_api::conn_events::Connection;
 use crate::c_api::utils::write_error_c_str;
 use crate::conn::ConnConfig;
 use libc::size_t;
@@ -35,11 +35,11 @@ use std::time::Duration;
 /// * `err` - A pointer to a pointer to a C string allocated by `malloc` on error.
 ///
 /// # Errors
-/// Returns -1 on error, 0 on success.
+/// Returns 1 on error, 0 on success.
 /// On Error, `err` will be set to a pointer to a C string allocated by `malloc`,
 #[no_mangle]
-pub unsafe extern "C" fn connection_start(
-    conn: *mut CConnection,
+pub unsafe extern "C" fn socket_manager_connection_start(
+    conn: *mut Connection,
     on_msg: OnMsgObj,
     msg_buffer_size: size_t,
     read_msg_flush_interval: c_ulonglong,
@@ -86,10 +86,13 @@ pub unsafe extern "C" fn connection_start(
 /// Thread safe.
 ///
 /// # Errors
-/// Returns -1 on error, 0 on success.
+/// Returns 1 on error, 0 on success.
 /// On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
 #[no_mangle]
-pub unsafe extern "C" fn connection_close(conn: *mut CConnection, err: *mut *mut c_char) -> c_int {
+pub unsafe extern "C" fn socket_manager_connection_close(
+    conn: *mut Connection,
+    err: *mut *mut c_char,
+) -> c_int {
     let conn = &mut (*conn).conn;
     match conn.close() {
         Ok(_) => {
@@ -105,6 +108,6 @@ pub unsafe extern "C" fn connection_close(conn: *mut CConnection, err: *mut *mut
 
 /// Destructor of `Connection`.
 #[no_mangle]
-pub unsafe extern "C" fn connection_free(conn: *mut CConnection) {
+pub unsafe extern "C" fn socket_manager_connection_free(conn: *mut Connection) {
     drop(Box::from_raw(conn))
 }
