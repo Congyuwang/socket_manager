@@ -15,7 +15,7 @@ pub struct CWaker {
     vtable: *const c_void,
 }
 
-/// Call the waker to wake the `receiver` task.
+/// Call the waker to wake the relevant task of context.
 #[no_mangle]
 pub unsafe extern "C" fn socket_manager_recv_waker_wake(waker: &CWaker) {
     waker.wake_by_ref();
