@@ -5,9 +5,19 @@
 
 class RcvWaker {
 public:
+  /**
+   * Call wake() to wake up the receiver,
+   * and return `PENDING` in `on_message_async`
+   * to interrupt the receiver.
+   */
   void wake();
 
   ~RcvWaker();
+
+  /**
+   * Create an empty waker.
+   */
+  explicit RcvWaker();
 
   RcvWaker(const RcvWaker &) = delete;
 

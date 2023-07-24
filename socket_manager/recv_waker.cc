@@ -1,8 +1,11 @@
 #include "socket_manager/recv_waker.h"
 
+RcvWaker::RcvWaker()
+        : waker(CWaker{nullptr, nullptr}) {}
+
 RcvWaker::RcvWaker(CWaker waker) : waker(waker) {}
 
-RcvWaker::RcvWaker(RcvWaker &&other) noexcept : waker(other.waker) {
+RcvWaker::RcvWaker(RcvWaker &&other) noexcept: waker(other.waker) {
   other.waker.Data = nullptr;
   other.waker.Vtable = nullptr;
 }
