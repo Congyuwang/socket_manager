@@ -32,6 +32,15 @@ namespace socket_manager {
 
     friend void::socket_manager_extern_sender_waker_clone(struct WakerObj this_);
   };
+
+  class NoopWaker : public Waker {
+  public:
+    void wake() override {}
+
+    void release() override {}
+
+    void clone() override {}
+  };
 }
 
 #endif //SOCKET_MANAGER_SEND_WAKER_H
