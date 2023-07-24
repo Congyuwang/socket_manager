@@ -1,6 +1,5 @@
 #include "socket_manager/msg_sender.h"
 #include <stdexcept>
-#include <iostream>
 
 namespace socket_manager {
 
