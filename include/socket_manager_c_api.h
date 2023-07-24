@@ -14,19 +14,19 @@ typedef enum SOCKET_MANAGER_C_API_ConnStateCode {
   ConnectError = 3,
 } SOCKET_MANAGER_C_API_ConnStateCode;
 
-/**
- * The Main Struct of the Library.
- *
- * This struct is thread safe.
- */
-typedef struct SOCKET_MANAGER_C_API_CSocketManager SOCKET_MANAGER_C_API_CSocketManager;
-
 typedef struct SOCKET_MANAGER_C_API_Connection SOCKET_MANAGER_C_API_Connection;
 
 /**
  * Drop the sender to close the connection.
  */
 typedef struct SOCKET_MANAGER_C_API_MsgSender SOCKET_MANAGER_C_API_MsgSender;
+
+/**
+ * The Main Struct of the Library.
+ *
+ * This struct is thread safe.
+ */
+typedef struct SOCKET_MANAGER_C_API_SocketManager SOCKET_MANAGER_C_API_SocketManager;
 
 /**
  * The Notifier is constructed by the c/c++ code,
@@ -361,9 +361,9 @@ extern long socket_manager_extern_on_msg(struct SOCKET_MANAGER_C_API_OnMsgObj th
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`,
  * and the returned pointer will be null.
  */
-struct SOCKET_MANAGER_C_API_CSocketManager *socket_manager_init(struct SOCKET_MANAGER_C_API_OnConnObj on_conn,
-                                                                size_t n_threads,
-                                                                char **err);
+struct SOCKET_MANAGER_C_API_SocketManager *socket_manager_init(struct SOCKET_MANAGER_C_API_OnConnObj on_conn,
+                                                               size_t n_threads,
+                                                               char **err);
 
 /**
  * Listen on the given address.
@@ -375,7 +375,7 @@ struct SOCKET_MANAGER_C_API_CSocketManager *socket_manager_init(struct SOCKET_MA
  * Returns 1 on error, 0 on success.
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
  */
-int socket_manager_listen_on_addr(struct SOCKET_MANAGER_C_API_CSocketManager *manager,
+int socket_manager_listen_on_addr(struct SOCKET_MANAGER_C_API_SocketManager *manager,
                                   const char *addr,
                                   char **err);
 
@@ -389,7 +389,7 @@ int socket_manager_listen_on_addr(struct SOCKET_MANAGER_C_API_CSocketManager *ma
  * Returns 1 on error, 0 on success.
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
  */
-int socket_manager_connect_to_addr(struct SOCKET_MANAGER_C_API_CSocketManager *manager,
+int socket_manager_connect_to_addr(struct SOCKET_MANAGER_C_API_SocketManager *manager,
                                    const char *addr,
                                    char **err);
 
@@ -403,7 +403,7 @@ int socket_manager_connect_to_addr(struct SOCKET_MANAGER_C_API_CSocketManager *m
  * Returns 1 on error, 0 on success.
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
  */
-int socket_manager_cancel_listen_on_addr(struct SOCKET_MANAGER_C_API_CSocketManager *manager,
+int socket_manager_cancel_listen_on_addr(struct SOCKET_MANAGER_C_API_SocketManager *manager,
                                          const char *addr,
                                          char **err);
 
@@ -420,9 +420,7 @@ int socket_manager_cancel_listen_on_addr(struct SOCKET_MANAGER_C_API_CSocketMana
  * Returns 1 on error, 0 on success.
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
  */
-int socket_manager_abort(struct SOCKET_MANAGER_C_API_CSocketManager *manager,
-                         bool wait,
-                         char **err);
+int socket_manager_abort(struct SOCKET_MANAGER_C_API_SocketManager *manager, bool wait, char **err);
 
 /**
  * Join and wait on the `SocketManager`.
@@ -436,13 +434,13 @@ int socket_manager_abort(struct SOCKET_MANAGER_C_API_CSocketManager *manager,
  * # Errors
  * Join returns error if the runtime panicked.
  */
-int socket_manager_join(struct SOCKET_MANAGER_C_API_CSocketManager *manager, char **err);
+int socket_manager_join(struct SOCKET_MANAGER_C_API_SocketManager *manager, char **err);
 
 /**
  * Calling this function will abort all background runtime and join on them,
  * and free the `SocketManager`.
  */
-void socket_manager_free(struct SOCKET_MANAGER_C_API_CSocketManager *manager);
+void socket_manager_free(struct SOCKET_MANAGER_C_API_SocketManager *manager);
 
 #ifdef __cplusplus
 } // extern "C"

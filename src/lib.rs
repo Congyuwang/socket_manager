@@ -32,7 +32,7 @@ const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
 /// The Main Struct of the Library.
 ///
 /// This struct is thread safe.
-pub struct CSocketManager {
+pub struct SocketManager {
     cmd_send: UnboundedSender<Command>,
 
     // use has_joined to fence the join_handle,
@@ -107,7 +107,7 @@ pub struct Msg<'a> {
     bytes: &'a [u8],
 }
 
-impl CSocketManager {
+impl SocketManager {
     /// start background threads to run the runtime
     ///
     /// # Arguments
@@ -122,7 +122,7 @@ impl CSocketManager {
     >(
         on_conn: OnConn,
         n_threads: usize,
-    ) -> std::io::Result<CSocketManager> {
+    ) -> std::io::Result<SocketManager> {
         let _ = tracing_subscriber::fmt()
             .with_env_filter(
                 EnvFilter::builder()
@@ -140,7 +140,7 @@ impl CSocketManager {
             runtime.shutdown_timeout(SHUTDOWN_TIMEOUT);
             tracing::info!("socket_manager stopped");
         }));
-        Ok(CSocketManager {
+        Ok(SocketManager {
             cmd_send,
             has_joined: AtomicBool::new(false),
             join_handle,
@@ -201,7 +201,7 @@ impl CSocketManager {
     }
 }
 
-impl Drop for CSocketManager {
+impl Drop for SocketManager {
     fn drop(&mut self) {
         let _ = self.abort(true);
     }
