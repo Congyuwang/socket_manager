@@ -8,28 +8,16 @@
 
 const size_t MSG_BUF_SIZE = 256 * 1024;
 
-class CondWaker : public SendWaker {
+class CondWaker : public Notifier {
 public:
-  explicit CondWaker(const std::shared_ptr<moodycamel::LightweightSemaphore> &sem)
-          : sem(sem), waker_ref_count(0) {}
+  explicit CondWaker(const std::shared_ptr<moodycamel::LightweightSemaphore> &sem) : sem(sem) {}
 
   void wake() override {
-    if (this->waker_ref_count.load(std::memory_order_acquire) > 0) {
-      sem->signal();
-    }
-  }
-
-  void clone() override {
-    this->waker_ref_count.fetch_add(1, std::memory_order_acq_rel);
-  }
-
-  void release() override {
-    this->waker_ref_count.fetch_sub(1, std::memory_order_acq_rel);
+    sem->signal();
   }
 
 private:
   std::shared_ptr<moodycamel::LightweightSemaphore> sem;
-  std::atomic_size_t waker_ref_count;
 };
 
 class SendLargeDataConnCallbackAsync : public DoNothingConnCallback {
