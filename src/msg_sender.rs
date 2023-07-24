@@ -51,6 +51,12 @@ impl MsgSender {
         if bytes.is_empty() {
             return Ok(());
         }
+        if self.buf_prd.is_closed() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::WriteZero,
+                "connection closed",
+            ));
+        }
         let mut offset = 0usize;
         // attempt to write the entire message without blocking
         if let BurstWriteState::Finished = burst_write(&mut offset, &mut self.buf_prd, bytes) {
@@ -90,16 +96,16 @@ impl MsgSender {
                 "connection closed",
             )));
         }
-        let n = self.buf_prd.as_mut_base().push_slice(bytes);
-        // Immediately ready if the buf is not empty.
-        // This might prevent registering the waker
-        // when the buffer is not empty.
-        if n > 0 {
-            return Ready(Ok(n));
+        let mut offset = 0usize;
+        // attempt to write the entire message without blocking
+        burst_write(&mut offset, &mut self.buf_prd, bytes);
+        if offset > 0 {
+            Ready(Ok(offset))
+        } else {
+            // buffer full nothing written, enter into future
+            let _ = pin!(self.buf_prd.wait_free(1)).poll(&mut Context::from_waker(&waker));
+            Poll::Pending
         }
-        // basically just register the waker, and return pending.
-        let _ = pin!(self.buf_prd.wait_free(1)).poll(&mut Context::from_waker(&waker));
-        Poll::Pending
     }
 
     pub fn flush(&mut self) -> std::io::Result<()> {
