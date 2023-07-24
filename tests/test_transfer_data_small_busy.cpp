@@ -1,7 +1,7 @@
 #undef NDEBUG
 
 #include "test_utils.h"
-#include <chrono>
+#include <string_view>
 #include <thread>
 
 const size_t MSG_BUF_SIZE = 256 * 1024;
@@ -23,13 +23,15 @@ public:
                   std::shared_ptr<Connection> conn, std::shared_ptr<MsgSender> sender) override {
     auto rcv = std::make_unique<DoNothingReceiver>();
     conn->start(std::move(rcv));
+    auto data_view = std::string_view(DATA);
+    auto noop_notifier = std::make_shared<NoopNotifier>();
 
-    std::thread t([sender]() {
+    std::thread t([=]() {
       // send 1000MB data
       int progress = 0;
       size_t offset = 0;
       while (progress < 1024 * 1024 * 10) {
-        offset += sender->try_send(DATA, offset);
+        offset += sender->send_async(data_view.substr(offset), noop_notifier);
         if (offset == DATA.size()) {
           offset = 0;
           progress += 1;

@@ -55,7 +55,7 @@ class StoreAllEventsConnHelloCallback : public StoreAllEventsConnCallback {
     auto msg_storer = std::make_unique<MsgStoreReceiver>(conn_id, mutex, cond, buffer);
     conn->start(std::move(msg_storer));
     std::thread t1([sender]() {
-      sender->send("hello");
+      sender->send_block("hello");
     });
     t1.detach();
     senders.emplace(conn_id, sender);

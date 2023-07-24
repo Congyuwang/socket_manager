@@ -19,7 +19,7 @@ public:
         data.append("helloworld");
       }
       for (int i = 0; i < 10 * 1024; ++i) {
-        sender->send(data);
+        sender->send_block(data);
       }
       // close connection after sender finished.
     });

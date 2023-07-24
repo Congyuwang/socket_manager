@@ -1,9 +1,9 @@
 #undef NDEBUG
 
 #include "test_utils.h"
+#include <string_view>
 #include <concurrentqueue.h>
 #include <lightweightsemaphore.h>
-#include <chrono>
 #include <thread>
 
 const size_t MSG_BUF_SIZE = 256 * 1024;
@@ -39,9 +39,10 @@ public:
       for (int i = 0; i < 100 * 1024; i++) {
         data.append("helloworld");
       }
+      std::string_view data_view(data);
 
       while (progress < 1024) {
-        auto sent = sender->try_send(data, offset, waker);
+        auto sent = sender->send_async(data_view.substr(offset), waker);
         if (sent < 0) {
           sem->wait();
         } else {

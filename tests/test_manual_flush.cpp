@@ -53,7 +53,7 @@ class HelloCallback : public ConnCallback {
     // disable write auto flush
     conn->start(std::move(rcv), DEFAULT_MSG_BUF_SIZE, 1, 0);
     std::thread t([sender] {
-      sender->send("hello world");
+      sender->send_block("hello world");
       sender->flush();
     });
     t.detach();
@@ -83,7 +83,7 @@ class EchoCallback : public ConnCallback {
     std::thread t([sender, this]() {
       std::unique_lock<std::mutex> lk(mutex);
       cond.wait(lk, [this]() { return has_received; });
-      sender->send(_data);
+      sender->send_block(_data);
       std::cout << "echo received and sent back" << std::endl;
     });
     t.detach();
