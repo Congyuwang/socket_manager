@@ -5,7 +5,7 @@ enable_testing()
 find_package(Threads REQUIRED)
 
 # link concurrentqueue
-add_subdirectory(../concurrentqueue build)
+add_subdirectory(concurrentqueue build)
 
 # all files named test*.cpp are included
 set(test_files)
