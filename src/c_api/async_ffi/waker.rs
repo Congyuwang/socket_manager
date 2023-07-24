@@ -29,6 +29,7 @@ pub unsafe extern "C" fn socket_manager_recv_waker_free(waker: CWaker) {
 
 impl CWaker {
     /// Take ownership of the waker.
+    #[inline]
     pub(crate) fn from_waker(waker: Waker) -> Self {
         let raw_waker = waker.as_raw();
         let c_waker = Self {
@@ -41,6 +42,7 @@ impl CWaker {
     }
 
     /// Do Not restore ownership of the waker.
+    #[inline]
     unsafe fn wake_by_ref(&self) {
         let raw_waker = RawWaker::new(
             self.data as *const (),
@@ -53,6 +55,7 @@ impl CWaker {
     }
 
     /// Restore ownership of the waker.
+    #[inline]
     unsafe fn into_waker(self) -> Waker {
         let raw_waker = RawWaker::new(
             self.data as *const (),

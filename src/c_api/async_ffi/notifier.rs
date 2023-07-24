@@ -40,6 +40,7 @@ extern "C" {
 }
 
 impl Notifier {
+    #[inline]
     pub(crate) unsafe fn to_waker(&self) -> Waker {
         const MSG_SENDER_WAKER_VTABLE: RawWakerVTable = make_vtable();
 

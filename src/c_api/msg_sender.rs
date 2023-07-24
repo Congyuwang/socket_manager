@@ -1,11 +1,15 @@
-use crate::c_api::callbacks::WakerObj;
+use crate::c_api::async_ffi::notifier::Notifier;
 use crate::c_api::utils::write_error_c_str;
 use crate::msg_sender::CMsgSender;
 use libc::size_t;
 use std::ffi::{c_char, c_int, c_long};
 use std::ptr::null_mut;
+use std::task::Poll;
 
-/// Send a message via the given `CMsgSender`.
+pub const PENDING: c_long = -1;
+
+/// Send a message via the given `CMsgSender` synchronously.
+/// This is a blocking API.
 ///
 /// # Thread Safety
 /// Thread safe.
@@ -20,7 +24,7 @@ use std::ptr::null_mut;
 /// Returns 1 on error, 0 on success.
 /// On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
 #[no_mangle]
-pub unsafe extern "C" fn socket_manager_msg_sender_send(
+pub unsafe extern "C" fn socket_manager_msg_sender_send_block(
     sender: *mut CMsgSender,
     msg: *const c_char,
     len: size_t,
@@ -40,47 +44,47 @@ pub unsafe extern "C" fn socket_manager_msg_sender_send(
     }
 }
 
-/// Try to send a message via the given `CMsgSender`.
+/// Try to send a message via the given `CMsgSender` asynchronously.
 ///
 /// # Thread Safety
 /// Thread safe.
 ///
-/// This function is non-blocking, pass the MsgSender class
-/// to the waker_obj to receive notification to continue
-/// sending the message.
+/// This function is non-blocking, it returns `PENDING = -1`
+/// if the send buffer is full.
 ///
-/// # Return
-/// If waker is provided, returns the number of bytes sent on success,
-/// and 0 on connection closed, -1 on pending.
+/// Pass the `Notifier` to the `socket_manager_msg_sender_send_async` function
+/// to receive the notification when the buffer is ready for writing.
 ///
-/// If waker is not provided, returns the number of bytes sent.
-/// 0 might indicate the connection is closed, or the message buffer is full.
+/// When write is ready, the `socket_manager_msg_sender_send_async` function
+/// returns the number of bytes written.
 ///
 /// # Errors
+/// Use `err` pointer to check for error.
 /// On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
 #[no_mangle]
-pub unsafe extern "C" fn socket_manager_msg_sender_try_send(
+pub unsafe extern "C" fn socket_manager_msg_sender_send_async(
     sender: *mut CMsgSender,
     msg: *const c_char,
     len: size_t,
-    waker_obj: WakerObj,
+    notifier: Notifier,
     err: *mut *mut c_char,
 ) -> c_long {
     let sender = &mut (*sender);
     let msg = std::slice::from_raw_parts(msg as *const u8, len);
-    let waker_obj = if waker_obj.this.is_null() {
-        None
-    } else {
-        Some(waker_obj)
-    };
-    match sender.try_send(msg, waker_obj) {
-        Ok(n) => {
+    // notifier should not be null
+    assert!(!notifier.this.is_null());
+    let waker = notifier.to_waker();
+    match sender.send_async(msg, waker) {
+        Poll::Ready(Ok(n)) => {
             *err = null_mut();
-            n
+            n as c_long
         }
-        Err(e) => {
+        Poll::Ready(Err(e)) => {
             write_error_c_str(e, err);
-            0
+            0 as c_long
+        }
+        Poll::Pending => {
+            PENDING
         }
     }
 }
