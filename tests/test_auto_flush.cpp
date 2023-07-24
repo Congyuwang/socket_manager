@@ -11,12 +11,13 @@ public:
                      std::atomic_bool &received)
           : mutex(mutex), cond(cond), received(received) {}
 
-  void on_message(std::string_view data) override {
+  long on_message(std::string_view data, std::shared_ptr<RcvWaker> waker) override {
     if (data == "hello world") {
       received.store(true);
       std::unique_lock<std::mutex> u_lock(mutex);
       cond.notify_all();
     }
+    return (long) data.length();
   }
 
   std::mutex &mutex;

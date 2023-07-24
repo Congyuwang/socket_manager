@@ -30,7 +30,9 @@ enum EventType {
 ///
 
 class DoNothingReceiver : public MsgReceiver {
-  void on_message(std::string_view data) override {}
+  long on_message(std::string_view data, std::shared_ptr<RcvWaker> waker) override {
+    return (long) data.length();
+  }
 };
 
 class MsgStoreReceiver : public MsgReceiver {
@@ -41,10 +43,11 @@ public:
                    std::vector<std::tuple<std::string, std::shared_ptr<std::string>>> &buffer)
           : conn_id(std::move(conn_id)), mutex(mutex), cond(cond), buffer(buffer) {}
 
-  void on_message(std::string_view data) override {
+  long on_message(std::string_view data, std::shared_ptr<RcvWaker> waker) override {
     std::unique_lock<std::mutex> lock(mutex);
     buffer.emplace_back(conn_id, std::make_shared<std::string>(data));
     cond.notify_all();
+    return (long) data.length();
   }
 
 private:

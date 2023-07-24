@@ -74,13 +74,14 @@ class StoreAllDataAsync : public MsgReceiver {
 public:
   explicit StoreAllDataAsync(size_t &buffer, int &count) : buffer(buffer), count(count) {}
 
-  void on_message(std::string_view data) override {
+  long on_message(std::string_view data, std::shared_ptr<RcvWaker> waker) override {
     if (count % 100 == 0) {
       std::cout << "received " << count << " messages "
                 << ",size = " << buffer << std::endl;
     }
     buffer += data.length();
     count += 1;
+    return (long) data.length();
   }
 
   size_t &buffer;
