@@ -11,6 +11,10 @@ class RcvSendWaker : public socket_manager::NoopWaker {
 public:
   explicit RcvSendWaker(RcvWaker &&wake) : waker(std::move(wake)) {}
 
+  void set_waker(RcvWaker &&wake) {
+    waker = std::move(wake);
+  }
+
 private:
   void wake() override {
     waker.wake();
@@ -29,13 +33,18 @@ class EchoReceiver :
         public socket_manager::MsgReceiverAsync,
         public std::enable_shared_from_this<EchoReceiver> {
 public:
-  explicit EchoReceiver(std::shared_ptr<socket_manager::MsgSender> &&sender) : sender(std::move(sender)) {};
+  explicit EchoReceiver(std::shared_ptr<socket_manager::MsgSender> &&sender)
+          : sender(std::move(sender)) {
+    // create an empty waker container
+    waker = std::make_shared<RcvSendWaker>(RcvWaker());
+  };
 
 private:
   long on_message_async(std::string_view data, RcvWaker &&wake) override {
-    auto waker = std::make_shared<RcvSendWaker>(std::move(wake));
+    waker->set_waker(std::move(wake));
     return sender->try_send(data, 0, waker);
   };
+  std::shared_ptr<RcvSendWaker> waker;
   std::shared_ptr<socket_manager::MsgSender> sender;
 };
 
