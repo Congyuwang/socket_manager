@@ -14,6 +14,7 @@ use dashmap::DashMap;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::task::{Poll, Waker};
 use std::time::Duration;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::runtime::Handle;
@@ -116,7 +117,7 @@ impl CSocketManager {
     ///    - \>1: use the specified number of threads.
     pub fn init<
         OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + Sync + 'static + Clone,
-        OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + Sync + Unpin + 'static + Clone,
+        OnMsg: Fn(Msg<'_>, Waker) -> Poll<Result<usize, String>> + Send + Sync + Unpin + 'static + Clone,
     >(
         on_conn: OnConn,
         n_threads: usize,
@@ -208,7 +209,7 @@ impl Drop for CSocketManager {
 /// The main loop running in the background.
 async fn main<
     OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + Sync + 'static + Clone,
-    OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + Sync + Unpin + 'static + Clone,
+    OnMsg: Fn(Msg<'_>, Waker) -> Poll<Result<usize, String>> + Send + Sync + Unpin + 'static + Clone,
 >(
     mut cmd_recv: UnboundedReceiver<Command>,
     handle: &Handle,
@@ -239,7 +240,7 @@ async fn main<
 /// This function connects to a port.
 fn connect_to_addr<
     OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + 'static + Clone,
-    OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + Unpin + 'static,
+    OnMsg: Fn(Msg<'_>, Waker) -> Poll<Result<usize, String>> + Send + Unpin + 'static,
 >(
     handle: &Handle,
     addr: SocketAddr,
@@ -282,7 +283,7 @@ fn connect_to_addr<
 /// This function listens on a port.
 fn listen_on_addr<
     OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + Sync + 'static + Clone,
-    OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + Sync + Unpin + 'static + Clone,
+    OnMsg: Fn(Msg<'_>, Waker) -> Poll<Result<usize, String>> + Send + Sync + Unpin + 'static + Clone,
 >(
     handle: &Handle,
     addr: SocketAddr,
@@ -325,7 +326,7 @@ fn listen_on_addr<
 
 async fn accept_connections<
     OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + 'static + Clone,
-    OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + Unpin + 'static + Clone,
+    OnMsg: Fn(Msg<'_>, Waker) -> Poll<Result<usize, String>> + Send + Unpin + 'static + Clone,
 >(
     addr: SocketAddr,
     listener: TcpListener,

@@ -28,6 +28,8 @@ typedef struct CMsgSender CMsgSender;
  */
 typedef struct CSocketManager CSocketManager;
 
+typedef struct CWaker CWaker;
+
 /**
  * Callback function for receiving messages.
  *
@@ -188,13 +190,20 @@ void connection_free(struct CConnection *conn);
 
 /**
  * Callback function for receiving messages.
+ * Return positive number for `Ready`,
+ * and negative number for `Pending`.
  */
-extern char *socket_manager_extern_on_msg(struct OnMsgObj this_, struct ConnMsg msg);
+extern int socket_manager_extern_on_msg(struct OnMsgObj this_,
+                                        struct ConnMsg msg,
+                                        struct CWaker *waker,
+                                        char **err);
 
 /**
  * Callback function for connection state changes.
  */
-extern char *socket_manager_extern_on_conn(struct OnConnObj this_, struct ConnStates conn);
+extern void socket_manager_extern_on_conn(struct OnConnObj this_,
+                                          struct ConnStates conn,
+                                          char **err);
 
 /**
  * Waker for the try_send method.
@@ -368,6 +377,10 @@ int socket_manager_join(struct CSocketManager *manager, char **err);
  * and free the `SocketManager`.
  */
 void socket_manager_free(struct CSocketManager *manager);
+
+void msg_waker_wake(struct CWaker *waker);
+
+void msg_waker_destroy(struct CWaker *waker);
 
 #ifdef __cplusplus
 } // extern "C"

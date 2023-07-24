@@ -1,6 +1,7 @@
 #include "socket_manager_c_api.h"
 #include "socket_manager/msg_receiver.h"
 #include "socket_manager/conn_callback.h"
+#include "socket_manager/recv_waker.h"
 
 inline
 static char *string_dup(const std::string &str) {
@@ -11,7 +12,7 @@ static char *string_dup(const std::string &str) {
 }
 
 /**
- * Waker for the sender.
+ * RcvWaker for the sender.
  */
 extern void socket_manager_extern_sender_waker_wake(struct WakerObj this_) {
   auto wr = reinterpret_cast<socket_manager::Waker *>(this_.This);
@@ -28,19 +29,25 @@ extern void socket_manager_extern_sender_waker_clone(struct WakerObj this_) {
   wr->clone();
 }
 
-extern char *socket_manager_extern_on_msg(struct OnMsgObj this_, ConnMsg msg) {
+extern int socket_manager_extern_on_msg(struct OnMsgObj this_, ConnMsg msg, CWaker *waker, char **err) {
   auto receiver = reinterpret_cast<socket_manager::MsgReceiver *>(this_.This);
   try {
-    receiver->on_message(std::string_view(msg.Bytes, msg.Len));
+    auto recv = receiver->on_message(
+            std::string_view(msg.Bytes, msg.Len),
+            std::shared_ptr<RcvWaker>(new RcvWaker(waker))
+    );
+    *err = nullptr;
+    return recv;
   } catch (std::runtime_error &e) {
-    return string_dup(e.what());
+    *err = string_dup(e.what());
+    return 0;
   } catch (...) {
-    return string_dup("unknown error");
+    *err = string_dup("unknown error");
+    return 0;
   }
-  return nullptr;
 }
 
-extern char *socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates states) {
+extern void socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates states, char **error) {
 
   auto conn_cb = static_cast<socket_manager::ConnCallback *>(this_.This);
   switch (states.Code) {
@@ -59,12 +66,12 @@ extern char *socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates st
       }
       try {
         conn_cb->on_connect(local_addr, peer_addr, std::move(conn), std::move(sender));
+        *error = nullptr;
       } catch (std::runtime_error &e) {
-        return string_dup(e.what());
+        *error = string_dup(e.what());
       } catch (...) {
-        return string_dup("unknown error");
+        *error = string_dup("unknown error");
       }
-      return nullptr;
     }
     case ConnStateCode::ConnectionClose: {
       auto on_connection_close = states.Data.OnConnectionClose;
@@ -78,12 +85,12 @@ extern char *socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates st
       }
       try {
         conn_cb->on_connection_close(local_addr, peer_addr);
+        *error = nullptr;
       } catch (std::runtime_error &e) {
-        return string_dup(e.what());
+        *error = string_dup(e.what());
       } catch (...) {
-        return string_dup("unknown error");
+        *error = string_dup("unknown error");
       }
-      return nullptr;
     }
     case ConnStateCode::ListenError: {
       auto listen_error = states.Data.OnListenError;
@@ -91,12 +98,12 @@ extern char *socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates st
       auto err = std::string(listen_error.Err);
       try {
         conn_cb->on_listen_error(addr, err);
+        *error = nullptr;
       } catch (std::runtime_error &e) {
-        return string_dup(e.what());
+        *error = string_dup(e.what());
       } catch (...) {
-        return string_dup("unknown error");
+        *error = string_dup("unknown error");
       }
-      return nullptr;
     }
     case ConnStateCode::ConnectError: {
       auto connect_error = states.Data.OnConnectError;
@@ -104,16 +111,16 @@ extern char *socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates st
       auto err = std::string(connect_error.Err);
       try {
         conn_cb->on_connect_error(addr, err);
+        *error = nullptr;
       } catch (std::runtime_error &e) {
-        return string_dup(e.what());
+        *error = string_dup(e.what());
       } catch (...) {
-        return string_dup("unknown error");
+        *error = string_dup("unknown error");
       }
-      return nullptr;
     }
     default: {
       // should never reach here
-      return nullptr;
+      *error = nullptr;
     }
   }
 }

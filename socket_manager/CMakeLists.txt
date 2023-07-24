@@ -30,10 +30,12 @@ set(header ${CMAKE_SOURCE_DIR}/include/socket_manager_c_api.h
            ${header_path}/connection.h
            ${header_path}/conn_callback.h
            ${header_path}/msg_sender.h
+           ${header_path}/waker.h
            ${header_path}/msg_receiver.h)
 set(src socket_manager_c_api.cc
         msg_sender.cc
         connection.cc
+        recv_waker.cc
         socket_manager.cc)
 
 target_sources(${PROJECT_NAME} PRIVATE ${src})

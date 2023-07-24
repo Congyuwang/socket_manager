@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <cstring>
 #include "socket_manager_c_api.h"
+#include "recv_waker.h"
 
 namespace socket_manager {
 
@@ -27,6 +28,10 @@ namespace socket_manager {
     /**
      * Called when a message is received.
      *
+     * # Async Return Rule
+     * - negative number: pending.
+     * - positive number: n bytes received, ready.
+     *
      * # MEMORY SAFETY
      * The `data` is only valid during the call of this function.
      * If you want to keep the data, you should copy it.
@@ -41,9 +46,9 @@ namespace socket_manager {
      *
      * @param data the message received.
      */
-    virtual void on_message(std::string_view data) = 0;
+    virtual int on_message(std::string_view data, std::shared_ptr<RcvWaker> waker) = 0;
 
-    friend char* ::socket_manager_extern_on_msg(struct OnMsgObj this_, ConnMsg msg);
+    friend int ::socket_manager_extern_on_msg(struct OnMsgObj this_, ConnMsg msg, CWaker *waker, char **err);
 
   };
 

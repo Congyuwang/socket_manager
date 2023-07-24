@@ -8,8 +8,10 @@ use crate::c_api::structs::{
     OnConnectionClose, OnListenError,
 };
 use crate::c_api::utils::parse_c_err_str;
+use crate::c_api::waker::CWaker;
 use std::ffi::{c_char, c_void, CString};
-use std::task::{RawWaker, RawWakerVTable, Waker};
+use std::ptr::null_mut;
+use std::task::{Poll, RawWaker, RawWakerVTable, Waker};
 
 const MSG_SENDER_VTABLE: RawWakerVTable = WakerObj::make_vtable();
 
@@ -99,40 +101,48 @@ pub struct OnConnObj {
 }
 
 impl OnMsgObj {
-    pub fn call_inner(&self, conn_msg: crate::Msg<'_>) -> Result<(), String> {
+    pub fn call_inner(
+        &self,
+        conn_msg: crate::Msg<'_>,
+        waker: Waker,
+    ) -> Poll<Result<usize, String>> {
         let conn_msg = ConnMsg {
             bytes: conn_msg.bytes.as_ptr() as *const c_char,
             len: conn_msg.bytes.len(),
         };
+        let waker = Box::into_raw(Box::new(CWaker { waker }));
         unsafe {
-            let cb_result = socket_manager_extern_on_msg(*self, conn_msg);
-            if let Err(e) = parse_c_err_str(cb_result) {
+            let mut err: *mut c_char = null_mut();
+            let cb_result = socket_manager_extern_on_msg(*self, conn_msg, waker, &mut err);
+            if let Err(e) = parse_c_err_str(err) {
                 tracing::error!("Error thrown in OnMsg callback: {e}");
-                Err(e)
+                Poll::Ready(Err(e))
+            } else if cb_result > 0 {
+                Poll::Ready(Ok(cb_result as usize))
             } else {
-                Ok(())
+                Poll::Pending
             }
         }
     }
 }
 
-impl FnMut<(crate::Msg<'_>,)> for OnMsgObj {
-    extern "rust-call" fn call_mut(&mut self, conn_msg: (crate::Msg<'_>,)) -> Self::Output {
-        self.call_inner(conn_msg.0)
+impl FnMut<(crate::Msg<'_>, Waker)> for OnMsgObj {
+    extern "rust-call" fn call_mut(&mut self, args: (crate::Msg<'_>, Waker)) -> Self::Output {
+        self.call_inner(args.0, args.1)
     }
 }
 
-impl FnOnce<(crate::Msg<'_>,)> for OnMsgObj {
-    type Output = Result<(), String>;
+impl FnOnce<(crate::Msg<'_>, Waker)> for OnMsgObj {
+    type Output = Poll<Result<usize, String>>;
 
-    extern "rust-call" fn call_once(self, conn_msg: (crate::Msg<'_>,)) -> Self::Output {
-        self.call_inner(conn_msg.0)
+    extern "rust-call" fn call_once(self, args: (crate::Msg<'_>, Waker)) -> Self::Output {
+        self.call_inner(args.0, args.1)
     }
 }
 
-impl Fn<(crate::Msg<'_>,)> for OnMsgObj {
-    extern "rust-call" fn call(&self, conn_msg: (crate::Msg<'_>,)) -> Self::Output {
-        self.call_inner(conn_msg.0)
+impl Fn<(crate::Msg<'_>, Waker)> for OnMsgObj {
+    extern "rust-call" fn call(&self, args: (crate::Msg<'_>, Waker)) -> Self::Output {
+        self.call_inner(args.0, args.1)
     }
 }
 
@@ -140,8 +150,9 @@ impl OnConnObj {
     /// connection callback
     pub(crate) fn call_inner(&self, conn_states: crate::ConnState<OnMsgObj>) -> Result<(), String> {
         let on_conn = |conn| unsafe {
-            let cb_result = socket_manager_extern_on_conn(*self, conn);
-            parse_c_err_str(cb_result)
+            let mut err: *mut c_char = null_mut();
+            socket_manager_extern_on_conn(*self, conn, &mut err);
+            parse_c_err_str(err)
         };
         match conn_states {
             crate::ConnState::OnConnect {
@@ -262,6 +273,9 @@ impl Fn<(crate::ConnState<OnMsgObj>,)> for OnConnObj {
 }
 
 unsafe impl Send for OnMsgObj {}
+
 unsafe impl Sync for OnMsgObj {}
+
 unsafe impl Send for OnConnObj {}
+
 unsafe impl Sync for OnConnObj {}

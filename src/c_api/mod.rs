@@ -5,3 +5,4 @@ mod msg_sender;
 mod socket_manager;
 mod structs;
 mod utils;
+pub(crate) mod waker;

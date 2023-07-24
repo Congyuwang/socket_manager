@@ -2,7 +2,7 @@ use crate::conn::ConnConfig;
 use crate::Msg;
 use std::pin::Pin;
 use std::task::Poll::Ready;
-use std::task::{Context, Poll};
+use std::task::{ready, Context, Poll, Waker};
 use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, AsyncWrite, AsyncWriteExt, BufReader, BufWriter};
 use tokio::net::tcp::OwnedReadHalf;
@@ -13,7 +13,7 @@ pub const MAX_MSG_BUFFER_SIZE: usize = 1024 * 1024 * 8; // 8MB
 
 /// Receive bytes ReadHalf of TcpStream and call `on_msg` callback.
 pub(crate) async fn handle_reader<
-    OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + Unpin + 'static,
+    OnMsg: Fn(Msg<'_>, Waker) -> Poll<Result<usize, String>> + Send + Unpin + 'static,
 >(
     read: OwnedReadHalf,
     on_msg: OnMsg,
@@ -41,7 +41,7 @@ pub(crate) async fn handle_reader<
 
 /// Has write buffer with auto flush.
 async fn handle_reader_auto_flush<
-    OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + Unpin + 'static,
+    OnMsg: Fn(Msg<'_>, Waker) -> Poll<Result<usize, String>> + Send + Unpin + 'static,
 >(
     read: OwnedReadHalf,
     on_msg: OnMsg,
@@ -88,7 +88,7 @@ async fn handle_reader_auto_flush<
 /// Has write buffer but no auto flush (small messages might get stuck).
 /// Call `OnMsg` on batch. This is not recommended.
 async fn handle_reader_no_auto_flush<
-    OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + Unpin + 'static,
+    OnMsg: Fn(Msg<'_>, Waker) -> Poll<Result<usize, String>> + Send + Unpin + 'static,
 >(
     read: OwnedReadHalf,
     on_msg: OnMsg,
@@ -116,12 +116,15 @@ async fn handle_reader_no_auto_flush<
 }
 
 /// Has no write buffer, received is sent immediately.
-async fn handle_reader_no_buf<OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + Unpin + 'static>(
+async fn handle_reader_no_buf<
+    OnMsg: Fn(Msg<'_>, Waker) -> Poll<Result<usize, String>> + Send + Unpin + 'static,
+>(
     read: OwnedReadHalf,
     on_msg: OnMsg,
 ) -> std::io::Result<()> {
     let recv_buffer_size = socket2::SockRef::from(read.as_ref()).recv_buffer_size()?;
     tracing::trace!("recv buffer size: {}", recv_buffer_size);
+    let mut on_msg = OnMsgWrite { on_msg };
     let mut buf_reader = BufReader::with_capacity(recv_buffer_size, read);
     loop {
         let bytes = buf_reader.fill_buf().await?;
@@ -130,9 +133,7 @@ async fn handle_reader_no_buf<OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + 
             break;
         }
         tracing::trace!("received {n} bytes");
-        if let Err(e) = on_msg(Msg { bytes }) {
-            return Err(std::io::Error::new(std::io::ErrorKind::Other, e));
-        }
+        on_msg.write_all(bytes).await?;
         buf_reader.consume(n);
     }
     Ok(())
@@ -143,18 +144,22 @@ struct OnMsgWrite<OnMsg> {
     on_msg: OnMsg,
 }
 
-impl<OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + 'static> AsyncWrite for OnMsgWrite<OnMsg> {
+impl<OnMsg: Fn(Msg<'_>, Waker) -> Poll<Result<usize, String>> + Send + 'static> AsyncWrite
+    for OnMsgWrite<OnMsg>
+{
     fn poll_write(
         self: Pin<&mut Self>,
-        _: &mut Context<'_>,
+        cx: &mut Context<'_>,
         bytes: &[u8],
     ) -> Poll<Result<usize, std::io::Error>> {
         let on_msg = &self.on_msg;
-        let result = match on_msg(Msg { bytes }) {
-            Ok(_) => Ok(bytes.len()),
-            Err(e) => Err(std::io::Error::new(std::io::ErrorKind::Other, e)),
-        };
-        Ready(result)
+        let result = ready!(on_msg(Msg { bytes }, cx.waker().clone()));
+        Ready(result.map_err(|e| {
+            std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("error writing message: {e}"),
+            )
+        }))
     }
 
     fn poll_flush(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Result<(), std::io::Error>> {

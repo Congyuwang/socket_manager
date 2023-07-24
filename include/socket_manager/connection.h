@@ -85,7 +85,7 @@ namespace socket_manager {
 
     friend class MsgSender;
 
-    friend char* ::socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates conn);
+    friend void ::socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates conn, char **err);
 
     // keep the msg_receiver alive
     std::unique_ptr<MsgReceiver> receiver;

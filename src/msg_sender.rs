@@ -99,9 +99,7 @@ impl CMsgSender {
         if let Some(waker_obj) = waker_obj {
             // some waker, wait on the waker
             let waker = unsafe { waker_obj.make_waker() };
-            match pin!(self.buf_prd.wait_free(1))
-                .poll(&mut Context::from_waker(&waker))
-            {
+            match pin!(self.buf_prd.wait_free(1)).poll(&mut Context::from_waker(&waker)) {
                 Ready(_) => {
                     // might be ready on closed
                     if self.buf_prd.is_closed() {
