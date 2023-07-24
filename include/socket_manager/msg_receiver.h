@@ -17,11 +17,11 @@ namespace socket_manager {
    * # Thread Safety
    * The callback should be thread safe.
    */
-  class MsgReceiver {
+  class MsgReceiverAsync {
 
   public:
 
-    virtual ~MsgReceiver() = default;
+    virtual ~MsgReceiverAsync() = default;
 
   private:
 
@@ -46,10 +46,22 @@ namespace socket_manager {
      *
      * @param data the message received.
      */
-    virtual long on_message(std::string_view data, std::shared_ptr<RcvWaker> waker) = 0;
+    virtual long on_message_async(std::string_view data, std::shared_ptr<RcvWaker> waker) = 0;
 
     friend long::socket_manager_extern_on_msg(struct OnMsgObj this_, ConnMsg msg, CWaker *waker, char **err);
 
+  };
+
+  class MsgReceiver : public MsgReceiverAsync {
+  public:
+
+    virtual ~MsgReceiver() = default;
+
+  private:
+
+    virtual void on_message(std::string_view data) = 0;
+
+    long on_message_async(std::string_view data, std::shared_ptr<RcvWaker> waker) override;
   };
 
 } // namespace socket_manager

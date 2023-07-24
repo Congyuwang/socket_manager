@@ -36,6 +36,7 @@ set(src socket_manager_c_api.cc
         msg_sender.cc
         connection.cc
         recv_waker.cc
+        msg_receiver.cc
         socket_manager.cc)
 
 target_sources(${PROJECT_NAME} PRIVATE ${src})
