@@ -15,11 +15,6 @@ typedef enum SOCKET_MANAGER_C_API_ConnStateCode {
 } SOCKET_MANAGER_C_API_ConnStateCode;
 
 /**
- * Drop the sender to close the connection.
- */
-typedef struct SOCKET_MANAGER_C_API_CMsgSender SOCKET_MANAGER_C_API_CMsgSender;
-
-/**
  * The Main Struct of the Library.
  *
  * This struct is thread safe.
@@ -27,6 +22,11 @@ typedef struct SOCKET_MANAGER_C_API_CMsgSender SOCKET_MANAGER_C_API_CMsgSender;
 typedef struct SOCKET_MANAGER_C_API_CSocketManager SOCKET_MANAGER_C_API_CSocketManager;
 
 typedef struct SOCKET_MANAGER_C_API_Connection SOCKET_MANAGER_C_API_Connection;
+
+/**
+ * Drop the sender to close the connection.
+ */
+typedef struct SOCKET_MANAGER_C_API_MsgSender SOCKET_MANAGER_C_API_MsgSender;
 
 /**
  * The Notifier is constructed by the c/c++ code,
@@ -109,7 +109,7 @@ typedef struct SOCKET_MANAGER_C_API_OnConnObj {
 typedef struct SOCKET_MANAGER_C_API_OnConnect {
   const char *Local;
   const char *Peer;
-  struct SOCKET_MANAGER_C_API_CMsgSender *Send;
+  struct SOCKET_MANAGER_C_API_MsgSender *Send;
   struct SOCKET_MANAGER_C_API_Connection *Conn;
 } SOCKET_MANAGER_C_API_OnConnect;
 
@@ -257,7 +257,7 @@ void socket_manager_connection_free(struct SOCKET_MANAGER_C_API_Connection *conn
  * Returns 1 on error, 0 on success.
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
  */
-int socket_manager_msg_sender_send_block(struct SOCKET_MANAGER_C_API_CMsgSender *sender,
+int socket_manager_msg_sender_send_block(struct SOCKET_MANAGER_C_API_MsgSender *sender,
                                          const char *msg,
                                          size_t len,
                                          char **err);
@@ -281,7 +281,7 @@ int socket_manager_msg_sender_send_block(struct SOCKET_MANAGER_C_API_CMsgSender 
  * Use `err` pointer to check for error.
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
  */
-long socket_manager_msg_sender_send_async(struct SOCKET_MANAGER_C_API_CMsgSender *sender,
+long socket_manager_msg_sender_send_async(struct SOCKET_MANAGER_C_API_MsgSender *sender,
                                           const char *msg,
                                           size_t len,
                                           struct SOCKET_MANAGER_C_API_Notifier notifier,
@@ -297,13 +297,13 @@ long socket_manager_msg_sender_send_async(struct SOCKET_MANAGER_C_API_CMsgSender
  * Returns 1 on error, 0 on success.
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
  */
-int socket_manager_msg_sender_flush(struct SOCKET_MANAGER_C_API_CMsgSender *sender, char **err);
+int socket_manager_msg_sender_flush(struct SOCKET_MANAGER_C_API_MsgSender *sender, char **err);
 
 /**
  * Destructor of `MsgSender`.
  * Drop sender to actively close the connection.
  */
-void socket_manager_msg_sender_free(struct SOCKET_MANAGER_C_API_CMsgSender *sender);
+void socket_manager_msg_sender_free(struct SOCKET_MANAGER_C_API_MsgSender *sender);
 
 /**
  * Rust calls this function to send `conn: ConnStates`

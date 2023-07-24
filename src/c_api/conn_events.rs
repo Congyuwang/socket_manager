@@ -1,5 +1,5 @@
 use crate::c_api::on_msg::OnMsgObj;
-use crate::CMsgSender;
+use crate::MsgSender;
 use libc::size_t;
 use std::ffi::c_char;
 
@@ -41,7 +41,7 @@ pub union ConnStateData {
 pub struct OnConnect {
     pub(crate) local: *const c_char,
     pub(crate) peer: *const c_char,
-    pub(crate) send: *mut CMsgSender,
+    pub(crate) send: *mut MsgSender,
     pub(crate) conn: *mut Connection,
 }
 

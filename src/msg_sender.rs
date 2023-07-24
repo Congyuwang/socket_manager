@@ -12,7 +12,7 @@ pub(crate) enum SendCommand {
 }
 
 /// Drop the sender to close the connection.
-pub struct CMsgSender {
+pub struct MsgSender {
     pub(crate) cmd: UnboundedSender<SendCommand>,
     pub(crate) buf_prd: AsyncHeapProducer<u8>,
     pub(crate) handle: Handle,
@@ -43,7 +43,7 @@ fn burst_write(
     }
 }
 
-impl CMsgSender {
+impl MsgSender {
     /// The blocking API of sending bytes.
     /// Do not use this method in the callback (i.e. async context),
     /// as it might block.

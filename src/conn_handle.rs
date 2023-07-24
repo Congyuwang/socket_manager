@@ -1,5 +1,5 @@
 use crate::conn::{Conn, ConnConfig};
-use crate::msg_sender::{CMsgSender, SendCommand};
+use crate::msg_sender::{MsgSender, SendCommand};
 use crate::{read, write, ConnState, ConnectionState, Msg};
 use async_ringbuf::AsyncHeapRb;
 use futures::FutureExt;
@@ -29,7 +29,7 @@ pub(crate) fn handle_connection<
     let (send, recv) = unbounded_channel::<SendCommand>();
     let (conn_config_setter, conn_config) = oneshot::channel::<(OnMsg, ConnConfig)>();
     let (buf_prd, ring_buf) = AsyncHeapRb::new(RING_BUFFER_SIZE).split();
-    let send = CMsgSender {
+    let send = MsgSender {
         cmd: send,
         buf_prd,
         handle: handle.clone(),

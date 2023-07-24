@@ -1,6 +1,6 @@
 use crate::c_api::async_ffi::notifier::Notifier;
 use crate::c_api::utils::write_error_c_str;
-use crate::msg_sender::CMsgSender;
+use crate::msg_sender::MsgSender;
 use libc::size_t;
 use std::ffi::{c_char, c_int, c_long};
 use std::ptr::null_mut;
@@ -25,7 +25,7 @@ pub const PENDING: c_long = -1;
 /// On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
 #[no_mangle]
 pub unsafe extern "C" fn socket_manager_msg_sender_send_block(
-    sender: *mut CMsgSender,
+    sender: *mut MsgSender,
     msg: *const c_char,
     len: size_t,
     err: *mut *mut c_char,
@@ -63,7 +63,7 @@ pub unsafe extern "C" fn socket_manager_msg_sender_send_block(
 /// On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
 #[no_mangle]
 pub unsafe extern "C" fn socket_manager_msg_sender_send_async(
-    sender: *mut CMsgSender,
+    sender: *mut MsgSender,
     msg: *const c_char,
     len: size_t,
     notifier: Notifier,
@@ -97,7 +97,7 @@ pub unsafe extern "C" fn socket_manager_msg_sender_send_async(
 /// On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
 #[no_mangle]
 pub unsafe extern "C" fn socket_manager_msg_sender_flush(
-    sender: *mut CMsgSender,
+    sender: *mut MsgSender,
     err: *mut *mut c_char,
 ) -> c_int {
     let sender = &mut (*sender);
@@ -116,6 +116,6 @@ pub unsafe extern "C" fn socket_manager_msg_sender_flush(
 /// Destructor of `MsgSender`.
 /// Drop sender to actively close the connection.
 #[no_mangle]
-pub unsafe extern "C" fn socket_manager_msg_sender_free(sender: *mut CMsgSender) {
+pub unsafe extern "C" fn socket_manager_msg_sender_free(sender: *mut MsgSender) {
     drop(Box::from_raw(sender))
 }
