@@ -107,7 +107,8 @@ namespace socket_manager {
 
   private:
 
-    std::unique_ptr<CSocketManager, std::function<void(CSocketManager *)>> inner;
+    std::unique_ptr<SOCKET_MANAGER_C_API_SocketManager, std::function<void(
+            SOCKET_MANAGER_C_API_SocketManager *)>> inner;
     std::shared_ptr<ConnCallback> conn_cb;
 
   };
