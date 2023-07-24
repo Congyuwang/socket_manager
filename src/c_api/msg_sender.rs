@@ -49,14 +49,14 @@ pub unsafe extern "C" fn socket_manager_msg_sender_send_block(
 /// # Thread Safety
 /// Thread safe.
 ///
+/// # Async control flow (IMPORTANT)
+///
 /// This function is non-blocking, it returns `PENDING = -1`
-/// if the send buffer is full.
+/// if the send buffer is full. So the caller should wait
+/// by passing a `Notifier` which will be called when the
+/// buffer is ready.
 ///
-/// Pass the `Notifier` to the `socket_manager_msg_sender_send_async` function
-/// to receive the notification when the buffer is ready for writing.
-///
-/// When write is ready, the `socket_manager_msg_sender_send_async` function
-/// returns the number of bytes written.
+/// When the buffer is ready, the function returns number of bytes sent.
 ///
 /// # Errors
 /// Use `err` pointer to check for error.

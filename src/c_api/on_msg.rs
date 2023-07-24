@@ -27,9 +27,24 @@ pub struct OnMsgObj {
 
 #[link(name = "socket_manager")]
 extern "C" {
-    /// Callback function for receiving messages.
-    /// Return positive number for `Ready`,
-    /// and negative number for `Pending`.
+    /// Rust calls this function to send `msg: ConnMsg`
+    /// to `OnMsgObj`. If the process has any error,
+    /// pass error to `err` pointer.
+    /// Set `err` to null_ptr if there is no error.
+    ///
+    /// # Async control flow (IMPORTANT)
+    ///
+    /// The caller should return the exact number of bytes written
+    /// to the runtime if some bytes are written. The runtime
+    /// will increment the read offset accordingly.
+    ///
+    /// If the caller is unable to receive any bytes,
+    /// it should return `PENDING = -1` to the runtime
+    /// to interrupt message receiving task. The read offset
+    /// will not be incremented.
+    ///
+    /// When the caller is able to receive bytes again,
+    /// it should call `waker.wake()` to wake up the runtime.
     pub(crate) fn socket_manager_extern_on_msg(
         this: OnMsgObj,
         msg: ConnMsg,
@@ -44,11 +59,9 @@ impl OnMsgObj {
         conn_msg: crate::Msg<'_>,
         waker: Waker,
     ) -> Poll<Result<usize, String>> {
+        let bytes = conn_msg.bytes.as_ptr() as *const c_char;
         let len = conn_msg.bytes.len();
-        let conn_msg = ConnMsg {
-            bytes: conn_msg.bytes.as_ptr() as *const c_char,
-            len,
-        };
+        let conn_msg = ConnMsg { bytes, len };
         // takes the ownership of the waker
         let waker = CWaker::from_waker(waker);
         unsafe {

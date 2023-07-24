@@ -30,7 +30,10 @@ pub struct OnConnObj {
 
 #[link(name = "socket_manager")]
 extern "C" {
-    /// Callback function for connection state changes.
+    /// Rust calls this function to send `conn: ConnStates`
+    /// to the `this: OnConnObj`. If the process has any error,
+    /// pass error to `err` pointer.
+    /// Set `err` to null_ptr if there is no error.
     pub(crate) fn socket_manager_extern_on_conn(
         this: OnConnObj,
         conn: ConnStates,
