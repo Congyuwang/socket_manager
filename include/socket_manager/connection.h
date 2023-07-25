@@ -32,16 +32,16 @@ namespace socket_manager {
     /**
      * Start a connection.
      *
-     * # Start / Close
+     * <h3>Start / Close</h3>
      * Exactly one of `start` or `close` should be called!
      * Calling more than once will throw runtime exception.
      * Not calling any of them might result in resource leak.
      *
-     * # Close started connection
+     * <h3>Close started connection</h3>
      * Drop the returned MsgSender object to close the connection
      * after starting it.
      *
-     * # Thread Safety
+     * <h3>Thread Safety</h3>
      * Thread safe, but should be called exactly once,
      * otherwise throws error.
      *
@@ -72,10 +72,10 @@ namespace socket_manager {
 
     /**
      * Close the connection without using it.
-     *
+     * <br /><br />
      * `on_connection_close` callback will be called.
      *
-     * # Start / Close
+     * <h3>Start / Close</h3>
      * Exactly one of `start` or `close` should be called!
      * Calling more than once will throw runtime exception.
      * Not calling any of them might result in resource leak.

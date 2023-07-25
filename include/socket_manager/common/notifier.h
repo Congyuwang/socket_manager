@@ -5,11 +5,11 @@
 
 namespace socket_manager {
   /**
-   * The Notifier class is used to receive notification
+   * @brief The Notifier class is used to receive notification
    * from rust runtime to request c/c++ task for further
    * execution.
    *
-   * Our current implementation does not require ref count
+   * @note Our current implementation does not require ref count
    * since we bound the lifetime of the notifier to the
    * lifetime of the connection, and guarantee that the passed
    * notifier is valid by keeping a reference of the notifier

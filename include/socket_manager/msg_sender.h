@@ -15,7 +15,7 @@ namespace socket_manager {
 
   /**
    * Use MsgSender to send messages to the peer.
-   *
+   * <br /><br />
    * Drop the MsgSender object to close the connection.
    */
   class MsgSender {
@@ -23,19 +23,19 @@ namespace socket_manager {
   public:
     /**
      * Non blocking message sending.
-     *
+     * <br /><br />
      * To use the method, provide a `notifier` when starting
      * the connection.
      *
-     * # Async control flow (IMPORTANT)
-     *
+     * <h3>Async control flow (IMPORTANT)</h3>
+     * <br /><br />
      * This function is non-blocking, it returns `PENDING = -1`
      * if the send buffer is full. So the caller should wait
      * by passing a `Notifier` which will be called when the
      * buffer is ready.
-     *
+     * <br /><br />
      * When the buffer is ready, the function returns number of bytes sent.
-     *
+     * <br /><br />
      * The caller is responsible for updating the buffer offset!!
      *
      * @param data the message to send
@@ -50,13 +50,13 @@ namespace socket_manager {
     /**
      * Send a message to the peer.
      *
-     * # Blocking!!
+     * <h3>Blocking!!</h3>
      * This method might block, so it should never be used within the callbacks.
      *
-     * # Thread Safety
+     * <h3>Thread Safety</h3>
      * This method is thread safe.
      *
-     * # Errors
+     * <h3>Errors</h3>
      * This method throws std::runtime_error when
      * the connection is closed.
      *
@@ -68,7 +68,7 @@ namespace socket_manager {
     /**
      * Manually flush the internal buffer.
      *
-     * # Thread Safety
+     * <h3>Thread Safety</h3>
      * This method is thread safe.
      *
      */

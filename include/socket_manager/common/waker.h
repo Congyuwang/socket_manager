@@ -11,7 +11,7 @@ namespace socket_manager {
   const long PENDING = -1;
 
   /**
-   * Waker is used to wake up a pending runtime task.
+   * @brief Waker is used to wake up a pending runtime task.
    *
    * The implementation of `MsgReceiverAsync::on_message_async`
    * can return `PENDING = -1` to interrupt a message receiving

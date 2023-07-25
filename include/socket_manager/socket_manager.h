@@ -10,14 +10,44 @@
 namespace socket_manager {
 
   /**
-   * Manages a set of sockets.
+   * @brief Manages a set of sockets.
    *
-   * Inherit from SocketManager and implement the virtual methods:
-   * `on_connect`, `on_connection_close`, `on_listen_error`, `on_connect_error`,
-   * `on_message` as callbacks. Note that these callbacks shouldn't block.
+   * <h3>Usage</h3>
+   * The user needs to implement a `ConnCallback` object to handle
+   * connection events, and pass it to the constructor of `SocketManager`.
+   * <br /><br />
+   * When the connection is established, the `on_connect` callback
+   * returns a `MsgSender` object for sending messages to the peer,
+   * and a `Connection` object for receiving messages from the peer.
+   * <br /><br />
+   * To receive messages from the peer, the user needs to implement
+   * a `MsgReceiver` object and pass it to the `Connection::start`
+   * method.
    *
-   * Dropping this object will close all the connections and wait for all the
-   * threads to finish.
+   * <h3>Memory Management</h3>
+   * The system internally use shared pointers to manage the lifetime
+   * of the objects. Note the following dependency relationship to avoid
+   * memory leak (i.e., circular reference):
+   * <ul>
+   * <li> `SocketManager` ---strong ref--> `ConnCallback` </li>
+   * <li> `ConnCallback` ---strong ref--> (active) `Connection`s (drop on `connection_close`) </li>
+   * <li> `Connection` ---strong ref--> `Notifier` </li>
+   * <li> `Connection` ---strong ref--> `(Async)MsgReceiver` </li>
+   * <li> `(Async)MsgReceiver` ---weak ref--> `Connection` </li>
+   * </ul>
+   *
+   * <h3>Note on lifetime:</h3>
+   *
+   * <ul>
+   * <li> The `connection callback` object should have
+   *   a longer lifetime than the socket manager. </li>
+   *
+   * <li> The `msg receiver` should live as long as
+   *   connection is not closed. </li>
+   *
+   * <li> The `Notifier` object should live as long as
+   *   connection is not closed. </li>
+   * </ul>
    */
   class SocketManager {
 
@@ -35,10 +65,10 @@ namespace socket_manager {
     /**
      * Listen on the given address.
      *
-     * # Thread Safety
+     * <h3>Thread Safety</h3>
      * Thread safe.
      *
-     * # Errors
+     * <h3>Errors</h3>
      * Throws `std::runtime_error` if socket manager runtime has been aborted.
      * Throws `std::runtime_error` if the address is invalid.
      *
@@ -49,10 +79,10 @@ namespace socket_manager {
     /**
      * Connect to the given address.
      *
-     * # Thread Safety
+     * <h3>Thread Safety</h3>
      * Thread safe.
      *
-     * # Errors
+     * <h3>Errors</h3>
      * Throws `std::runtime_error` if socket manager runtime has been aborted.
      * Throws `std::runtime_error` if the address is invalid.
      *
@@ -63,10 +93,10 @@ namespace socket_manager {
     /**
      * Cancel listening on the given address.
      *
-     * # Thread Safety
+     * <h3>Thread Safety</h3>
      * Thread safe.
      *
-     * # Errors
+     * <h3>Errors</h3>
      * Throws `std::runtime_error` if socket manager runtime has been aborted.
      * Throw `std::runtime_error` if the address is invalid.
      *
@@ -76,17 +106,17 @@ namespace socket_manager {
 
     /**
      * Stop all background threads and drop all connections.
-     *
+     * <br /><br />
      * Calling a second time will return immediately (if `wait = false`).
      *
-     * # Argument
+     * <h3>Argument</h3>
      * - `wait`: if true, wait for all the background threads to finish.
      *     Default to true.
      *
-     * # Thread Safety
+     * <h3>Thread Safety</h3>
      * Thread safe.
      *
-     * # Errors
+     * <h3>Errors</h3>
      * Throws `std::runtime_error` if `wait = true` and the background
      * thread panicked.
      */
@@ -94,13 +124,13 @@ namespace socket_manager {
 
     /**
      * Join and wait on the `SocketManager` background runtime.
-     *
+     * <br /><br />
      * Returns immediately on the second call.
      *
-     * # Thread Safety
+     * <h3>Thread Safety</h3>
      * Thread safe.
      *
-     * # Errors
+     * <h3>Errors</h3>
      * Throws `std::runtime_error` if the background runtime panicked.
      */
     void join();
