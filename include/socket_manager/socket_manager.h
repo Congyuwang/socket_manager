@@ -33,8 +33,15 @@ namespace socket_manager {
    * <li> `ConnCallback` ---strong ref--> (active) `Connection`s (drop on `connection_close`) </li>
    * <li> `Connection` ---strong ref--> `Notifier` </li>
    * <li> `Connection` ---strong ref--> `(Async)MsgReceiver` </li>
-   * <li> `(Async)MsgReceiver` ---weak ref--> `Connection` </li>
+   * <li> `MsgSender` ---strong ref--> `Connection` </li>
    * </ul>
+   * Notice that if `MsgSender` is strongly referenced by `Notifier`,
+   * or strongly referenced by `(Async)MsgReceiver`, then the connection
+   * will have a memory leak. The user could `reset()` the `shared_ptr\<MsgSender\>`
+   * on connection close event, and thus break the cycle.
+   * <br /><br />
+   * In short, the user must guarantee that the `MsgSender` object
+   * is released for connection resources to be properly released.
    *
    * <h3>Note on lifetime:</h3>
    *
