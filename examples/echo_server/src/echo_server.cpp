@@ -2,14 +2,16 @@
 #include <iostream>
 #include <socket_manager.h>
 #include <variant>
+#include <unordered_map>
 #include <memory>
 
 /**
- * Let the sender directly wake the receiver.
+ * UniqueWaker is a wrapper of `socket_manager::Waker`
+ * that also implements `socket_manager::Notifier`.
  */
-class RcvSendWaker : public socket_manager::Notifier {
+class WrapWaker : public socket_manager::Notifier {
 public:
-  explicit RcvSendWaker(socket_manager::Waker &&wake) : waker(std::move(wake)) {}
+  explicit WrapWaker(socket_manager::Waker &&wake) : waker(std::move(wake)) {}
 
   void set_waker(socket_manager::Waker &&wake) {
     waker = std::move(wake);
@@ -28,22 +30,40 @@ private:
  * it tries to send back the message,
  * unless the sender returns `PENDING`,
  * it sleeps until the sender wakes it up.
+ *
+ *    * <li> `SocketManager` ---strong ref--> `ConnCallback` </li>
+   * <li> `ConnCallback` ---strong ref--> (active) `Connection`s (drop on `connection_close`) </li>
+   * <li> `Connection` ---strong ref--> `Notifier` </li>
+   * <li> `Connection` ---strong ref--> `(Async)MsgReceiver` </li>
+   * <li> `sender` ---strong ref--> `Connection` </li>
+   *
+   * cb -> connection
+   * connection -> MsgReceiver
+   * connection -> notifier
+   * sender -> connection
+   * MsgReceiver -> sender
  */
-class EchoReceiver :
-        public socket_manager::MsgReceiverAsync,
-        public std::enable_shared_from_this<EchoReceiver> {
+class EchoReceiver : public socket_manager::MsgReceiverAsync {
 public:
   explicit EchoReceiver(
           std::shared_ptr<socket_manager::MsgSender> &&sender,
-          const std::shared_ptr<RcvSendWaker> &waker
+          const std::shared_ptr<WrapWaker> &waker
   ) : waker(waker), sender(std::move(sender)) {};
+
+  /**
+   * Release resources to break potential ref cycles.
+   */
+  void close() {
+    waker.reset();
+    sender.reset();
+  }
 
 private:
   long on_message_async(std::string_view data, socket_manager::Waker &&wake) override {
     waker->set_waker(std::move(wake));
     return sender->send_async(data);
   };
-  std::shared_ptr<RcvSendWaker> waker;
+  std::shared_ptr<WrapWaker> waker;
   std::shared_ptr<socket_manager::MsgSender> sender;
 };
 
@@ -52,15 +72,31 @@ private:
  */
 class EchoCallback : public socket_manager::ConnCallback {
 private:
-  void on_connect(const std::string &_local_addr, const std::string &_peer_addr,
+  void on_connect(const std::string &local_addr, const std::string &peer_addr,
                   std::shared_ptr<socket_manager::Connection> conn,
                   std::shared_ptr<socket_manager::MsgSender> sender) override {
-    auto waker = std::make_shared<RcvSendWaker>(socket_manager::Waker());
+    auto waker = std::make_shared<WrapWaker>(socket_manager::Waker());
     auto recv = std::make_shared<EchoReceiver>(std::move(sender), waker);
+    {
+      // add the receiver to the map for cleanup
+      std::lock_guard<std::mutex> lock(mutex);
+      receivers[local_addr + peer_addr] = recv;
+    }
     conn->start(std::move(recv), std::move(waker));
   }
 
   void on_connection_close(const std::string &local_addr, const std::string &peer_addr) override {
+    {
+      std::lock_guard<std::mutex> lock(mutex);
+      auto find = receivers.find(local_addr + peer_addr);
+      if (find != receivers.end()) {
+        // release receiver resources
+        find->second->close();
+        receivers.erase(find);
+      } else {
+        throw std::runtime_error("connection not found: " + local_addr + " -> " + peer_addr);
+      }
+    }
     std::cout << "connection closed: " << local_addr << " -> " << peer_addr << std::endl;
   }
 
@@ -71,6 +107,9 @@ private:
   void on_connect_error(const std::string &addr, const std::string &err) override {
     throw std::runtime_error("connect error: addr=" + addr + ", " + err);
   }
+
+  std::mutex mutex;
+  std::unordered_map<std::string, std::shared_ptr<EchoReceiver>> receivers;
 };
 
 int main() {
