@@ -1,32 +1,33 @@
 #ifndef SOCKET_MANAGER_C_API_H
 #define SOCKET_MANAGER_C_API_H
 
-#include <stdarg.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <stdlib.h>
+#include <cstdarg>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <ostream>
+#include <new>
 
-typedef enum SOCKET_MANAGER_C_API_ConnStateCode {
+enum class SOCKET_MANAGER_C_API_ConnStateCode {
   Connect = 0,
   ConnectionClose = 1,
   ListenError = 2,
   ConnectError = 3,
-} SOCKET_MANAGER_C_API_ConnStateCode;
+};
 
-typedef struct SOCKET_MANAGER_C_API_Connection SOCKET_MANAGER_C_API_Connection;
+struct SOCKET_MANAGER_C_API_Connection;
 
 /**
  * Drop the sender to close the connection.
  */
-typedef struct SOCKET_MANAGER_C_API_MsgSender SOCKET_MANAGER_C_API_MsgSender;
+struct SOCKET_MANAGER_C_API_MsgSender;
 
 /**
  * The Main Struct of the Library.
  *
  * This struct is thread safe.
  */
-typedef struct SOCKET_MANAGER_C_API_SocketManager SOCKET_MANAGER_C_API_SocketManager;
+struct SOCKET_MANAGER_C_API_SocketManager;
 
 /**
  * The Notifier is constructed by the c/c++ code,
@@ -48,9 +49,9 @@ typedef struct SOCKET_MANAGER_C_API_SocketManager SOCKET_MANAGER_C_API_SocketMan
  * to ensure that the waker is not dropped before the rust code
  * is done with it.
  */
-typedef struct SOCKET_MANAGER_C_API_Notifier {
+struct SOCKET_MANAGER_C_API_Notifier {
   void *This;
-} SOCKET_MANAGER_C_API_Notifier;
+};
 
 /**
  * # Safety
@@ -63,10 +64,10 @@ typedef struct SOCKET_MANAGER_C_API_Notifier {
  * Note that the CWaker must be properly dropped.
  * Otherwise, the associated task will leak.
  */
-typedef struct SOCKET_MANAGER_C_API_CWaker {
+struct SOCKET_MANAGER_C_API_CWaker {
   const void *Data;
   const void *Vtable;
-} SOCKET_MANAGER_C_API_CWaker;
+};
 
 /**
  * Callback function for receiving messages.
@@ -84,9 +85,9 @@ typedef struct SOCKET_MANAGER_C_API_CWaker {
  * # Thread Safety
  * Must be thread safe!
  */
-typedef struct SOCKET_MANAGER_C_API_OnMsgObj {
+struct SOCKET_MANAGER_C_API_OnMsgObj {
   void *This;
-} SOCKET_MANAGER_C_API_OnMsgObj;
+};
 
 /**
  * Callback function for connection state changes.
@@ -105,38 +106,38 @@ typedef struct SOCKET_MANAGER_C_API_OnMsgObj {
  * # Thread Safety
  * Must be thread safe!
  */
-typedef struct SOCKET_MANAGER_C_API_OnConnObj {
+struct SOCKET_MANAGER_C_API_OnConnObj {
   void *This;
-} SOCKET_MANAGER_C_API_OnConnObj;
+};
 
-typedef struct SOCKET_MANAGER_C_API_OnConnect {
+struct SOCKET_MANAGER_C_API_OnConnect {
   const char *Local;
   const char *Peer;
-  struct SOCKET_MANAGER_C_API_MsgSender *Send;
-  struct SOCKET_MANAGER_C_API_Connection *Conn;
-} SOCKET_MANAGER_C_API_OnConnect;
+  SOCKET_MANAGER_C_API_MsgSender *Send;
+  SOCKET_MANAGER_C_API_Connection *Conn;
+};
 
-typedef struct SOCKET_MANAGER_C_API_OnConnectionClose {
+struct SOCKET_MANAGER_C_API_OnConnectionClose {
   const char *Local;
   const char *Peer;
-} SOCKET_MANAGER_C_API_OnConnectionClose;
+};
 
-typedef struct SOCKET_MANAGER_C_API_OnListenError {
+struct SOCKET_MANAGER_C_API_OnListenError {
   const char *Addr;
   const char *Err;
-} SOCKET_MANAGER_C_API_OnListenError;
+};
 
-typedef struct SOCKET_MANAGER_C_API_OnConnectError {
+struct SOCKET_MANAGER_C_API_OnConnectError {
   const char *Addr;
   const char *Err;
-} SOCKET_MANAGER_C_API_OnConnectError;
+};
 
-typedef union SOCKET_MANAGER_C_API_ConnStateData {
-  struct SOCKET_MANAGER_C_API_OnConnect OnConnect;
-  struct SOCKET_MANAGER_C_API_OnConnectionClose OnConnectionClose;
-  struct SOCKET_MANAGER_C_API_OnListenError OnListenError;
-  struct SOCKET_MANAGER_C_API_OnConnectError OnConnectError;
-} SOCKET_MANAGER_C_API_ConnStateData;
+union SOCKET_MANAGER_C_API_ConnStateData {
+  SOCKET_MANAGER_C_API_OnConnect OnConnect;
+  SOCKET_MANAGER_C_API_OnConnectionClose OnConnectionClose;
+  SOCKET_MANAGER_C_API_OnListenError OnListenError;
+  SOCKET_MANAGER_C_API_OnConnectError OnConnectError;
+};
 
 /**
  * All data is only valid for the duration of the callback
@@ -144,37 +145,35 @@ typedef union SOCKET_MANAGER_C_API_ConnStateData {
  *
  * Do not manually free any of the data except `sender`!!
  */
-typedef struct SOCKET_MANAGER_C_API_ConnStates {
-  enum SOCKET_MANAGER_C_API_ConnStateCode Code;
-  union SOCKET_MANAGER_C_API_ConnStateData Data;
-} SOCKET_MANAGER_C_API_ConnStates;
+struct SOCKET_MANAGER_C_API_ConnStates {
+  SOCKET_MANAGER_C_API_ConnStateCode Code;
+  SOCKET_MANAGER_C_API_ConnStateData Data;
+};
 
 /**
  * The data pointer is only valid for the duration of the callback.
  */
-typedef struct SOCKET_MANAGER_C_API_ConnMsg {
+struct SOCKET_MANAGER_C_API_ConnMsg {
   const char *Bytes;
   size_t Len;
-} SOCKET_MANAGER_C_API_ConnMsg;
+};
 
-#ifdef __cplusplus
 extern "C" {
-#endif // __cplusplus
 
 /**
  * Waker for the try_send method.
  */
-extern void socket_manager_extern_notifier_wake(struct SOCKET_MANAGER_C_API_Notifier this_);
+extern void socket_manager_extern_notifier_wake(SOCKET_MANAGER_C_API_Notifier this_);
 
 /**
  * Call the waker to wake the relevant task of context.
  */
-void socket_manager_waker_wake(const struct SOCKET_MANAGER_C_API_CWaker *waker);
+void socket_manager_waker_wake(const SOCKET_MANAGER_C_API_CWaker *waker);
 
 /**
  * Release the waker.
  */
-void socket_manager_waker_free(struct SOCKET_MANAGER_C_API_CWaker waker);
+void socket_manager_waker_free(SOCKET_MANAGER_C_API_CWaker waker);
 
 /**
  * Start a connection with the given `OnMsgCallback`, and return a pointer to a `MsgSender`.
@@ -206,8 +205,8 @@ void socket_manager_waker_free(struct SOCKET_MANAGER_C_API_CWaker waker);
  * Returns 1 on error, 0 on success.
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`,
  */
-int socket_manager_connection_start(struct SOCKET_MANAGER_C_API_Connection *conn,
-                                    struct SOCKET_MANAGER_C_API_OnMsgObj on_msg,
+int socket_manager_connection_start(SOCKET_MANAGER_C_API_Connection *conn,
+                                    SOCKET_MANAGER_C_API_OnMsgObj on_msg,
                                     size_t msg_buffer_size,
                                     unsigned long long read_msg_flush_interval,
                                     unsigned long long write_flush_interval,
@@ -226,12 +225,12 @@ int socket_manager_connection_start(struct SOCKET_MANAGER_C_API_Connection *conn
  * Returns 1 on error, 0 on success.
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
  */
-int socket_manager_connection_close(struct SOCKET_MANAGER_C_API_Connection *conn, char **err);
+int socket_manager_connection_close(SOCKET_MANAGER_C_API_Connection *conn, char **err);
 
 /**
  * Destructor of `Connection`.
  */
-void socket_manager_connection_free(struct SOCKET_MANAGER_C_API_Connection *conn);
+void socket_manager_connection_free(SOCKET_MANAGER_C_API_Connection *conn);
 
 /**
  * Send a message via the given `MsgSender` synchronously.
@@ -250,7 +249,7 @@ void socket_manager_connection_free(struct SOCKET_MANAGER_C_API_Connection *conn
  * Returns 1 on error, 0 on success.
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
  */
-int socket_manager_msg_sender_send_block(struct SOCKET_MANAGER_C_API_MsgSender *sender,
+int socket_manager_msg_sender_send_block(SOCKET_MANAGER_C_API_MsgSender *sender,
                                          const char *msg,
                                          size_t len,
                                          char **err);
@@ -274,10 +273,10 @@ int socket_manager_msg_sender_send_block(struct SOCKET_MANAGER_C_API_MsgSender *
  * Use `err` pointer to check for error.
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
  */
-long socket_manager_msg_sender_send_async(struct SOCKET_MANAGER_C_API_MsgSender *sender,
+long socket_manager_msg_sender_send_async(SOCKET_MANAGER_C_API_MsgSender *sender,
                                           const char *msg,
                                           size_t len,
-                                          struct SOCKET_MANAGER_C_API_Notifier notifier,
+                                          SOCKET_MANAGER_C_API_Notifier notifier,
                                           char **err);
 
 /**
@@ -290,13 +289,13 @@ long socket_manager_msg_sender_send_async(struct SOCKET_MANAGER_C_API_MsgSender 
  * Returns 1 on error, 0 on success.
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
  */
-int socket_manager_msg_sender_flush(struct SOCKET_MANAGER_C_API_MsgSender *sender, char **err);
+int socket_manager_msg_sender_flush(SOCKET_MANAGER_C_API_MsgSender *sender, char **err);
 
 /**
  * Destructor of `MsgSender`.
  * Drop sender to actively close the connection.
  */
-void socket_manager_msg_sender_free(struct SOCKET_MANAGER_C_API_MsgSender *sender);
+void socket_manager_msg_sender_free(SOCKET_MANAGER_C_API_MsgSender *sender);
 
 /**
  * Rust calls this function to send `conn: ConnStates`
@@ -304,8 +303,8 @@ void socket_manager_msg_sender_free(struct SOCKET_MANAGER_C_API_MsgSender *sende
  * pass error to `err` pointer.
  * Set `err` to null_ptr if there is no error.
  */
-extern void socket_manager_extern_on_conn(struct SOCKET_MANAGER_C_API_OnConnObj this_,
-                                          struct SOCKET_MANAGER_C_API_ConnStates conn,
+extern void socket_manager_extern_on_conn(SOCKET_MANAGER_C_API_OnConnObj this_,
+                                          SOCKET_MANAGER_C_API_ConnStates conn,
                                           char **err);
 
 /**
@@ -328,9 +327,9 @@ extern void socket_manager_extern_on_conn(struct SOCKET_MANAGER_C_API_OnConnObj 
  * When the caller is able to receive bytes again,
  * it should call `waker.wake()` to wake up the runtime.
  */
-extern long socket_manager_extern_on_msg(struct SOCKET_MANAGER_C_API_OnMsgObj this_,
-                                         struct SOCKET_MANAGER_C_API_ConnMsg msg,
-                                         struct SOCKET_MANAGER_C_API_CWaker waker,
+extern long socket_manager_extern_on_msg(SOCKET_MANAGER_C_API_OnMsgObj this_,
+                                         SOCKET_MANAGER_C_API_ConnMsg msg,
+                                         SOCKET_MANAGER_C_API_CWaker waker,
                                          char **err);
 
 /**
@@ -354,9 +353,9 @@ extern long socket_manager_extern_on_msg(struct SOCKET_MANAGER_C_API_OnMsgObj th
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`,
  * and the returned pointer will be null.
  */
-struct SOCKET_MANAGER_C_API_SocketManager *socket_manager_init(struct SOCKET_MANAGER_C_API_OnConnObj on_conn,
-                                                               size_t n_threads,
-                                                               char **err);
+SOCKET_MANAGER_C_API_SocketManager *socket_manager_init(SOCKET_MANAGER_C_API_OnConnObj on_conn,
+                                                        size_t n_threads,
+                                                        char **err);
 
 /**
  * Listen on the given address.
@@ -368,7 +367,7 @@ struct SOCKET_MANAGER_C_API_SocketManager *socket_manager_init(struct SOCKET_MAN
  * Returns 1 on error, 0 on success.
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
  */
-int socket_manager_listen_on_addr(struct SOCKET_MANAGER_C_API_SocketManager *manager,
+int socket_manager_listen_on_addr(SOCKET_MANAGER_C_API_SocketManager *manager,
                                   const char *addr,
                                   char **err);
 
@@ -382,7 +381,7 @@ int socket_manager_listen_on_addr(struct SOCKET_MANAGER_C_API_SocketManager *man
  * Returns 1 on error, 0 on success.
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
  */
-int socket_manager_connect_to_addr(struct SOCKET_MANAGER_C_API_SocketManager *manager,
+int socket_manager_connect_to_addr(SOCKET_MANAGER_C_API_SocketManager *manager,
                                    const char *addr,
                                    char **err);
 
@@ -396,7 +395,7 @@ int socket_manager_connect_to_addr(struct SOCKET_MANAGER_C_API_SocketManager *ma
  * Returns 1 on error, 0 on success.
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
  */
-int socket_manager_cancel_listen_on_addr(struct SOCKET_MANAGER_C_API_SocketManager *manager,
+int socket_manager_cancel_listen_on_addr(SOCKET_MANAGER_C_API_SocketManager *manager,
                                          const char *addr,
                                          char **err);
 
@@ -413,7 +412,7 @@ int socket_manager_cancel_listen_on_addr(struct SOCKET_MANAGER_C_API_SocketManag
  * Returns 1 on error, 0 on success.
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
  */
-int socket_manager_abort(struct SOCKET_MANAGER_C_API_SocketManager *manager, bool wait, char **err);
+int socket_manager_abort(SOCKET_MANAGER_C_API_SocketManager *manager, bool wait, char **err);
 
 /**
  * Join and wait on the `SocketManager`.
@@ -427,16 +426,14 @@ int socket_manager_abort(struct SOCKET_MANAGER_C_API_SocketManager *manager, boo
  * # Errors
  * Join returns error if the runtime panicked.
  */
-int socket_manager_join(struct SOCKET_MANAGER_C_API_SocketManager *manager, char **err);
+int socket_manager_join(SOCKET_MANAGER_C_API_SocketManager *manager, char **err);
 
 /**
  * Calling this function will abort all background runtime and join on them,
  * and free the `SocketManager`.
  */
-void socket_manager_free(struct SOCKET_MANAGER_C_API_SocketManager *manager);
+void socket_manager_free(SOCKET_MANAGER_C_API_SocketManager *manager);
 
-#ifdef __cplusplus
 } // extern "C"
-#endif // __cplusplus
 
-#endif /* SOCKET_MANAGER_C_API_H */
+#endif // SOCKET_MANAGER_C_API_H

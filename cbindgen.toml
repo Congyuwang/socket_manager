@@ -3,7 +3,7 @@
 # possible values: "C", "C++", "Cython"
 #
 # default: "C++"
-language = "C"
+language = "C++"
 
 # A list of sys headers to #include (with angle brackets)
 # default: []
@@ -52,7 +52,7 @@ documentation = true
 # * "auto": "c++" if that's the language, "doxy" otherwise
 #
 # default: "auto"
-documentation_style = "auto"
+documentation_style = "doxy"
 
 # How much of the documentation for each item is output.
 #
