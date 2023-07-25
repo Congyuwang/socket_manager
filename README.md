@@ -78,3 +78,28 @@ To enable lto, add:
 ```cmake
 set_property(TARGET <your-target> PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 ```
+
+## Memory (resource) Model
+
+Dropping `Sender` will close the connection, and drop its
+reference to `Connection`.
+`ConnCallback` will drop its internal reference to `Connection` when
+the connection is closed.
+Thus `Connection` will free any reference to `Notifier`
+or `MsgReceiver`.
+Note to drop all related resources, no reference to the
+returned `Waker` should be kept.
+
+```mermaid
+flowchart TD
+    M(SocketManager) -->|strong ref| CB(ConnCallback)
+    CB -->|strong ref, drop on close| CON(Connection)
+    CON -->|strong ref| NF(Notifier)
+    CON -->|strong ref| RCV(MsgReceiver)
+    SEND(Sender) -->|strong ref| CON
+    RCV -.->|returns| WK
+    WK(Waker) -.->|drop to release| READ(Read Task)
+    SEND -.->|drop to close| CB
+```
+
+See the example folder for more complicated case.
