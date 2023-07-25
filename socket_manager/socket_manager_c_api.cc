@@ -14,12 +14,12 @@ static char *string_dup(const std::string &str) {
 /**
  * RecvWaker for the sender.
  */
-extern "C" void socket_manager_extern_notifier_wake(struct SOCKET_MANAGER_C_API_Notifier this_) {
+extern "C" void socket_manager_extern_notifier_wake(SOCKET_MANAGER_C_API_Notifier this_) {
   auto wr = reinterpret_cast<socket_manager::Notifier *>(this_.This);
   wr->wake();
 }
 
-extern "C" long socket_manager_extern_on_msg(struct SOCKET_MANAGER_C_API_OnMsgObj this_,
+extern "C" long socket_manager_extern_on_msg(SOCKET_MANAGER_C_API_OnMsgObj this_,
                                              SOCKET_MANAGER_C_API_ConnMsg msg,
                                              SOCKET_MANAGER_C_API_CWaker waker,
                                              char **err) {
@@ -41,7 +41,7 @@ extern "C" long socket_manager_extern_on_msg(struct SOCKET_MANAGER_C_API_OnMsgOb
 }
 
 extern "C" void socket_manager_extern_on_conn(
-        struct SOCKET_MANAGER_C_API_OnConnObj this_,
+        SOCKET_MANAGER_C_API_OnConnObj this_,
         SOCKET_MANAGER_C_API_ConnStates states,
         char **error) {
 

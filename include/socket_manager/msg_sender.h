@@ -22,13 +22,13 @@ namespace socket_manager {
 
   public:
     /**
-     * Non blocking message sending.
+     * Asynchronous message sending.
      * <br /><br />
-     * To use the method, provide a `notifier` when starting
-     * the connection.
+     * To use the method, the user should pass a `notifier` object
+     * when calling `Connection::start()` in order to receive notification
+     * when the send buffer is ready.
      *
      * <h3>Async control flow (IMPORTANT)</h3>
-     * <br /><br />
      * This function is non-blocking, it returns `PENDING = -1`
      * if the send buffer is full. So the caller should wait
      * by passing a `Notifier` which will be called when the
@@ -48,10 +48,25 @@ namespace socket_manager {
     long send_async(std::string_view data);
 
     /**
-     * Send a message to the peer.
+     * Non-blocking message sending (NO BACKPRESSURE).
+     * <br /><br />
+     * This method is non-blocking. It returns immediately and
+     * caches all the data in the internal buffer. So it comes
+     * without back pressure.
+     *
+     * @param data the message to send
+     * @param notifier `notifier.wake()` is evoked when send_async
+     *   could accept more data.
+     * @throws std::runtime_error when the connection is closed.
+     */
+    void send_nonblock(std::string_view data);
+
+    /**
+     * Blocking message sending (DO NOT USE IN ASYNC CALLBACK).
      *
      * <h3>Blocking!!</h3>
-     * This method might block, so it should never be used within the callbacks.
+     * This method might block, so it should never be used within any of
+     * the async callbacks. Otherwise the runtime can panic!
      *
      * <h3>Thread Safety</h3>
      * This method is thread safe.

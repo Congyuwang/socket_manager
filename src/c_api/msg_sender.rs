@@ -44,6 +44,45 @@ pub unsafe extern "C" fn socket_manager_msg_sender_send_block(
     }
 }
 
+/// Send a message via the given `MsgSender` .
+/// This is a non-blocking API.
+/// All sent data is buffered in a chain of ring buffer.
+/// This method does not implement back pressure since it
+/// caches all received data.
+/// Use `send_async` or `send_block` for back pressure.
+///
+/// # Thread Safety
+/// Thread safe.
+///
+/// This function can be called within the context of the async callbacks.
+///
+/// # Errors
+/// If the connection is closed, the function will return 1 and set `err` to a pointer
+/// with WriteZero error.
+///
+/// Returns 1 on error, 0 on success.
+/// On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
+#[no_mangle]
+pub unsafe extern "C" fn socket_manager_msg_sender_send_nonblock(
+    sender: *mut MsgSender,
+    msg: *const c_char,
+    len: size_t,
+    err: *mut *mut c_char,
+) -> c_int {
+    let sender = &mut (*sender);
+    let msg = std::slice::from_raw_parts(msg as *const u8, len);
+    match sender.send_nonblock(msg) {
+        Ok(_) => {
+            *err = null_mut();
+            0
+        }
+        Err(e) => {
+            write_error_c_str(e, err);
+            1
+        }
+    }
+}
+
 /// Try to send a message via the given `MsgSender` asynchronously.
 ///
 /// # Thread Safety

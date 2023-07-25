@@ -9,8 +9,7 @@ use tokio::net::tcp::OwnedReadHalf;
 use tokio::time::MissedTickBehavior;
 
 pub const MIN_MSG_BUFFER_SIZE: usize = 1024 * 8;
-// 8KB
-pub const MAX_MSG_BUFFER_SIZE: usize = 1024 * 1024 * 8; // 8MB
+pub const MAX_MSG_BUFFER_SIZE: usize = 1024 * 1024 * 8;
 
 /// Receive bytes ReadHalf of TcpStream and call `on_msg` callback.
 pub(crate) async fn handle_reader<

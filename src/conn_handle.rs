@@ -1,18 +1,14 @@
 use crate::conn::{Conn, ConnConfig};
-use crate::msg_sender::{MsgSender, SendCommand};
+use crate::msg_sender::make_sender;
 use crate::{read, write, ConnState, ConnectionState, Msg};
-use async_ringbuf::AsyncHeapRb;
 use futures::FutureExt;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::task::{Poll, Waker};
 use tokio::net::TcpStream;
 use tokio::runtime::Handle;
-use tokio::sync::mpsc::unbounded_channel;
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
-
-pub const RING_BUFFER_SIZE: usize = 256 * 1024; // 256KB
 
 /// This function handles connection from a client.
 pub(crate) fn handle_connection<
@@ -26,14 +22,8 @@ pub(crate) fn handle_connection<
     on_conn: OnConn,
     connection_state: Arc<ConnectionState>,
 ) {
-    let (send, recv) = unbounded_channel::<SendCommand>();
     let (conn_config_setter, conn_config) = oneshot::channel::<(OnMsg, ConnConfig)>();
-    let (buf_prd, ring_buf) = AsyncHeapRb::new(RING_BUFFER_SIZE).split();
-    let send = MsgSender {
-        cmd: send,
-        buf_prd,
-        handle: handle.clone(),
-    };
+    let (send, recv) = make_sender(handle.clone());
 
     let on_conn_clone = on_conn.clone();
     // Call `on_conn` callback, and wait for user to call `start` on connection.
@@ -64,7 +54,7 @@ pub(crate) fn handle_connection<
             // spawn reader and writer
             let (stop, stopper) = oneshot::channel::<()>();
             let (read, write) = stream.into_split();
-            let writer = handle.spawn(write::handle_writer(write, recv, ring_buf, config, stop));
+            let writer = handle.spawn(write::handle_writer(write, recv, config, stop));
             let reader = handle.spawn(read::handle_reader(read, on_msg, config));
 
             // insert the stopper into connection_state
