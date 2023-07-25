@@ -42,7 +42,6 @@ class OnMsgErrorCallback : public ConnCallback {
 
   void on_connect_error(const std::string &addr, const std::string &err) override {}
 
-private:
   std::shared_ptr<MsgSender> sender;
 };
 
@@ -55,7 +54,9 @@ class StoreAllEventsConnHelloCallback : public StoreAllEventsConnCallback {
     auto msg_storer = std::make_unique<MsgStoreReceiver>(conn_id, mutex, cond, buffer);
     conn->start(std::move(msg_storer));
     std::thread t1([sender]() {
-      sender->send_block("hello");
+      try {
+        sender->send_block("hello");
+      } catch (std::runtime_error &e) { /* ignore */ }
     });
     t1.detach();
     senders.emplace(conn_id, sender);
