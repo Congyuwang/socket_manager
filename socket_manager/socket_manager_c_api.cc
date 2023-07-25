@@ -19,16 +19,6 @@ extern "C" void socket_manager_extern_notifier_wake(struct SOCKET_MANAGER_C_API_
   wr->wake();
 }
 
-extern "C" void socket_manager_extern_notifier_release(struct SOCKET_MANAGER_C_API_Notifier this_) {
-  auto wr = reinterpret_cast<socket_manager::Notifier *>(this_.This);
-  wr->release();
-}
-
-extern "C" void socket_manager_extern_notifier_clone(struct SOCKET_MANAGER_C_API_Notifier this_) {
-  auto wr = reinterpret_cast<socket_manager::Notifier *>(this_.This);
-  wr->clone();
-}
-
 extern "C" long socket_manager_extern_on_msg(struct SOCKET_MANAGER_C_API_OnMsgObj this_,
                                              SOCKET_MANAGER_C_API_ConnMsg msg,
                                              SOCKET_MANAGER_C_API_CWaker waker,

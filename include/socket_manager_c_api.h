@@ -59,6 +59,9 @@ typedef struct SOCKET_MANAGER_C_API_Notifier {
  *
  * This struct is equivalent to a raw pointer.
  * Manager with care.
+ *
+ * Note that the CWaker must be properly dropped.
+ * Otherwise, the associated task will leak.
  */
 typedef struct SOCKET_MANAGER_C_API_CWaker {
   const void *Data;
@@ -162,16 +165,6 @@ extern "C" {
  * Waker for the try_send method.
  */
 extern void socket_manager_extern_notifier_wake(struct SOCKET_MANAGER_C_API_Notifier this_);
-
-/**
- * Decrement ref count of the waker.
- */
-extern void socket_manager_extern_notifier_release(struct SOCKET_MANAGER_C_API_Notifier this_);
-
-/**
- * Increment ref count of the waker.
- */
-extern void socket_manager_extern_notifier_clone(struct SOCKET_MANAGER_C_API_Notifier this_);
 
 /**
  * Call the waker to wake the relevant task of context.

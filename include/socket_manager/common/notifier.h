@@ -24,15 +24,8 @@ namespace socket_manager {
 
     virtual void wake() = 0;
 
-    void release() {};
-
-    void clone() {};
-
     friend void::socket_manager_extern_notifier_wake(struct SOCKET_MANAGER_C_API_Notifier this_);
 
-    friend void::socket_manager_extern_notifier_release(struct SOCKET_MANAGER_C_API_Notifier this_);
-
-    friend void::socket_manager_extern_notifier_clone(struct SOCKET_MANAGER_C_API_Notifier this_);
   };
 
   class NoopNotifier : public Notifier {

@@ -31,12 +31,6 @@ pub struct Notifier {
 extern "C" {
     /// Waker for the try_send method.
     pub(crate) fn socket_manager_extern_notifier_wake(this: Notifier);
-
-    /// Decrement ref count of the waker.
-    pub(crate) fn socket_manager_extern_notifier_release(this: Notifier);
-
-    /// Increment ref count of the waker.
-    pub(crate) fn socket_manager_extern_notifier_clone(this: Notifier);
 }
 
 impl Notifier {
@@ -46,20 +40,7 @@ impl Notifier {
 
         const fn make_vtable() -> RawWakerVTable {
             RawWakerVTable::new(
-                |dat| unsafe {
-                    let this = Notifier {
-                        this: dat as *mut c_void,
-                    };
-                    socket_manager_extern_notifier_clone(this);
-                    RawWaker::new(dat, &MSG_SENDER_WAKER_VTABLE)
-                },
-                |dat| unsafe {
-                    let this = Notifier {
-                        this: dat as *mut c_void,
-                    };
-                    socket_manager_extern_notifier_wake(this);
-                    socket_manager_extern_notifier_release(this);
-                },
+                |dat| RawWaker::new(dat, &MSG_SENDER_WAKER_VTABLE),
                 |dat| unsafe {
                     let this = Notifier {
                         this: dat as *mut c_void,
@@ -70,15 +51,13 @@ impl Notifier {
                     let this = Notifier {
                         this: dat as *mut c_void,
                     };
-                    socket_manager_extern_notifier_release(this);
+                    socket_manager_extern_notifier_wake(this);
                 },
+                |_| {},
             )
         }
 
         let raw_waker = RawWaker::new(self.this as *const (), &MSG_SENDER_WAKER_VTABLE);
-        // creating a new waker also increment the ref-count, though
-        // which could be decremented immediately if its a temp value.
-        socket_manager_extern_notifier_clone(self);
         Waker::from_raw(raw_waker)
     }
 }
