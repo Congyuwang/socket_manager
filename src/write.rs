@@ -55,15 +55,16 @@ async fn handle_writer_auto_flush(
                     if ring.is_closed() {
                         break 'ring;
                     }
-                    copy_from_ring_buf(&mut ring, &mut write, chunk_size).await?;
+                    flush(&mut ring, &mut write, chunk_size).await?;
                     has_data = false;
                 }
                 // flush
                 cmd = recv.cmd_recv.recv() => {
+                    // always flush, including if sender is dropped
+                    flush(&mut ring, &mut write, chunk_size).await?;
                     if cmd.is_none() {
                         break 'close;
                     }
-                    copy_from_ring_buf(&mut ring, &mut write, chunk_size).await?;
                     has_data = false;
                 }
                 _ = ring.wait(1), if !has_data => {
@@ -75,14 +76,14 @@ async fn handle_writer_auto_flush(
                 }
                 // tick flush
                 _ = flush_tick.tick(), if has_data => {
-                    copy_from_ring_buf(&mut ring, &mut write, chunk_size).await?;
+                    flush(&mut ring, &mut write, chunk_size).await?;
                     has_data = false;
                 }
                 _ = stop.closed() => break 'close,
             }
         }
         // always clear the old ring_buf before reading the next
-        copy_from_ring_buf(&mut ring, &mut write, chunk_size).await?;
+        flush(&mut ring, &mut write, chunk_size).await?;
     }
     tracing::debug!("connection stopped");
     write.shutdown().await?;
@@ -117,20 +118,22 @@ async fn handle_writer_no_auto_flush(
                     if ring.is_closed() {
                         break 'ring;
                     }
-                    copy_from_ring_buf(&mut ring, &mut write, chunk_size).await?;
+                    flush(&mut ring, &mut write, chunk_size).await?;
                 }
                 // flush
                 cmd = recv.cmd_recv.recv() => {
+                    // always flush, including if sender is dropped
+                    flush(&mut ring, &mut write, chunk_size).await?;
+                    has_data = false;
                     if cmd.is_none() {
                         break 'close;
                     }
-                    copy_from_ring_buf(&mut ring, &mut write, chunk_size).await?;
                 }
                 _ = stop.closed() => break 'close,
             }
         }
         // always clear the old ring_buf before reading the next
-        copy_from_ring_buf(&mut ring, &mut write, chunk_size).await?;
+        flush(&mut ring, &mut write, chunk_size).await?;
     }
     tracing::debug!("connection stopped");
     write.shutdown().await?;
@@ -139,7 +142,7 @@ async fn handle_writer_no_auto_flush(
 
 /// directly write from ring buffer to bufwriter.
 /// until the ring buffer is empty.
-async fn copy_from_ring_buf(
+async fn flush(
     ring_buf: &mut AsyncHeapConsumer<u8>,
     write: &mut OwnedWriteHalf,
     chunk_size: usize,
