@@ -2,8 +2,8 @@
 
 #include "test_utils.h"
 #include <string_view>
-#include <concurrentqueue.h>
-#include <lightweightsemaphore.h>
+#include "concurrentqueue/concurrentqueue.h"
+#include "concurrentqueue/lightweightsemaphore.h"
 #include <thread>
 
 const size_t MSG_BUF_SIZE = 256 * 1024;
