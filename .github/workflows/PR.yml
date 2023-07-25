@@ -64,11 +64,12 @@ jobs:
           eval "$(brew shellenv)"
           cmake -B build -DCMAKE_BUILD_TYPE=Release
           cmake --build build --config Release
-          cd build
-          ./helloworld_server &
+          ./build/helloworld_server &
+          SERVER_PID=$!
           # Give the server time to start
           sleep 1
           rsp=$(curl http://127.0.0.1:49999)
+          kill $SERVER_PID
           if [[ "$rsp" == "Hello, world" ]]; then
             echo "Test passed"
             exit 0
@@ -76,6 +77,12 @@ jobs:
             echo "Test failed"
             exit 1
           fi
+
+      - name: Test Build Examples
+        working-directory: ${{github.workspace}}/examples/echo_server
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release
 
   build-linux:
     runs-on: ubuntu-latest
@@ -133,11 +140,12 @@ jobs:
         run: |
           cmake -B build -DCMAKE_BUILD_TYPE=Release
           cmake --build build --config Release
-          cd build
-          ./helloworld_server &
+          ./build/helloworld_server &
+          SERVER_PID=$!
           # Give the server time to start
-          rsp=$(curl http://127.0.0.1:49999)
           sleep 1
+          rsp=$(curl http://127.0.0.1:49999)
+          kill $SERVER_PID
           if [[ "$rsp" == "Hello, world" ]]; then
             echo "Test passed"
             exit 0
@@ -145,3 +153,9 @@ jobs:
             echo "Test failed"
             exit 1
           fi
+
+      - name: Test Build Examples
+        working-directory: ${{github.workspace}}/examples/echo_server
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release
