@@ -30,16 +30,22 @@ set(header ${CMAKE_SOURCE_DIR}/include/socket_manager_c_api.h
            ${header_path}/connection.h
            ${header_path}/conn_callback.h
            ${header_path}/msg_sender.h
+           ${header_path}/common/waker.h
+           ${header_path}/common/notifier.h
            ${header_path}/msg_receiver.h)
 set(src socket_manager_c_api.cc
         msg_sender.cc
         connection.cc
+        waker.cc
+        msg_receiver.cc
         socket_manager.cc)
 
 target_sources(${PROJECT_NAME} PRIVATE ${src})
 
 target_include_directories(${PROJECT_NAME} PUBLIC
         $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include/>
+        $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include/socket_manager/>
+        $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include/socket_manager/common/>
         $<INSTALL_INTERFACE:${include_dest}>)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES

@@ -4,46 +4,52 @@
 #include <atomic>
 #include <memory>
 #include <stdexcept>
+#include <functional>
 #include "msg_receiver.h"
 #include "msg_sender.h"
 #include "socket_manager_c_api.h"
 
 namespace socket_manager {
 
-  static unsigned long long DEFAULT_WRITE_FLUSH_MILLI_SEC = 5; // 5 millisecond
-  static unsigned long long DEFAULT_READ_MSG_FLUSH_MILLI_SEC = 5; // 5 millisecond
-  static size_t DEFAULT_MSG_BUF_SIZE = 64 * 1024; // 64KB
+  const unsigned long long DEFAULT_WRITE_FLUSH_MILLI_SEC = 5; // 5 millisecond
+  const unsigned long long DEFAULT_READ_MSG_FLUSH_MILLI_SEC = 5; // 5 millisecond
+  const size_t DEFAULT_MSG_BUF_SIZE = 64 * 1024; // 64KB
 
   class MsgSender;
 
-  class Waker;
+  class Notifier;
+
+  class NoopNotifier;
 
   /**
    * Use Connection to send and receive messages from
    * established connections.
    */
-  class Connection : public std::enable_shared_from_this<Connection> {
+  class Connection {
 
   public:
 
     /**
      * Start a connection.
      *
-     * # Start / Close
+     * <h3>Start / Close</h3>
      * Exactly one of `start` or `close` should be called!
      * Calling more than once will throw runtime exception.
      * Not calling any of them might result in resource leak.
      *
-     * # Close started connection
+     * <h3>Close started connection</h3>
      * Drop the returned MsgSender object to close the connection
      * after starting it.
      *
-     * # Thread Safety
+     * <h3>Thread Safety</h3>
      * Thread safe, but should be called exactly once,
      * otherwise throws error.
      *
-     * @param msg_receiver the message receiver callback to
-     *                    receive messages from the peer.
+     * @param msg_receiver the message receiver callback to receive
+     *    messages from the peer. Non-null.
+     * @param send_notifier the notifier for getting notified when the
+     *    send buffer is ready. Pass nullptr to use a noop notifier.
+     *    This parameter is needed only for async sending.
      * @param msg_buffer_size The size of the message buffer in bytes.
      *    Set to 0 to use no buffer (i.e., call `on_msg` immediately on receiving
      *    any data, expecting the user to implement buffer if needed).
@@ -58,44 +64,44 @@ namespace socket_manager {
      *    Default to 1 millisecond.
      */
     void start(
-            std::unique_ptr<MsgReceiver> msg_receiver,
+            std::shared_ptr<MsgReceiverAsync> msg_receiver,
+            std::shared_ptr<Notifier> send_notifier = nullptr,
             size_t msg_buffer_size = DEFAULT_MSG_BUF_SIZE,
             unsigned long long read_msg_flush_interval = DEFAULT_READ_MSG_FLUSH_MILLI_SEC,
             unsigned long long write_flush_interval = DEFAULT_WRITE_FLUSH_MILLI_SEC);
 
     /**
      * Close the connection without using it.
-     *
+     * <br /><br />
      * `on_connection_close` callback will be called.
      *
-     * # Start / Close
+     * <h3>Start / Close</h3>
      * Exactly one of `start` or `close` should be called!
      * Calling more than once will throw runtime exception.
      * Not calling any of them might result in resource leak.
      */
     void close();
 
-    Connection(const Connection &) = delete;
-
-    void operator=(const Connection &) = delete;
-
-    ~Connection();
-
   private:
 
     friend class MsgSender;
 
-    friend char* ::socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates conn);
+    friend void::socket_manager_extern_on_conn(
+            struct SOCKET_MANAGER_C_API_OnConnObj this_,
+            SOCKET_MANAGER_C_API_ConnStates conn,
+            char **err);
 
     // keep the msg_receiver alive
-    std::unique_ptr<MsgReceiver> receiver;
+    std::shared_ptr<MsgReceiverAsync> receiver;
 
-    // keep the waker alive
-    std::shared_ptr<Waker> waker;
+    // keep the notifier alive
+    std::shared_ptr<Notifier> notifier;
 
-    explicit Connection(CConnection *inner);
+    explicit Connection(SOCKET_MANAGER_C_API_Connection *inner);
 
-    CConnection *inner;
+    std::unique_ptr<
+            SOCKET_MANAGER_C_API_Connection,
+            std::function<void(SOCKET_MANAGER_C_API_Connection *)>> inner;
 
   };
 

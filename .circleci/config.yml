@@ -47,11 +47,12 @@ jobs:
             cd tests/test_find_package
             cmake -B build -DCMAKE_BUILD_TYPE=Release
             cmake --build build --config Release
-            cd build
-            ./helloworld_server &
+            ./build/helloworld_server &
+            SERVER_PID=$!
             # Give the server time to start
             sleep 1
             rsp=$(curl http://127.0.0.1:49999)
+            kill $SERVER_PID
             if [[ "$rsp" == "Hello, world" ]]; then
               echo "Test passed"
               exit 0
@@ -59,6 +60,12 @@ jobs:
               echo "Test failed"
               exit 1
             fi
+      - run:
+          name: "Test Build Examples"
+          command: |
+            cd examples/echo_server
+            cmake -B build -DCMAKE_BUILD_TYPE=Release
+            cmake --build build --config Release
 
 # Orchestrate jobs using workflows
 # See: https://circleci.com/docs/configuration-reference/#workflows
@@ -68,5 +75,5 @@ workflows:
       - build:
           matrix:
             parameters:
-              os: ["jammy", "focal"]
-              shared: ["ON", "OFF"]
+              os: [ "jammy", "focal" ]
+              shared: [ "ON", "OFF" ]

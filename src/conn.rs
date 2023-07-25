@@ -1,6 +1,7 @@
 use crate::Msg;
 use std::num::NonZeroUsize;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::task::{Poll, Waker};
 use std::time::Duration;
 use tokio::sync::oneshot;
 
@@ -15,14 +16,10 @@ struct ConnInner<OnMsg> {
 }
 
 impl<OnMsg> Conn<OnMsg> {
-    pub(crate) fn new(
-        conn_config_setter: oneshot::Sender<(OnMsg, ConnConfig)>,
-    ) -> Self {
+    pub(crate) fn new(conn_config_setter: oneshot::Sender<(OnMsg, ConnConfig)>) -> Self {
         Self {
             consumed: AtomicBool::new(false),
-            inner: Some(ConnInner {
-                conn_config_setter,
-            }),
+            inner: Some(ConnInner { conn_config_setter }),
         }
     }
 }
@@ -30,18 +27,18 @@ impl<OnMsg> Conn<OnMsg> {
 /// Connection configuration
 #[derive(Copy, Clone)]
 pub struct ConnConfig {
-    pub write_flush_interval: Option<Duration>,
-    pub read_msg_flush_interval: Option<Duration>,
+    /// zero represent no auto flush
+    pub write_flush_interval: Duration,
+    /// zero represent no auto flush
+    pub read_msg_flush_interval: Duration,
     pub msg_buffer_size: Option<NonZeroUsize>,
 }
 
-impl<OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + 'static + Clone> Conn<OnMsg> {
+impl<OnMsg: Fn(Msg<'_>, Waker) -> Poll<Result<usize, String>> + Send + 'static + Clone>
+    Conn<OnMsg>
+{
     /// This function should be called only once.
-    pub fn start_connection(
-        &mut self,
-        on_msg: OnMsg,
-        config: ConnConfig,
-    ) -> std::io::Result<()> {
+    pub fn start_connection(&mut self, on_msg: OnMsg, config: ConnConfig) -> std::io::Result<()> {
         self.consumed
             .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
             .map_err(|_| {

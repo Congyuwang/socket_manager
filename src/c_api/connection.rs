@@ -1,5 +1,5 @@
-use crate::c_api::callbacks::OnMsgObj;
-use crate::c_api::structs::CConnection;
+use crate::c_api::conn_events::Connection;
+use crate::c_api::on_msg::OnMsgObj;
 use crate::c_api::utils::write_error_c_str;
 use crate::conn::ConnConfig;
 use libc::size_t;
@@ -9,7 +9,7 @@ use std::os::raw::c_ulonglong;
 use std::ptr::null_mut;
 use std::time::Duration;
 
-/// Start a connection with the given `OnMsgCallback`, and return a pointer to a `CMsgSender`.
+/// Start a connection with the given `OnMsgCallback`, and return a pointer to a `MsgSender`.
 ///
 /// Only one of `connection_start` or `connection_close` should be called,
 /// or it will result in runtime error.
@@ -35,11 +35,11 @@ use std::time::Duration;
 /// * `err` - A pointer to a pointer to a C string allocated by `malloc` on error.
 ///
 /// # Errors
-/// Returns -1 on error, 0 on success.
+/// Returns 1 on error, 0 on success.
 /// On Error, `err` will be set to a pointer to a C string allocated by `malloc`,
 #[no_mangle]
-pub unsafe extern "C" fn connection_start(
-    conn: *mut CConnection,
+pub unsafe extern "C" fn socket_manager_connection_start(
+    conn: *mut Connection,
     on_msg: OnMsgObj,
     msg_buffer_size: size_t,
     read_msg_flush_interval: c_ulonglong,
@@ -47,16 +47,8 @@ pub unsafe extern "C" fn connection_start(
     err: *mut *mut c_char,
 ) -> c_int {
     let conn = &mut (*conn).conn;
-    let write_flush_interval = if write_flush_interval == 0 {
-        None
-    } else {
-        Some(Duration::from_millis(write_flush_interval))
-    };
-    let read_msg_flush_interval = if read_msg_flush_interval == 0 {
-        None
-    } else {
-        Some(Duration::from_millis(read_msg_flush_interval))
-    };
+    let write_flush_interval = Duration::from_millis(write_flush_interval);
+    let read_msg_flush_interval = Duration::from_millis(read_msg_flush_interval);
     let msg_buffer_size = NonZeroUsize::new(msg_buffer_size);
     match conn.start_connection(
         on_msg,
@@ -72,7 +64,7 @@ pub unsafe extern "C" fn connection_start(
         }
         Err(e) => {
             write_error_c_str(e, err);
-            -1
+            1
         }
     }
 }
@@ -86,10 +78,13 @@ pub unsafe extern "C" fn connection_start(
 /// Thread safe.
 ///
 /// # Errors
-/// Returns -1 on error, 0 on success.
+/// Returns 1 on error, 0 on success.
 /// On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
 #[no_mangle]
-pub unsafe extern "C" fn connection_close(conn: *mut CConnection, err: *mut *mut c_char) -> c_int {
+pub unsafe extern "C" fn socket_manager_connection_close(
+    conn: *mut Connection,
+    err: *mut *mut c_char,
+) -> c_int {
     let conn = &mut (*conn).conn;
     match conn.close() {
         Ok(_) => {
@@ -98,13 +93,13 @@ pub unsafe extern "C" fn connection_close(conn: *mut CConnection, err: *mut *mut
         }
         Err(e) => {
             write_error_c_str(e, err);
-            -1
+            1
         }
     }
 }
 
 /// Destructor of `Connection`.
 #[no_mangle]
-pub unsafe extern "C" fn connection_free(conn: *mut CConnection) {
+pub unsafe extern "C" fn socket_manager_connection_free(conn: *mut Connection) {
     drop(Box::from_raw(conn))
 }

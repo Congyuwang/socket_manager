@@ -15,7 +15,7 @@ int test_error_call_after_abort(int argc, char **argv) {
   try {
     nothing.connect_to_addr("127.0.0.1:40103");
     // should not reach here
-    return -1;
+    return 1;
   } catch (std::runtime_error &e) {
     std::cout << "connect_to_addr after abort-join throw error: " << e.what() << std::endl;
   }

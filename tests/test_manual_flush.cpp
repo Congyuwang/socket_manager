@@ -51,9 +51,9 @@ class HelloCallback : public ConnCallback {
                   std::shared_ptr<Connection> conn, std::shared_ptr<MsgSender> sender) override {
     auto rcv = std::make_unique<FinalReceiver>(has_received, mutex, cond);
     // disable write auto flush
-    conn->start(std::move(rcv), DEFAULT_MSG_BUF_SIZE, 1, 0);
+    conn->start(std::move(rcv), nullptr, DEFAULT_MSG_BUF_SIZE, 1, 0);
     std::thread t([sender] {
-      sender->send("hello world");
+      sender->send_block("hello world");
       sender->flush();
     });
     t.detach();
@@ -79,11 +79,11 @@ class EchoCallback : public ConnCallback {
                   std::shared_ptr<Connection> conn, std::shared_ptr<MsgSender> sender) override {
     auto rcv = std::make_unique<EchoReceiver>(has_received, _data, mutex, cond);
     // disable write auto flush
-    conn->start(std::move(rcv), DEFAULT_MSG_BUF_SIZE, 1, 0);
+    conn->start(std::move(rcv), nullptr, DEFAULT_MSG_BUF_SIZE, 1, 0);
     std::thread t([sender, this]() {
       std::unique_lock<std::mutex> lk(mutex);
       cond.wait(lk, [this]() { return has_received; });
-      sender->send(_data);
+      sender->send_block(_data);
       std::cout << "echo received and sent back" << std::endl;
     });
     t.detach();

@@ -1,6 +1,7 @@
 #include "socket_manager_c_api.h"
 #include "socket_manager/msg_receiver.h"
 #include "socket_manager/conn_callback.h"
+#include "socket_manager/common/waker.h"
 
 inline
 static char *string_dup(const std::string &str) {
@@ -11,40 +12,52 @@ static char *string_dup(const std::string &str) {
 }
 
 /**
- * Waker for the sender.
+ * RecvWaker for the sender.
  */
-extern void socket_manager_extern_sender_waker_wake(struct WakerObj this_) {
-  auto wr = reinterpret_cast<socket_manager::Waker *>(this_.This);
+extern "C" void socket_manager_extern_notifier_wake(struct SOCKET_MANAGER_C_API_Notifier this_) {
+  auto wr = reinterpret_cast<socket_manager::Notifier *>(this_.This);
   wr->wake();
 }
 
-extern void socket_manager_extern_sender_waker_release(struct WakerObj this_) {
-  auto wr = reinterpret_cast<socket_manager::Waker *>(this_.This);
+extern "C" void socket_manager_extern_notifier_release(struct SOCKET_MANAGER_C_API_Notifier this_) {
+  auto wr = reinterpret_cast<socket_manager::Notifier *>(this_.This);
   wr->release();
 }
 
-extern void socket_manager_extern_sender_waker_clone(struct WakerObj this_) {
-  auto wr = reinterpret_cast<socket_manager::Waker *>(this_.This);
+extern "C" void socket_manager_extern_notifier_clone(struct SOCKET_MANAGER_C_API_Notifier this_) {
+  auto wr = reinterpret_cast<socket_manager::Notifier *>(this_.This);
   wr->clone();
 }
 
-extern char *socket_manager_extern_on_msg(struct OnMsgObj this_, ConnMsg msg) {
-  auto receiver = reinterpret_cast<socket_manager::MsgReceiver *>(this_.This);
+extern "C" long socket_manager_extern_on_msg(struct SOCKET_MANAGER_C_API_OnMsgObj this_,
+                                             SOCKET_MANAGER_C_API_ConnMsg msg,
+                                             SOCKET_MANAGER_C_API_CWaker waker,
+                                             char **err) {
+  auto receiver = reinterpret_cast<socket_manager::MsgReceiverAsync *>(this_.This);
   try {
-    receiver->on_message(std::string_view(msg.Bytes, msg.Len));
+    auto recv = receiver->on_message_async(
+            std::string_view(msg.Bytes, msg.Len),
+            socket_manager::Waker(waker)
+    );
+    *err = nullptr;
+    return recv;
   } catch (std::runtime_error &e) {
-    return string_dup(e.what());
+    *err = string_dup(e.what());
+    return 0;
   } catch (...) {
-    return string_dup("unknown error");
+    *err = string_dup("unknown error");
+    return 0;
   }
-  return nullptr;
 }
 
-extern char *socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates states) {
+extern "C" void socket_manager_extern_on_conn(
+        struct SOCKET_MANAGER_C_API_OnConnObj this_,
+        SOCKET_MANAGER_C_API_ConnStates states,
+        char **error) {
 
   auto conn_cb = static_cast<socket_manager::ConnCallback *>(this_.This);
   switch (states.Code) {
-    case ConnStateCode::Connect: {
+    case SOCKET_MANAGER_C_API_ConnStateCode::Connect: {
       auto on_connect = states.Data.OnConnect;
       auto local_addr = std::string(on_connect.Local);
       auto peer_addr = std::string(on_connect.Peer);
@@ -59,14 +72,15 @@ extern char *socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates st
       }
       try {
         conn_cb->on_connect(local_addr, peer_addr, std::move(conn), std::move(sender));
+        *error = nullptr;
       } catch (std::runtime_error &e) {
-        return string_dup(e.what());
+        *error = string_dup(e.what());
       } catch (...) {
-        return string_dup("unknown error");
+        *error = string_dup("unknown error");
       }
-      return nullptr;
+      break;
     }
-    case ConnStateCode::ConnectionClose: {
+    case SOCKET_MANAGER_C_API_ConnStateCode::ConnectionClose: {
       auto on_connection_close = states.Data.OnConnectionClose;
       auto local_addr = std::string(on_connection_close.Local);
       auto peer_addr = std::string(on_connection_close.Peer);
@@ -78,42 +92,45 @@ extern char *socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates st
       }
       try {
         conn_cb->on_connection_close(local_addr, peer_addr);
+        *error = nullptr;
       } catch (std::runtime_error &e) {
-        return string_dup(e.what());
+        *error = string_dup(e.what());
       } catch (...) {
-        return string_dup("unknown error");
+        *error = string_dup("unknown error");
       }
-      return nullptr;
+      break;
     }
-    case ConnStateCode::ListenError: {
+    case SOCKET_MANAGER_C_API_ConnStateCode::ListenError: {
       auto listen_error = states.Data.OnListenError;
       auto addr = std::string(listen_error.Addr);
       auto err = std::string(listen_error.Err);
       try {
         conn_cb->on_listen_error(addr, err);
+        *error = nullptr;
       } catch (std::runtime_error &e) {
-        return string_dup(e.what());
+        *error = string_dup(e.what());
       } catch (...) {
-        return string_dup("unknown error");
+        *error = string_dup("unknown error");
       }
-      return nullptr;
+      break;
     }
-    case ConnStateCode::ConnectError: {
+    case SOCKET_MANAGER_C_API_ConnStateCode::ConnectError: {
       auto connect_error = states.Data.OnConnectError;
       auto addr = std::string(connect_error.Addr);
       auto err = std::string(connect_error.Err);
       try {
         conn_cb->on_connect_error(addr, err);
+        *error = nullptr;
       } catch (std::runtime_error &e) {
-        return string_dup(e.what());
+        *error = string_dup(e.what());
       } catch (...) {
-        return string_dup("unknown error");
+        *error = string_dup("unknown error");
       }
-      return nullptr;
+      break;
     }
     default: {
       // should never reach here
-      return nullptr;
+      *error = nullptr;
     }
   }
 }

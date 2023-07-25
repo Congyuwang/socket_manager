@@ -3,6 +3,8 @@
 
 #include "socket_manager_c_api.h"
 #include "connection.h"
+#include "notifier.h"
+#include <functional>
 #include <string>
 #include <memory>
 #include <functional>
@@ -12,115 +14,83 @@ namespace socket_manager {
   class Connection;
 
   /**
-   * Used for receiving writable notification for
-   * `try_send` method.
-   *
-   * Each `try_test()` call releases the waker,
-   * when `wake()` is actually invoked
-   * (i.e., the number of calls of `release` and `clone`
-   * are equal).
-   */
-  class Waker {
-
-  public:
-    virtual ~Waker() = default;
-
-  private:
-
-    virtual void wake() = 0;
-
-    virtual void release() = 0;
-
-    virtual void clone() = 0;
-
-    friend void ::socket_manager_extern_sender_waker_wake(struct WakerObj this_);
-
-    friend void ::socket_manager_extern_sender_waker_release(struct WakerObj this_);
-
-    friend void ::socket_manager_extern_sender_waker_clone(struct WakerObj this_);
-  };
-
-  /**
    * Use MsgSender to send messages to the peer.
-   *
+   * <br /><br />
    * Drop the MsgSender object to close the connection.
    */
   class MsgSender {
 
   public:
+    /**
+     * Non blocking message sending.
+     * <br /><br />
+     * To use the method, provide a `notifier` when starting
+     * the connection.
+     *
+     * <h3>Async control flow (IMPORTANT)</h3>
+     * <br /><br />
+     * This function is non-blocking, it returns `PENDING = -1`
+     * if the send buffer is full. So the caller should wait
+     * by passing a `Notifier` which will be called when the
+     * buffer is ready.
+     * <br /><br />
+     * When the buffer is ready, the function returns number of bytes sent.
+     * <br /><br />
+     * The caller is responsible for updating the buffer offset!!
+     *
+     * @param data the message to send
+     * @param notifier `notifier.wake()` is evoked when send_async
+     *   could accept more data.
+     * @return return the number of bytes successfully sent,
+     *   or return `PENDING = -1` if the send buffer is full.
+     * @throws std::runtime_error when the connection is closed.
+     */
+    long send_async(std::string_view data);
 
     /**
      * Send a message to the peer.
      *
-     * # Blocking!!
-     * This method might block, so it should
-     * never be used within the callbacks.
+     * <h3>Blocking!!</h3>
+     * This method might block, so it should never be used within the callbacks.
      *
-     * # Thread Safety
+     * <h3>Thread Safety</h3>
      * This method is thread safe.
-     * This method does not implement backpressure
-     * (i.e., it caches all the messages in memory).
      *
-     * # Errors
+     * <h3>Errors</h3>
      * This method throws std::runtime_error when
      * the connection is closed.
      *
      * @param data the message to send
+     * @throws std::runtime_error when the connection is closed.
      */
-    void send(std::string_view data);
-
-    /**
-     * Non blocking message sending.
-     *
-     * DO NOT USE THIS METHOD in mixture with `send` method.
-     * Since send method is blocking, it preserves the order,
-     * while this method must be used with the waker class.
-     *
-     * @param data the message to send
-     * @param offset the offset of the message to send.
-     *   That is data[offset..] is the message to send.
-     *   Increment the offset based on the return value.
-     * @param waker `waker.wake()` is evoked when try_send
-     *   could accept more data. Pass nullptr to disable wake
-     *   notification.
-     * @return If waker is provided, returns the number of bytes sent on success,
-     *   and 0 on connection closed, -1 on pending.
-     *   If waker is not provided, returns the number of bytes sent.
-     *   0 might indicate the connection is closed, or the message buffer is full.
-     */
-    long try_send(std::string_view data, size_t offset, const std::shared_ptr<Waker> &waker = nullptr);
+    void send_block(std::string_view data);
 
     /**
      * Manually flush the internal buffer.
      *
-     * # Thread Safety
+     * <h3>Thread Safety</h3>
      * This method is thread safe.
      *
      */
     void flush();
 
-    /**
-     * Drop the sender to close the connection.
-     */
-    ~MsgSender();
-
-    MsgSender(const MsgSender &) = delete;
-
-    void operator=(const MsgSender &) = delete;
-
   private:
 
     friend class Connection;
 
-    friend char* ::socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates conn);
+    friend void::socket_manager_extern_on_conn(
+            struct SOCKET_MANAGER_C_API_OnConnObj this_,
+            SOCKET_MANAGER_C_API_ConnStates conn,
+            char **err);
 
-    explicit MsgSender(CMsgSender *inner, const std::shared_ptr<Connection>&);
+    explicit MsgSender(SOCKET_MANAGER_C_API_MsgSender *inner, const std::shared_ptr<Connection> &);
 
     // keep a reference of connection for storing waker object
     // in connection, to prevent dangling pointer of waker.
     std::shared_ptr<Connection> conn;
 
-    CMsgSender *inner;
+    std::unique_ptr<SOCKET_MANAGER_C_API_MsgSender,
+            std::function<void(SOCKET_MANAGER_C_API_MsgSender *)>> inner;
 
   };
 

@@ -15,32 +15,12 @@ namespace socket_manager {
 
   /**
    * The callback object for handling connection events.
-   *
-   * # Error Handling
+   * <br /><br />
    * Throwing error in the callback will cause the runtime
    * to abort.
    *
-   * # Thread Safety
+   * <h3>Thread Safety</h3>
    * All callback methods must be thread safe and non-blocking.
-   *
-   * # Note on safety:
-   *
-   * - The `connection callback` object should have
-   *   a longer lifetime than the socket manager.
-   *
-   * - The `msg receiver` callbacks should all have
-   *   longer lifetimes than the `connection callback`.
-   *
-   * - The design stores a shared pointer to the
-   *   `ConnCallback` in `SocketManager`, and shared
-   *   pointers of `Connection`s in the `ConnCallback`
-   *   objects, and store unique pointers of `MsgReceiver`
-   *   in `Connection`.
-   *
-   *   Thus establish a dependency relationship as follows:
-   *   `SocketManager` -> shared `ConnCallback` -> shared `Connection`s
-   *   -> unique `MsgReceiver`, where the later object has a longer
-   *   lifetime than the former.
    */
   class ConnCallback {
   public:
@@ -49,17 +29,20 @@ namespace socket_manager {
 
   private:
 
-    friend char* ::socket_manager_extern_on_conn(struct OnConnObj this_, ConnStates conn);
+    friend void::socket_manager_extern_on_conn(
+            struct SOCKET_MANAGER_C_API_OnConnObj this_,
+            SOCKET_MANAGER_C_API_ConnStates conn,
+            char **err);
 
     /**
      * Called when a new connection is established.
      *
-     * # Error handling
+     * <h3>Error handling</h3>
      * Throwing error in `on_connect` callback will close the connection
      * and a `on_connection_close` callback will be evoked.
-     *
+     * <br /><br />
      * It should be non-blocking.
-     *
+     * <br /><br />
      * Drop the returned `MsgSender` to close the connection.
      *
      * @param local_addr the local address of the connection.
@@ -75,10 +58,10 @@ namespace socket_manager {
     /**
      * Called when a connection is closed.
      *
-     * # Error handling
+     * <h3>Error handling</h3>
      * Throwing error in `on_connection_close` callback is logged as error,
      * but ignored.
-     *
+     * <br /><br />
      * It should be non-blocking.
      *
      * @param local_addr the local address of the connection.
@@ -90,10 +73,10 @@ namespace socket_manager {
     /**
      * Called when an error occurs when listening on the given address.
      *
-     * # Error handling
+     * <h3>Error handling</h3>
      * Throwing error in `on_listen_error` callback is logged as error,
      * but ignored.
-     *
+     * <br /><br />
      * Should be non-blocking.
      *
      * @param addr the address that failed to listen on.
@@ -105,10 +88,10 @@ namespace socket_manager {
     /**
      * Called when an error occurs when connecting to the given address.
      *
-     * # Error handling
+     * <h3>Error handling</h3>
      * Throwing error in `on_connect_error` callback is logged as error,
      * but ignored.
-     *
+     * <br /><br />
      * Should be non-blocking.
      *
      * @param addr the address that failed to connect to.

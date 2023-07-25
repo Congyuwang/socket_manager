@@ -60,6 +60,6 @@ int test_error_send_after_closed(int argc, char **argv) {
   }
 
   // should not reach here
-  return -1;
+  return 1;
 
 }

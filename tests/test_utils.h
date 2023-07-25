@@ -163,7 +163,7 @@ public:
     std::unique_lock<std::mutex> lock(mutex);
     try {
       auto sender = senders.at(conn_id);
-      sender->send(data);
+      sender->send_block(data);
       sender->flush();
     } catch (std::out_of_range &e) {
       std::cout << "connection " << conn_id << " not found during send" << std::endl;

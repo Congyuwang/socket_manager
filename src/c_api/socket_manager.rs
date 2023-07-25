@@ -1,6 +1,6 @@
-use crate::c_api::callbacks::OnConnObj;
+use crate::c_api::on_conn::OnConnObj;
 use crate::c_api::utils::{socket_addr, write_error_c_str};
-use crate::CSocketManager;
+use crate::SocketManager;
 use libc::size_t;
 use std::ffi::{c_char, c_int};
 use std::ptr::null_mut;
@@ -29,8 +29,8 @@ pub unsafe extern "C" fn socket_manager_init(
     on_conn: OnConnObj,
     n_threads: size_t,
     err: *mut *mut c_char,
-) -> *mut CSocketManager {
-    match CSocketManager::init(on_conn, n_threads) {
+) -> *mut SocketManager {
+    match SocketManager::init(on_conn, n_threads) {
         Ok(manager) => {
             *err = null_mut();
             Box::into_raw(Box::new(manager))
@@ -48,11 +48,11 @@ pub unsafe extern "C" fn socket_manager_init(
 /// Thread safe.
 ///
 /// # Errors
-/// Returns -1 on error, 0 on success.
+/// Returns 1 on error, 0 on success.
 /// On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
 #[no_mangle]
 pub unsafe extern "C" fn socket_manager_listen_on_addr(
-    manager: *mut CSocketManager,
+    manager: *mut SocketManager,
     addr: *const c_char,
     err: *mut *mut c_char,
 ) -> c_int {
@@ -65,12 +65,12 @@ pub unsafe extern "C" fn socket_manager_listen_on_addr(
             }
             Err(e) => {
                 write_error_c_str(e, err);
-                -1
+                1
             }
         },
         Err(e) => {
             write_error_c_str(e, err);
-            -1
+            1
         }
     }
 }
@@ -81,11 +81,11 @@ pub unsafe extern "C" fn socket_manager_listen_on_addr(
 /// Thread safe.
 ///
 /// # Errors
-/// Returns -1 on error, 0 on success.
+/// Returns 1 on error, 0 on success.
 /// On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
 #[no_mangle]
 pub unsafe extern "C" fn socket_manager_connect_to_addr(
-    manager: *mut CSocketManager,
+    manager: *mut SocketManager,
     addr: *const c_char,
     err: *mut *mut c_char,
 ) -> c_int {
@@ -98,12 +98,12 @@ pub unsafe extern "C" fn socket_manager_connect_to_addr(
             }
             Err(e) => {
                 write_error_c_str(e, err);
-                -1
+                1
             }
         },
         Err(e) => {
             write_error_c_str(e, err);
-            -1
+            1
         }
     }
 }
@@ -114,11 +114,11 @@ pub unsafe extern "C" fn socket_manager_connect_to_addr(
 /// Thread safe.
 ///
 /// # Errors
-/// Returns -1 on error, 0 on success.
+/// Returns 1 on error, 0 on success.
 /// On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
 #[no_mangle]
 pub unsafe extern "C" fn socket_manager_cancel_listen_on_addr(
-    manager: *mut CSocketManager,
+    manager: *mut SocketManager,
     addr: *const c_char,
     err: *mut *mut c_char,
 ) -> c_int {
@@ -131,12 +131,12 @@ pub unsafe extern "C" fn socket_manager_cancel_listen_on_addr(
             }
             Err(e) => {
                 write_error_c_str(e, err);
-                -1
+                1
             }
         },
         Err(e) => {
             write_error_c_str(e, err);
-            -1
+            1
         }
     }
 }
@@ -150,11 +150,11 @@ pub unsafe extern "C" fn socket_manager_cancel_listen_on_addr(
 /// - `wait`: if true, wait for the background runtime to finish.
 ///
 /// # Errors
-/// Returns -1 on error, 0 on success.
+/// Returns 1 on error, 0 on success.
 /// On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
 #[no_mangle]
 pub unsafe extern "C" fn socket_manager_abort(
-    manager: *mut CSocketManager,
+    manager: *mut SocketManager,
     wait: bool,
     err: *mut *mut c_char,
 ) -> c_int {
@@ -166,7 +166,7 @@ pub unsafe extern "C" fn socket_manager_abort(
         }
         Err(e) => {
             write_error_c_str(e, err);
-            -1
+            1
         }
     }
 }
@@ -183,7 +183,7 @@ pub unsafe extern "C" fn socket_manager_abort(
 /// Join returns error if the runtime panicked.
 #[no_mangle]
 pub unsafe extern "C" fn socket_manager_join(
-    manager: *mut CSocketManager,
+    manager: *mut SocketManager,
     err: *mut *mut c_char,
 ) -> c_int {
     let manager = &mut *manager;
@@ -194,7 +194,7 @@ pub unsafe extern "C" fn socket_manager_join(
         }
         Err(e) => {
             write_error_c_str(e, err);
-            -1
+            1
         }
     }
 }
@@ -202,6 +202,6 @@ pub unsafe extern "C" fn socket_manager_join(
 /// Calling this function will abort all background runtime and join on them,
 /// and free the `SocketManager`.
 #[no_mangle]
-pub unsafe extern "C" fn socket_manager_free(manager: *mut CSocketManager) {
+pub unsafe extern "C" fn socket_manager_free(manager: *mut SocketManager) {
     drop(Box::from_raw(manager))
 }

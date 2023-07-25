@@ -1,7 +1,8 @@
-pub(crate) mod callbacks;
+pub(crate) mod async_ffi;
+mod conn_events;
 mod connection;
-pub(crate) mod ffi;
 mod msg_sender;
+pub(crate) mod on_conn;
+pub(crate) mod on_msg;
 mod socket_manager;
-mod structs;
 mod utils;

@@ -1,9 +1,8 @@
-use crate::c_api::callbacks::WakerObj;
 use async_ringbuf::AsyncHeapProducer;
 use std::future::Future;
 use std::pin::pin;
 use std::task::Poll::Ready;
-use std::task::{Context, Poll};
+use std::task::{Context, Poll, Waker};
 use tokio::runtime::Handle;
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -13,7 +12,7 @@ pub(crate) enum SendCommand {
 }
 
 /// Drop the sender to close the connection.
-pub struct CMsgSender {
+pub struct MsgSender {
     pub(crate) cmd: UnboundedSender<SendCommand>,
     pub(crate) buf_prd: AsyncHeapProducer<u8>,
     pub(crate) handle: Handle,
@@ -44,13 +43,19 @@ fn burst_write(
     }
 }
 
-impl CMsgSender {
+impl MsgSender {
     /// The blocking API of sending bytes.
     /// Do not use this method in the callback (i.e. async context),
     /// as it might block.
     pub fn send_block(&mut self, bytes: &[u8]) -> std::io::Result<()> {
         if bytes.is_empty() {
             return Ok(());
+        }
+        if self.buf_prd.is_closed() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::WriteZero,
+                "connection closed",
+            ));
         }
         let mut offset = 0usize;
         // attempt to write the entire message without blocking
@@ -78,46 +83,28 @@ impl CMsgSender {
         Ok(())
     }
 
-    /// Try sending bytes.
+    /// Try sending bytes (the async api).
     ///
-    /// Returning -1 to indicate pending.
-    pub fn try_send(&mut self, bytes: &[u8], waker_obj: Option<WakerObj>) -> std::io::Result<i64> {
+    /// Unless the buffer is empty, it shouldn't return 0.
+    pub fn send_async(&mut self, bytes: &[u8], waker: Waker) -> Poll<std::io::Result<usize>> {
         if bytes.is_empty() {
-            return Ok(0);
+            return Ready(Ok(0));
         }
         if self.buf_prd.is_closed() {
-            return Err(std::io::Error::new(
+            return Ready(Err(std::io::Error::new(
                 std::io::ErrorKind::WriteZero,
                 "connection closed",
-            ));
+            )));
         }
-        let n = self.buf_prd.as_mut_base().push_slice(bytes);
-        if n > 0 {
-            return Ok(n as i64);
-        }
-        // n = 0, not closed
-        if let Some(waker_obj) = waker_obj {
-            // some waker, wait on the waker
-            let waker = unsafe { waker_obj.make_waker() };
-            match pin!(self.buf_prd.wait_free(1))
-                .poll(&mut Context::from_waker(&waker))
-            {
-                Ready(_) => {
-                    // might be ready on closed
-                    if self.buf_prd.is_closed() {
-                        return Err(std::io::Error::new(
-                            std::io::ErrorKind::WriteZero,
-                            "connection closed",
-                        ));
-                    }
-                    let n = self.buf_prd.as_mut_base().push_slice(bytes);
-                    Ok(n as i64)
-                }
-                Poll::Pending => Ok(-1),
-            }
+        let mut offset = 0usize;
+        // attempt to write the entire message without blocking
+        burst_write(&mut offset, &mut self.buf_prd, bytes);
+        if offset > 0 {
+            Ready(Ok(offset))
         } else {
-            // no waker, return 0
-            Ok(0)
+            // buffer full nothing written, enter into future
+            let _ = pin!(self.buf_prd.wait_free(1)).poll(&mut Context::from_waker(&waker));
+            Poll::Pending
         }
     }
 

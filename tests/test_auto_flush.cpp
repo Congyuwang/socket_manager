@@ -31,7 +31,7 @@ public:
     auto do_nothing = std::make_unique<ReceiverHelloWorld>(mutex, cond, received);
     conn->start(std::move(do_nothing));
     this->sender = send;
-    sender->send("hello world");
+    sender->send_block("hello world");
   }
 
   std::mutex mutex;
@@ -49,7 +49,7 @@ class SendHelloWorldDoNotClose : public DoNothingConnCallback {
     conn->start(std::move(do_nothing));
     this->sender = sender;
     std::thread t([this] {
-      this->sender->send("hello world");
+      this->sender->send_block("hello world");
     });
     t.detach();
   }

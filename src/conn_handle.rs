@@ -1,10 +1,11 @@
 use crate::conn::{Conn, ConnConfig};
-use crate::msg_sender::{CMsgSender, SendCommand};
+use crate::msg_sender::{MsgSender, SendCommand};
 use crate::{read, write, ConnState, ConnectionState, Msg};
 use async_ringbuf::AsyncHeapRb;
 use futures::FutureExt;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::task::{Poll, Waker};
 use tokio::net::TcpStream;
 use tokio::runtime::Handle;
 use tokio::sync::mpsc::unbounded_channel;
@@ -16,7 +17,7 @@ pub const RING_BUFFER_SIZE: usize = 256 * 1024; // 256KB
 /// This function handles connection from a client.
 pub(crate) fn handle_connection<
     OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + 'static + Clone,
-    OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + Unpin + 'static,
+    OnMsg: Fn(Msg<'_>, Waker) -> Poll<Result<usize, String>> + Send + Unpin + 'static,
 >(
     local_addr: SocketAddr,
     peer_addr: SocketAddr,
@@ -28,7 +29,7 @@ pub(crate) fn handle_connection<
     let (send, recv) = unbounded_channel::<SendCommand>();
     let (conn_config_setter, conn_config) = oneshot::channel::<(OnMsg, ConnConfig)>();
     let (buf_prd, ring_buf) = AsyncHeapRb::new(RING_BUFFER_SIZE).split();
-    let send = CMsgSender {
+    let send = MsgSender {
         cmd: send,
         buf_prd,
         handle: handle.clone(),

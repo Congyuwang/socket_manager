@@ -1,5 +1,6 @@
 #![feature(unboxed_closures)]
 #![feature(fn_traits)]
+#![feature(waker_getters)]
 #![allow(improper_ctypes)]
 
 mod c_api;
@@ -14,6 +15,7 @@ use dashmap::DashMap;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::task::{Poll, Waker};
 use std::time::Duration;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::runtime::Handle;
@@ -30,7 +32,7 @@ const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
 /// The Main Struct of the Library.
 ///
 /// This struct is thread safe.
-pub struct CSocketManager {
+pub struct SocketManager {
     cmd_send: UnboundedSender<Command>,
 
     // use has_joined to fence the join_handle,
@@ -53,7 +55,7 @@ pub enum ConnState<OnMsg> {
     OnConnect {
         local_addr: SocketAddr,
         peer_addr: SocketAddr,
-        send: CMsgSender,
+        send: MsgSender,
         conn: Conn<OnMsg>,
     },
     /// sent on connection closed
@@ -105,7 +107,7 @@ pub struct Msg<'a> {
     bytes: &'a [u8],
 }
 
-impl CSocketManager {
+impl SocketManager {
     /// start background threads to run the runtime
     ///
     /// # Arguments
@@ -116,11 +118,11 @@ impl CSocketManager {
     ///    - \>1: use the specified number of threads.
     pub fn init<
         OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + Sync + 'static + Clone,
-        OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + Sync + Unpin + 'static + Clone,
+        OnMsg: Fn(Msg<'_>, Waker) -> Poll<Result<usize, String>> + Send + Sync + Unpin + 'static + Clone,
     >(
         on_conn: OnConn,
         n_threads: usize,
-    ) -> std::io::Result<CSocketManager> {
+    ) -> std::io::Result<SocketManager> {
         let _ = tracing_subscriber::fmt()
             .with_env_filter(
                 EnvFilter::builder()
@@ -138,7 +140,7 @@ impl CSocketManager {
             runtime.shutdown_timeout(SHUTDOWN_TIMEOUT);
             tracing::info!("socket_manager stopped");
         }));
-        Ok(CSocketManager {
+        Ok(SocketManager {
             cmd_send,
             has_joined: AtomicBool::new(false),
             join_handle,
@@ -199,7 +201,7 @@ impl CSocketManager {
     }
 }
 
-impl Drop for CSocketManager {
+impl Drop for SocketManager {
     fn drop(&mut self) {
         let _ = self.abort(true);
     }
@@ -208,7 +210,7 @@ impl Drop for CSocketManager {
 /// The main loop running in the background.
 async fn main<
     OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + Sync + 'static + Clone,
-    OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + Sync + Unpin + 'static + Clone,
+    OnMsg: Fn(Msg<'_>, Waker) -> Poll<Result<usize, String>> + Send + Sync + Unpin + 'static + Clone,
 >(
     mut cmd_recv: UnboundedReceiver<Command>,
     handle: &Handle,
@@ -237,9 +239,21 @@ async fn main<
 }
 
 /// This function connects to a port.
+///
+/// The design of the function guarantees that either `OnConnect` or `OnConnectError`
+/// will be called, but not both. And after `OnConnect` is called, `OnConnectionClose`
+/// is guaranteed to be called.
+///
+/// The follow diagram shows the possible state transitions:
+///
+/// ```text
+/// connect_command --> either --> OnConnect --> OnConnectionClose
+///                          |
+///                          --> OnConnectError
+/// ```
 fn connect_to_addr<
     OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + 'static + Clone,
-    OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + Unpin + 'static,
+    OnMsg: Fn(Msg<'_>, Waker) -> Poll<Result<usize, String>> + Send + Unpin + 'static,
 >(
     handle: &Handle,
     addr: SocketAddr,
@@ -282,7 +296,7 @@ fn connect_to_addr<
 /// This function listens on a port.
 fn listen_on_addr<
     OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + Sync + 'static + Clone,
-    OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + Sync + Unpin + 'static + Clone,
+    OnMsg: Fn(Msg<'_>, Waker) -> Poll<Result<usize, String>> + Send + Sync + Unpin + 'static + Clone,
 >(
     handle: &Handle,
     addr: SocketAddr,
@@ -325,7 +339,7 @@ fn listen_on_addr<
 
 async fn accept_connections<
     OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + 'static + Clone,
-    OnMsg: Fn(Msg<'_>) -> Result<(), String> + Send + Unpin + 'static + Clone,
+    OnMsg: Fn(Msg<'_>, Waker) -> Poll<Result<usize, String>> + Send + Unpin + 'static + Clone,
 >(
     addr: SocketAddr,
     listener: TcpListener,
