@@ -124,7 +124,6 @@ async fn handle_writer_no_auto_flush(
                 cmd = recv.cmd_recv.recv() => {
                     // always flush, including if sender is dropped
                     flush(&mut ring, &mut write, chunk_size).await?;
-                    has_data = false;
                     if cmd.is_none() {
                         break 'close;
                     }
