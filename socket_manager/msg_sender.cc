@@ -13,6 +13,16 @@ namespace socket_manager {
     }
   }
 
+  void MsgSender::send_nonblock(std::string_view data) {
+    char *err = nullptr;
+    if (socket_manager_msg_sender_send_nonblock(
+            inner.get(), data.data(), data.length(), &err)) {
+      const std::string err_str(err);
+      free(err);
+      throw std::runtime_error(err_str);
+    }
+  }
+
   long MsgSender::send_async(std::string_view data) {
     char *err = nullptr;
     long n = socket_manager_msg_sender_send_async(

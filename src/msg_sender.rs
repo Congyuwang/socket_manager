@@ -110,6 +110,10 @@ impl MsgSender {
 
     /// The non-blocking API for sending bytes.
     ///
+    /// This method is generally slower than `send_block`
+    /// or `send_async` because it requires new memory allocation
+    /// for new messages.
+    ///
     /// This API does not implement back pressure.
     /// It caches all received bytes in memory
     /// (efficiently using a chain of ring buffers).
@@ -130,7 +134,9 @@ impl MsgSender {
                 break;
             }
             // allocate new ring buffer if unable to write the entire message.
-            let (ring_buf, ring) = AsyncHeapRb::<u8>::new(RING_BUFFER_SIZE).split();
+            let remaining = bytes.len() - offset;
+            let new_buf_size = RING_BUFFER_SIZE.max(remaining);
+            let (ring_buf, ring) = AsyncHeapRb::<u8>::new(new_buf_size).split();
             self.rings_prd.send(ring).map_err(|e| {
                 std::io::Error::new(
                     std::io::ErrorKind::WriteZero,

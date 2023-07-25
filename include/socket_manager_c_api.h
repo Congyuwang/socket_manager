@@ -255,6 +255,31 @@ int socket_manager_msg_sender_send_block(SOCKET_MANAGER_C_API_MsgSender *sender,
                                          char **err);
 
 /**
+ * Send a message via the given `MsgSender` .
+ * This is a non-blocking API.
+ * All sent data is buffered in a chain of ring buffer.
+ * This method does not implement back pressure since it
+ * caches all received data.
+ * Use `send_async` or `send_block` for back pressure.
+ *
+ * # Thread Safety
+ * Thread safe.
+ *
+ * This function can be called within the context of the async callbacks.
+ *
+ * # Errors
+ * If the connection is closed, the function will return 1 and set `err` to a pointer
+ * with WriteZero error.
+ *
+ * Returns 1 on error, 0 on success.
+ * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
+ */
+int socket_manager_msg_sender_send_nonblock(SOCKET_MANAGER_C_API_MsgSender *sender,
+                                            const char *msg,
+                                            size_t len,
+                                            char **err);
+
+/**
  * Try to send a message via the given `MsgSender` asynchronously.
  *
  * # Thread Safety

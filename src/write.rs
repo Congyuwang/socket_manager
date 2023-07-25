@@ -1,6 +1,5 @@
 use crate::conn::ConnConfig;
 use crate::msg_sender::MsgRcv;
-use crate::RING_BUFFER_SIZE;
 use async_ringbuf::AsyncHeapConsumer;
 use std::time::Duration;
 use tokio::io::AsyncWriteExt;
@@ -32,7 +31,6 @@ async fn handle_writer_auto_flush(
     debug_assert!(!duration.is_zero());
     let send_buf_size = socket2::SockRef::from(write.as_ref()).send_buffer_size()?;
     tracing::trace!("send buffer size: {}", send_buf_size);
-    let chunk_size = send_buf_size.min(RING_BUFFER_SIZE);
     let mut flush_tick = tokio::time::interval(duration);
     flush_tick.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
@@ -47,6 +45,7 @@ async fn handle_writer_auto_flush(
             Some(ring) => ring,
             None => break 'close,
         };
+        let chunk_size = send_buf_size.min(ring.capacity());
         let mut has_data = true;
         'ring: loop {
             tokio::select! {
@@ -97,7 +96,6 @@ async fn handle_writer_no_auto_flush(
 ) -> std::io::Result<()> {
     let send_buf_size = socket2::SockRef::from(write.as_ref()).send_buffer_size()?;
     tracing::trace!("send buffer size: {}", send_buf_size);
-    let chunk_size = send_buf_size.min(RING_BUFFER_SIZE);
 
     'close: loop {
         // obtain a ring buffer
@@ -110,6 +108,7 @@ async fn handle_writer_no_auto_flush(
             Some(ring) => ring,
             None => break 'close,
         };
+        let chunk_size = send_buf_size.min(ring.capacity());
         'ring: loop {
             tokio::select! {
                 biased;
