@@ -1,14 +1,35 @@
-use async_ringbuf::AsyncHeapProducer;
+use async_ringbuf::{AsyncHeapConsumer, AsyncHeapProducer, AsyncHeapRb};
 use std::future::Future;
 use std::pin::pin;
 use std::task::Poll::Ready;
 use std::task::{Context, Poll, Waker};
 use tokio::runtime::Handle;
-use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
+
+/// 256KB ring buffer.
+pub const RING_BUFFER_SIZE: usize = 256 * 1024;
 
 /// Sender Commands other than bytes.
 pub(crate) enum SendCommand {
     Flush,
+}
+
+pub(crate) fn make_sender(handle: Handle) -> (MsgSender, MsgRcv) {
+    let (cmd, cmd_recv) = unbounded_channel::<SendCommand>();
+    let (buf_prd, ring_buf) = AsyncHeapRb::new(RING_BUFFER_SIZE).split();
+    (
+        MsgSender {
+            cmd,
+            buf_prd,
+            handle,
+        },
+        MsgRcv { cmd_recv, ring_buf },
+    )
+}
+
+pub(crate) struct MsgRcv {
+    pub(crate) cmd_recv: UnboundedReceiver<SendCommand>,
+    pub(crate) ring_buf: AsyncHeapConsumer<u8>,
 }
 
 /// Drop the sender to close the connection.
