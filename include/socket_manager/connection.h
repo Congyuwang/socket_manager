@@ -25,7 +25,7 @@ namespace socket_manager {
    * Use Connection to send and receive messages from
    * established connections.
    */
-  class Connection : public std::enable_shared_from_this<Connection> {
+  class Connection {
 
   public:
 
