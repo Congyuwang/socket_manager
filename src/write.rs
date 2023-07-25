@@ -1,5 +1,6 @@
 use crate::conn::ConnConfig;
 use crate::msg_sender::MsgRcv;
+use crate::RING_BUFFER_SIZE;
 use async_ringbuf::AsyncHeapConsumer;
 use std::time::Duration;
 use tokio::io::AsyncWriteExt;
@@ -31,50 +32,60 @@ async fn handle_writer_auto_flush(
     debug_assert!(!duration.is_zero());
     let send_buf_size = socket2::SockRef::from(write.as_ref()).send_buffer_size()?;
     tracing::trace!("send buffer size: {}", send_buf_size);
-    let chunk_size = send_buf_size.min(recv.ring_buf.capacity());
+    let chunk_size = send_buf_size.min(RING_BUFFER_SIZE);
     let mut flush_tick = tokio::time::interval(duration);
     flush_tick.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
-    let mut has_data = true;
-    loop {
-        tokio::select! {
+    'close: loop {
+        // obtain a ring buffer
+        let ring = tokio::select! {
             biased;
-            _ = recv.ring_buf.wait(chunk_size) => {
-                if recv.ring_buf.is_closed() {
-                    tracing::debug!("connection stopped (sender dropped)");
-                    break;
+            ring = recv.rings.recv() => ring,
+            _ = stop.closed() => break 'close,
+        };
+        let mut ring = match ring {
+            Some(ring) => ring,
+            None => break 'close,
+        };
+        let mut has_data = true;
+        'ring: loop {
+            tokio::select! {
+                biased;
+                // buf threshold
+                _ = ring.wait(chunk_size) => {
+                    if ring.is_closed() {
+                        break 'ring;
+                    }
+                    copy_from_ring_buf(&mut ring, &mut write, chunk_size).await?;
+                    has_data = false;
                 }
-                copy_from_ring_buf(&mut recv.ring_buf, &mut write, chunk_size).await?;
-                has_data = false;
-            }
-            Some(_) = recv.cmd_recv.recv() => {
-                // on flush, read all data from ring buffer and write to socket.
-                copy_from_ring_buf(&mut recv.ring_buf, &mut write, chunk_size).await?;
-                // disable ticked flush when there is no data.
-                has_data = false;
-            }
-            _ = recv.ring_buf.wait(1), if !has_data => {
-                if recv.ring_buf.is_closed() {
-                    tracing::debug!("connection stopped (sender dropped)");
-                    break;
+                // flush
+                cmd = recv.cmd_recv.recv() => {
+                    if cmd.is_none() {
+                        break 'close;
+                    }
+                    copy_from_ring_buf(&mut ring, &mut write, chunk_size).await?;
+                    has_data = false;
                 }
-                // got small amount of data, enable ticking flush,
-                has_data = true;
+                _ = ring.wait(1), if !has_data => {
+                    if ring.is_closed() {
+                        break 'ring;
+                    }
+                    // got data, no writing, enable ticking
+                    has_data = true;
+                }
+                // tick flush
+                _ = flush_tick.tick(), if has_data => {
+                    copy_from_ring_buf(&mut ring, &mut write, chunk_size).await?;
+                    has_data = false;
+                }
+                _ = stop.closed() => break 'close,
             }
-            _ = flush_tick.tick(), if has_data => {
-                // flush everything.
-                copy_from_ring_buf(&mut recv.ring_buf, &mut write, chunk_size).await?;
-                // disable ticked flush when there is no data.
-                has_data = false;
-            }
-            _ = stop.closed() => {
-                tracing::debug!("connection stopped (socket manager dropped)");
-                break;
-            }
-            else => {}
         }
+        // always clear the old ring_buf before reading the next
+        copy_from_ring_buf(&mut ring, &mut write, chunk_size).await?;
     }
-    copy_from_ring_buf(&mut recv.ring_buf, &mut write, chunk_size).await?;
+    tracing::debug!("connection stopped");
     write.shutdown().await?;
     Ok(())
 }
@@ -85,31 +96,44 @@ async fn handle_writer_no_auto_flush(
     mut stop: oneshot::Sender<()>,
 ) -> std::io::Result<()> {
     let send_buf_size = socket2::SockRef::from(write.as_ref()).send_buffer_size()?;
-    let chunk_size = send_buf_size.min(recv.ring_buf.capacity());
     tracing::trace!("send buffer size: {}", send_buf_size);
-    loop {
-        tokio::select! {
+    let chunk_size = send_buf_size.min(RING_BUFFER_SIZE);
+
+    'close: loop {
+        // obtain a ring buffer
+        let ring = tokio::select! {
             biased;
-            _ = recv.ring_buf.wait(chunk_size) => {
-                if recv.ring_buf.is_closed() {
-                    tracing::debug!("connection stopped (sender dropped)");
-                    break;
+            ring = recv.rings.recv() => ring,
+            _ = stop.closed() => break 'close,
+        };
+        let mut ring = match ring {
+            Some(ring) => ring,
+            None => break 'close,
+        };
+        'ring: loop {
+            tokio::select! {
+                biased;
+                // buf threshold
+                _ = ring.wait(chunk_size) => {
+                    if ring.is_closed() {
+                        break 'ring;
+                    }
+                    copy_from_ring_buf(&mut ring, &mut write, chunk_size).await?;
                 }
-                copy_from_ring_buf(&mut recv.ring_buf, &mut write, chunk_size).await?;
+                // flush
+                cmd = recv.cmd_recv.recv() => {
+                    if cmd.is_none() {
+                        break 'close;
+                    }
+                    copy_from_ring_buf(&mut ring, &mut write, chunk_size).await?;
+                }
+                _ = stop.closed() => break 'close,
             }
-            Some(_) = recv.cmd_recv.recv() => {
-                // on flush, read all data from ring buffer and write to socket.
-                copy_from_ring_buf(&mut recv.ring_buf, &mut write, chunk_size).await?;
-            }
-            _ = stop.closed() => {
-                tracing::debug!("connection stopped (socket manager dropped)");
-                break;
-            }
-            else => {}
         }
+        // always clear the old ring_buf before reading the next
+        copy_from_ring_buf(&mut ring, &mut write, chunk_size).await?;
     }
-    // flush and close
-    copy_from_ring_buf(&mut recv.ring_buf, &mut write, chunk_size).await?;
+    tracing::debug!("connection stopped");
     write.shutdown().await?;
     Ok(())
 }
@@ -132,6 +156,7 @@ async fn copy_from_ring_buf(
     Ok(n)
 }
 
+#[inline]
 async fn write_chunk(
     ring_buf: &mut AsyncHeapConsumer<u8>,
     write: &mut OwnedWriteHalf,
@@ -139,26 +164,22 @@ async fn write_chunk(
 ) -> std::io::Result<usize> {
     debug_assert!(chunk_size > 0);
     let (left, right) = ring_buf.as_base().as_slices();
-    let left_len = left.len();
-    let right_len = right.len();
-    let written = if left_len >= chunk_size {
-        write.write_all(&left[..chunk_size]).await?;
-        chunk_size
-    } else {
-        if left_len > 0 {
-            write.write_all(left).await?;
-        }
-        let remaining = chunk_size - left_len;
-        if right_len >= remaining {
-            write.write_all(&right[..remaining]).await?;
-            chunk_size
-        } else {
-            if right_len > 0 {
-                write.write_all(right).await?;
-            }
-            left_len + right_len
-        }
-    };
-    unsafe { ring_buf.as_mut_base().advance(written) };
-    Ok(written)
+
+    // precompute all lengths to reduce cpu branching
+    let left_written = left.len().min(chunk_size);
+    let remaining = chunk_size - left_written;
+    let right_written = right.len().min(remaining);
+    let total = left_written + right_written;
+
+    // execute write
+    if left_written > 0 {
+        write.write_all(&left[..left_written]).await?;
+    }
+    if right_written > 0 {
+        write.write_all(&right[..right_written]).await?;
+    }
+
+    // update ring_buf
+    unsafe { ring_buf.as_mut_base().advance(total) };
+    Ok(total)
 }

@@ -16,26 +16,30 @@ pub(crate) enum SendCommand {
 
 pub(crate) fn make_sender(handle: Handle) -> (MsgSender, MsgRcv) {
     let (cmd, cmd_recv) = unbounded_channel::<SendCommand>();
-    let (buf_prd, ring_buf) = AsyncHeapRb::new(RING_BUFFER_SIZE).split();
+    let (rings_prd, rings) = unbounded_channel::<AsyncHeapConsumer<u8>>();
+    let (ring_buf, ring) = AsyncHeapRb::<u8>::new(RING_BUFFER_SIZE).split();
+    rings_prd.send(ring).unwrap();
     (
         MsgSender {
             cmd,
-            buf_prd,
+            ring_buf,
+            rings_prd,
             handle,
         },
-        MsgRcv { cmd_recv, ring_buf },
+        MsgRcv { cmd_recv, rings },
     )
 }
 
 pub(crate) struct MsgRcv {
     pub(crate) cmd_recv: UnboundedReceiver<SendCommand>,
-    pub(crate) ring_buf: AsyncHeapConsumer<u8>,
+    pub(crate) rings: UnboundedReceiver<AsyncHeapConsumer<u8>>,
 }
 
 /// Drop the sender to close the connection.
 pub struct MsgSender {
     pub(crate) cmd: UnboundedSender<SendCommand>,
-    pub(crate) buf_prd: AsyncHeapProducer<u8>,
+    pub(crate) ring_buf: AsyncHeapProducer<u8>,
+    pub(crate) rings_prd: UnboundedSender<AsyncHeapConsumer<u8>>,
     pub(crate) handle: Handle,
 }
 
@@ -65,14 +69,14 @@ fn burst_write(
 }
 
 impl MsgSender {
-    /// The blocking API of sending bytes.
+    /// The blocking API for sending bytes.
     /// Do not use this method in the callback (i.e. async context),
     /// as it might block.
     pub fn send_block(&mut self, bytes: &[u8]) -> std::io::Result<()> {
         if bytes.is_empty() {
             return Ok(());
         }
-        if self.buf_prd.is_closed() {
+        if self.ring_buf.is_closed() {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::WriteZero,
                 "connection closed",
@@ -80,27 +84,62 @@ impl MsgSender {
         }
         let mut offset = 0usize;
         // attempt to write the entire message without blocking
-        if let BurstWriteState::Finished = burst_write(&mut offset, &mut self.buf_prd, bytes) {
+        if let BurstWriteState::Finished = burst_write(&mut offset, &mut self.ring_buf, bytes) {
             return Ok(());
         }
         // unfinished, enter into future
         self.handle.clone().block_on(async {
             loop {
-                self.buf_prd.wait_free(1).await;
+                self.ring_buf.wait_free(1).await;
                 // check if closed
-                if self.buf_prd.is_closed() {
+                if self.ring_buf.is_closed() {
                     break Err(std::io::Error::new(
                         std::io::ErrorKind::Other,
                         "connection closed",
                     ));
                 }
                 if let BurstWriteState::Finished =
-                    burst_write(&mut offset, &mut self.buf_prd, bytes)
+                    burst_write(&mut offset, &mut self.ring_buf, bytes)
                 {
                     return Ok(());
                 }
             }
         })?;
+        Ok(())
+    }
+
+    /// The non-blocking API for sending bytes.
+    ///
+    /// This API does not implement back pressure.
+    /// It caches all received bytes in memory
+    /// (efficiently using a chain of ring buffers).
+    pub fn send_nonblock(&mut self, bytes: &[u8]) -> std::io::Result<()> {
+        if bytes.is_empty() {
+            return Ok(());
+        }
+        if self.ring_buf.is_closed() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::WriteZero,
+                "connection closed",
+            ));
+        }
+        let mut offset = 0usize;
+        // loop until Finished writing the entire message.
+        loop {
+            if let BurstWriteState::Finished = burst_write(&mut offset, &mut self.ring_buf, bytes) {
+                break;
+            }
+            // allocate new ring buffer if unable to write the entire message.
+            let (ring_buf, ring) = AsyncHeapRb::<u8>::new(RING_BUFFER_SIZE).split();
+            self.rings_prd.send(ring).map_err(|e| {
+                std::io::Error::new(
+                    std::io::ErrorKind::WriteZero,
+                    format!("connection closed: {e}"),
+                )
+            })?;
+            // set new ring_buf
+            self.ring_buf = ring_buf;
+        }
         Ok(())
     }
 
@@ -111,7 +150,7 @@ impl MsgSender {
         if bytes.is_empty() {
             return Ready(Ok(0));
         }
-        if self.buf_prd.is_closed() {
+        if self.ring_buf.is_closed() {
             return Ready(Err(std::io::Error::new(
                 std::io::ErrorKind::WriteZero,
                 "connection closed",
@@ -119,12 +158,12 @@ impl MsgSender {
         }
         let mut offset = 0usize;
         // attempt to write the entire message without blocking
-        burst_write(&mut offset, &mut self.buf_prd, bytes);
+        burst_write(&mut offset, &mut self.ring_buf, bytes);
         if offset > 0 {
             Ready(Ok(offset))
         } else {
             // buffer full nothing written, enter into future
-            let _ = pin!(self.buf_prd.wait_free(1)).poll(&mut Context::from_waker(&waker));
+            let _ = pin!(self.ring_buf.wait_free(1)).poll(&mut Context::from_waker(&waker));
             Poll::Pending
         }
     }
