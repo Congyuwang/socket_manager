@@ -30,18 +30,6 @@ private:
  * it tries to send back the message,
  * unless the sender returns `PENDING`,
  * it sleeps until the sender wakes it up.
- *
- *    * <li> `SocketManager` ---strong ref--> `ConnCallback` </li>
-   * <li> `ConnCallback` ---strong ref--> (active) `Connection`s (drop on `connection_close`) </li>
-   * <li> `Connection` ---strong ref--> `Notifier` </li>
-   * <li> `Connection` ---strong ref--> `(Async)MsgReceiver` </li>
-   * <li> `sender` ---strong ref--> `Connection` </li>
-   *
-   * cb -> connection
-   * connection -> MsgReceiver
-   * connection -> notifier
-   * sender -> connection
-   * MsgReceiver -> sender
  */
 class EchoReceiver : public socket_manager::MsgReceiverAsync {
 public:
