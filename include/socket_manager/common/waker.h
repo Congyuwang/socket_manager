@@ -19,6 +19,9 @@ namespace socket_manager {
    *
    * And use `waker.wake()` to resume the message receiving task
    * when the caller buffer is ready.
+   *
+   * <h3>Resource Leak Note</h3>
+   * The `Waker` must be properly destroyed to avoid resource leak.
    */
   class Waker {
   public:

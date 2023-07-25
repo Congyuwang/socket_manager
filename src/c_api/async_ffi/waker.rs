@@ -9,6 +9,9 @@ use std::task::{RawWaker, RawWakerVTable, Waker};
 ///
 /// This struct is equivalent to a raw pointer.
 /// Manager with care.
+///
+/// Note that the CWaker must be properly dropped.
+/// Otherwise, the associated task will leak.
 #[repr(C)]
 pub struct CWaker {
     data: *const c_void,
