@@ -110,10 +110,6 @@ impl MsgSender {
 
     /// The non-blocking API for sending bytes.
     ///
-    /// This method is generally slower than `send_block`
-    /// or `send_async` because it requires new memory allocation
-    /// for new messages.
-    ///
     /// This API does not implement back pressure.
     /// It caches all received bytes in memory
     /// (efficiently using a chain of ring buffers).

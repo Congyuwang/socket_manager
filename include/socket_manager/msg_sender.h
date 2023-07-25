@@ -54,11 +54,6 @@ namespace socket_manager {
      * caches all the data in the internal buffer. So it comes
      * without back pressure.
      *
-     * <h3>Performance</h3>
-     * This method is generally slower than `send_async()` or
-     * `send_block()` since it involves memory allocation during
-     * message sending.
-     *
      * @param data the message to send
      * @param notifier `notifier.wake()` is evoked when send_async
      *   could accept more data.
