@@ -399,6 +399,9 @@ int socket_manager_listen_on_addr(SOCKET_MANAGER_C_API_SocketManager *manager,
 /**
  * Connect to the given address.
  *
+ * # Arguments
+ * - `delay`: delay in milliseconds before connecting.
+ *
  * # Thread Safety
  * Thread safe.
  *
@@ -408,6 +411,7 @@ int socket_manager_listen_on_addr(SOCKET_MANAGER_C_API_SocketManager *manager,
  */
 int socket_manager_connect_to_addr(SOCKET_MANAGER_C_API_SocketManager *manager,
                                    const char *addr,
+                                   uint64_t delay,
                                    char **err);
 
 /**

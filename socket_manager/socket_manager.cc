@@ -29,9 +29,9 @@ namespace socket_manager {
     }
   }
 
-  void SocketManager::connect_to_addr(const std::string &addr) {
+  void SocketManager::connect_to_addr(const std::string &addr, uint64_t delay) {
     char *err = nullptr;
-    if (socket_manager_connect_to_addr(inner.get(), addr.c_str(), &err)) {
+    if (socket_manager_connect_to_addr(inner.get(), addr.c_str(), delay, &err)) {
       const std::string err_str(err);
       free(err);
       throw std::runtime_error(err_str);

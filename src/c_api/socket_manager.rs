@@ -4,6 +4,7 @@ use crate::SocketManager;
 use libc::size_t;
 use std::ffi::{c_char, c_int};
 use std::ptr::null_mut;
+use std::time::Duration;
 
 /// Initialize a new `SocketManager` and return a pointer to it.
 ///
@@ -77,6 +78,9 @@ pub unsafe extern "C" fn socket_manager_listen_on_addr(
 
 /// Connect to the given address.
 ///
+/// # Arguments
+/// - `delay`: delay in milliseconds before connecting.
+///
 /// # Thread Safety
 /// Thread safe.
 ///
@@ -87,11 +91,12 @@ pub unsafe extern "C" fn socket_manager_listen_on_addr(
 pub unsafe extern "C" fn socket_manager_connect_to_addr(
     manager: *mut SocketManager,
     addr: *const c_char,
+    delay: u64,
     err: *mut *mut c_char,
 ) -> c_int {
     let manager = &*manager;
     match socket_addr(addr) {
-        Ok(addr) => match manager.connect_to_addr(addr) {
+        Ok(addr) => match manager.connect_to_addr(addr, Duration::from_millis(delay)) {
             Ok(_) => {
                 *err = null_mut();
                 0
