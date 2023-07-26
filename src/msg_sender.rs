@@ -1,7 +1,7 @@
 use async_ringbuf::{AsyncHeapConsumer, AsyncHeapProducer, AsyncHeapRb};
 use std::future::Future;
 use std::pin::pin;
-use std::task::Poll::Ready;
+use std::task::Poll::{Pending, Ready};
 use std::task::{Context, Poll, Waker};
 use tokio::runtime::Handle;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
@@ -76,12 +76,6 @@ impl MsgSender {
         if bytes.is_empty() {
             return Ok(());
         }
-        if self.ring_buf.is_closed() {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::WriteZero,
-                "connection closed",
-            ));
-        }
         let mut offset = 0usize;
         // attempt to write the entire message without blocking
         if let BurstWriteState::Finished = burst_write(&mut offset, &mut self.ring_buf, bytes) {
@@ -117,31 +111,23 @@ impl MsgSender {
         if bytes.is_empty() {
             return Ok(());
         }
-        if self.ring_buf.is_closed() {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::WriteZero,
-                "connection closed",
-            ));
-        }
         let mut offset = 0usize;
-        // loop until Finished writing the entire message.
-        loop {
-            if let BurstWriteState::Finished = burst_write(&mut offset, &mut self.ring_buf, bytes) {
-                break;
-            }
-            // allocate new ring buffer if unable to write the entire message.
-            let remaining = bytes.len() - offset;
-            let new_buf_size = RING_BUFFER_SIZE.max(remaining);
-            let (ring_buf, ring) = AsyncHeapRb::<u8>::new(new_buf_size).split();
-            self.rings_prd.send(ring).map_err(|e| {
-                std::io::Error::new(
-                    std::io::ErrorKind::WriteZero,
-                    format!("connection closed: {e}"),
-                )
-            })?;
-            // set new ring_buf
-            self.ring_buf = ring_buf;
+        // attempt to write the entire message without new allocation
+        if let BurstWriteState::Finished = burst_write(&mut offset, &mut self.ring_buf, bytes) {
+            return Ok(());
         }
+        // allocate new ring buffer if unable to write the entire message.
+        let new_buf_size = RING_BUFFER_SIZE.max(bytes.len() - offset);
+        let (mut ring_buf, ring) = AsyncHeapRb::<u8>::new(new_buf_size).split();
+        ring_buf.as_mut_base().push_slice(&bytes[offset..]);
+        self.rings_prd.send(ring).map_err(|e| {
+            std::io::Error::new(
+                std::io::ErrorKind::WriteZero,
+                format!("connection closed: {e}"),
+            )
+        })?;
+        // set head to new ring_buf
+        self.ring_buf = ring_buf;
         Ok(())
     }
 
@@ -152,21 +138,30 @@ impl MsgSender {
         if bytes.is_empty() {
             return Ready(Ok(0));
         }
-        if self.ring_buf.is_closed() {
-            return Ready(Err(std::io::Error::new(
-                std::io::ErrorKind::WriteZero,
-                "connection closed",
-            )));
-        }
         let mut offset = 0usize;
-        // attempt to write the entire message without blocking
-        burst_write(&mut offset, &mut self.ring_buf, bytes);
-        if offset > 0 {
-            Ready(Ok(offset))
-        } else {
-            // buffer full nothing written, enter into future
-            let _ = pin!(self.ring_buf.wait_free(1)).poll(&mut Context::from_waker(&waker));
-            Poll::Pending
+        loop {
+            // attempt to write as much as possible
+            burst_write(&mut offset, &mut self.ring_buf, bytes);
+            if offset > 0 {
+                return Ready(Ok(offset));
+            }
+            if let Pending = pin!(self.ring_buf.wait_free(1)).poll(&mut Context::from_waker(&waker))
+            {
+                return Pending;
+            }
+            if self.ring_buf.is_closed() {
+                return Ready(Err(std::io::Error::new(
+                    std::io::ErrorKind::WriteZero,
+                    "connection closed",
+                )));
+            }
+            // New data is available, must try to consume again,
+            // otherwise, we risk to block forever.
+            // i.e., There is a tiny chance that the ring buffer
+            // becomes full before the waker is registered,
+            // and no notification will be received by us.
+            // However, the `poll` will have returned OK(()),
+            // indicating that we should try to consume again.
         }
     }
 
