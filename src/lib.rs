@@ -44,7 +44,7 @@ pub struct SocketManager {
 /// internal commands
 enum Command {
     Listen { addr: SocketAddr },
-    Connect { addr: SocketAddr },
+    Connect { addr: SocketAddr, delay: Duration },
     CancelListen { addr: SocketAddr },
     Abort,
 }
@@ -153,10 +153,12 @@ impl SocketManager {
         })
     }
 
-    pub fn connect_to_addr(&self, addr: SocketAddr) -> std::io::Result<()> {
-        self.cmd_send.send(Command::Connect { addr }).map_err(|_| {
-            std::io::Error::new(std::io::ErrorKind::Other, "socket manager has stopped")
-        })
+    pub fn connect_to_addr(&self, addr: SocketAddr, delay: Duration) -> std::io::Result<()> {
+        self.cmd_send
+            .send(Command::Connect { addr, delay })
+            .map_err(|_| {
+                std::io::Error::new(std::io::ErrorKind::Other, "socket manager has stopped")
+            })
     }
 
     pub fn cancel_listen_on_addr(&self, addr: SocketAddr) -> std::io::Result<()> {
@@ -220,7 +222,9 @@ async fn main<
     while let Some(cmd) = cmd_recv.recv().await {
         match cmd {
             Command::Listen { addr } => listen_on_addr(handle, addr, &on_conn, &connection_state),
-            Command::Connect { addr } => connect_to_addr(handle, addr, &on_conn, &connection_state),
+            Command::Connect { addr, delay } => {
+                connect_to_addr(handle, addr, delay, &on_conn, &connection_state)
+            }
             Command::CancelListen { addr } => {
                 if connection_state.listeners.remove(&addr).is_none() {
                     tracing::warn!("cancel listening failed: not listening to {addr}");
@@ -257,6 +261,7 @@ fn connect_to_addr<
 >(
     handle: &Handle,
     addr: SocketAddr,
+    delay: Duration,
     on_conn: &OnConn,
     connection_state: &Arc<ConnectionState>,
 ) {
@@ -266,6 +271,9 @@ fn connect_to_addr<
 
     // attempt to connect to address, and obtain connection info
     let connect_result = async move {
+        if !delay.is_zero() {
+            tokio::time::sleep(delay).await;
+        }
         let stream = TcpStream::connect(addr).await?;
         let (local, peer) = utils::get_address_from_stream(&stream)?;
         Ok::<(TcpStream, SocketAddr, SocketAddr), std::io::Error>((stream, local, peer))

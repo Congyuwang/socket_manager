@@ -94,8 +94,9 @@ namespace socket_manager {
      * Throws `std::runtime_error` if the address is invalid.
      *
      * @param addr: the ip address to listen to (support both ipv4 and ipv6).
+     * @param delay: the delay in milliseconds before connecting to the address.
      */
-    void connect_to_addr(const std::string &addr);
+    void connect_to_addr(const std::string &addr, uint64_t delay = 0);
 
     /**
      * Cancel listening on the given address.
