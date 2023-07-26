@@ -34,9 +34,7 @@ pub struct ConnConfig {
     pub msg_buffer_size: Option<NonZeroUsize>,
 }
 
-impl<OnMsg: Fn(Msg<'_>, Waker) -> Poll<Result<usize, String>> + Send + 'static + Clone>
-    Conn<OnMsg>
-{
+impl<OnMsg: Fn(Msg<'_>, Waker) -> Poll<Result<usize, String>> + Send + 'static> Conn<OnMsg> {
     /// This function should be called only once.
     pub fn start_connection(&mut self, on_msg: OnMsg, config: ConnConfig) -> std::io::Result<()> {
         self.consumed

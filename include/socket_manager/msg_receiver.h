@@ -29,8 +29,8 @@ namespace socket_manager {
    * When the caller is able to receive bytes again,
    * it should call `waker.wake()` to wake up the runtime.
    *
-   * <h3>Thread Safety</h3>
-   * The callback should be thread safe.
+   * <h3>Non-blocking</h3>
+   * This callback must be non-blocking.
    */
   class MsgReceiverAsync {
 
@@ -60,9 +60,8 @@ namespace socket_manager {
      * The `data` is only valid during the call of this function.
      * If you want to keep the data, you should copy it.
      *
-     * <h3>Thread Safety</h3>
-     * This callback must be thread safe.
-     * It should also be non-blocking.
+     * <h3>Non-blocking</h3>
+     * This callback must be non-blocking.
      *
      * <h3>Error Handling</h3>
      * Throwing runtime_error in `on_message` callback will cause
@@ -88,8 +87,8 @@ namespace socket_manager {
    * store the received message in buffer or queue and immediately
    * return `on_message` method, and should not block the runtime.
    *
-   * <h3>Thread Safety</h3>
-   * This callback must be thread safe.
+   * <h3>Non-blocking</h3>
+   * This callback must be non-blocking.
    */
   class MsgReceiver : public MsgReceiverAsync {
   public:
@@ -103,7 +102,7 @@ namespace socket_manager {
      * all data is received by the caller, and the caller does
      * not need to report number of bytes written to the runtime.
      * Nor can the caller interrupt the runtime.
-     *
+     * <br /><br />
      * Notice that this callback still needs to be non-blocking.
      * @param data the message received.
      */

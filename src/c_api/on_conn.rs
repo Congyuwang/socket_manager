@@ -168,5 +168,3 @@ impl Fn<(crate::ConnState<OnMsgObj>,)> for OnConnObj {
 }
 
 unsafe impl Send for OnConnObj {}
-
-unsafe impl Sync for OnConnObj {}

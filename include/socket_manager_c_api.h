@@ -82,8 +82,8 @@ struct SOCKET_MANAGER_C_API_CWaker {
  * # Safety
  * The callback pointer must be valid before connection is closed!!
  *
- * # Thread Safety
- * Must be thread safe!
+ * # Non-blocking
+ * Must be non-blocking!
  */
 struct SOCKET_MANAGER_C_API_OnMsgObj {
   void *This;
@@ -371,8 +371,8 @@ extern long socket_manager_extern_on_msg(SOCKET_MANAGER_C_API_OnMsgObj this_,
  * # Safety
  * The passed in callback pointers must live as long as the `SocketManager` does.
  *
- * # Thread Safety
- * Must ensure that the callback functions of `callback_obj` is thread safe! (i.e., synced).
+ * # Non-blocking
+ * Must ensure that the callback functions of `callback_obj` are non-blocking.
  *
  * # Errors
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`,

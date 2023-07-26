@@ -25,11 +25,11 @@ pub(crate) fn handle_connection<
     let (conn_config_setter, conn_config) = oneshot::channel::<(OnMsg, ConnConfig)>();
     let (send, recv) = make_sender(handle.clone());
 
-    let on_conn_clone = on_conn.clone();
+    let on_connect_on_conn = on_conn.clone();
     // Call `on_conn` callback, and wait for user to call `start` on connection.
     // Return the OnMsg callback and conn_config.
     let wait_for_start = async move {
-        on_conn(ConnState::OnConnect {
+        on_connect_on_conn(ConnState::OnConnect {
             local_addr,
             peer_addr,
             send,
@@ -72,7 +72,7 @@ pub(crate) fn handle_connection<
         }
 
         tracing::info!("connection closed: local_addr={local_addr}, peer_addr={peer_addr}");
-        let _ = on_conn_clone(ConnState::OnConnectionClose {
+        let _ = on_conn(ConnState::OnConnectionClose {
             local_addr,
             peer_addr,
         });

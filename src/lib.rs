@@ -117,8 +117,8 @@ impl SocketManager {
     ///    - 1: use the current thread.
     ///    - \>1: use the specified number of threads.
     pub fn init<
-        OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + Sync + 'static + Clone,
-        OnMsg: Fn(Msg<'_>, Waker) -> Poll<Result<usize, String>> + Send + Sync + Unpin + 'static + Clone,
+        OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + 'static + Clone,
+        OnMsg: Fn(Msg<'_>, Waker) -> Poll<Result<usize, String>> + Send + Unpin + 'static,
     >(
         on_conn: OnConn,
         n_threads: usize,
@@ -209,8 +209,8 @@ impl Drop for SocketManager {
 
 /// The main loop running in the background.
 async fn main<
-    OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + Sync + 'static + Clone,
-    OnMsg: Fn(Msg<'_>, Waker) -> Poll<Result<usize, String>> + Send + Sync + Unpin + 'static + Clone,
+    OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + 'static + Clone,
+    OnMsg: Fn(Msg<'_>, Waker) -> Poll<Result<usize, String>> + Send + Unpin + 'static,
 >(
     mut cmd_recv: UnboundedReceiver<Command>,
     handle: &Handle,
@@ -295,8 +295,8 @@ fn connect_to_addr<
 
 /// This function listens on a port.
 fn listen_on_addr<
-    OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + Sync + 'static + Clone,
-    OnMsg: Fn(Msg<'_>, Waker) -> Poll<Result<usize, String>> + Send + Sync + Unpin + 'static + Clone,
+    OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + 'static + Clone,
+    OnMsg: Fn(Msg<'_>, Waker) -> Poll<Result<usize, String>> + Send + Unpin + 'static,
 >(
     handle: &Handle,
     addr: SocketAddr,
@@ -330,7 +330,7 @@ fn listen_on_addr<
             listener,
             &handle,
             canceled,
-            &on_conn,
+            on_conn,
             &connection_state,
         )
         .await;
@@ -339,13 +339,13 @@ fn listen_on_addr<
 
 async fn accept_connections<
     OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + 'static + Clone,
-    OnMsg: Fn(Msg<'_>, Waker) -> Poll<Result<usize, String>> + Send + Unpin + 'static + Clone,
+    OnMsg: Fn(Msg<'_>, Waker) -> Poll<Result<usize, String>> + Send + Unpin + 'static,
 >(
     addr: SocketAddr,
     listener: TcpListener,
     handle: &Handle,
     mut canceled: oneshot::Sender<()>,
-    on_conn: &OnConn,
+    on_conn: OnConn,
     connection_state: &Arc<ConnectionState>,
 ) {
     loop {

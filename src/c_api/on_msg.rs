@@ -17,10 +17,9 @@ use std::task::{Poll, Waker};
 /// # Safety
 /// The callback pointer must be valid before connection is closed!!
 ///
-/// # Thread Safety
-/// Must be thread safe!
+/// # Non-blocking
+/// Must be non-blocking!
 #[repr(C)]
-#[derive(Copy, Clone)]
 pub struct OnMsgObj {
     this: *mut c_void,
 }
@@ -66,7 +65,8 @@ impl OnMsgObj {
         let waker = CWaker::from_waker(waker);
         unsafe {
             let mut err: *mut c_char = null_mut();
-            let cb_result = socket_manager_extern_on_msg(*self, conn_msg, waker, &mut err);
+            let this = OnMsgObj { this: self.this };
+            let cb_result = socket_manager_extern_on_msg(this, conn_msg, waker, &mut err);
             if let Err(e) = parse_c_err_str(err) {
                 tracing::error!("Error thrown in OnMsg callback: {e}");
                 Poll::Ready(Err(e))
@@ -101,5 +101,3 @@ impl Fn<(crate::Msg<'_>, Waker)> for OnMsgObj {
 }
 
 unsafe impl Send for OnMsgObj {}
-
-unsafe impl Sync for OnMsgObj {}

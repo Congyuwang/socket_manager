@@ -18,8 +18,8 @@ use std::ptr::null_mut;
 /// # Safety
 /// The passed in callback pointers must live as long as the `SocketManager` does.
 ///
-/// # Thread Safety
-/// Must ensure that the callback functions of `callback_obj` is thread safe! (i.e., synced).
+/// # Non-blocking
+/// Must ensure that the callback functions of `callback_obj` are non-blocking.
 ///
 /// # Errors
 /// On Error, `err` will be set to a pointer to a C string allocated by `malloc`,
