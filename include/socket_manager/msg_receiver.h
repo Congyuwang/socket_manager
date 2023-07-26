@@ -98,9 +98,18 @@ namespace socket_manager {
 
   private:
 
+    /**
+     * Compared to `on_message_async`, this method assumes that
+     * all data is received by the caller, and the caller does
+     * not need to report number of bytes written to the runtime.
+     * Nor can the caller interrupt the runtime.
+     *
+     * Notice that this callback still needs to be non-blocking.
+     * @param data the message received.
+     */
     virtual void on_message(std::string_view data) = 0;
 
-    long on_message_async(std::string_view data, Waker &&waker) override;
+    long on_message_async(std::string_view data, Waker &&waker) final;
   };
 
 } // namespace socket_manager
