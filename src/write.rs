@@ -138,15 +138,13 @@ async fn flush(
     write: &mut OwnedWriteHalf,
 ) -> std::io::Result<()> {
     loop {
-        let (left, right) = ring_buf.as_slices();
-        let count = if !left.is_empty() {
-            write.write(left).await?
-        } else if !right.is_empty() {
-            write.write(right).await?
+        let (left, _) = ring_buf.as_slices();
+        if !left.is_empty() {
+            let count = write.write(left).await?;
+            unsafe { ring_buf.advance_read_index(count) };
         } else {
             // both empty, break
             return Ok(());
         };
-        unsafe { ring_buf.advance_read_index(count) };
     }
 }
