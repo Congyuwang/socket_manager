@@ -2,6 +2,7 @@ use async_ringbuf::halves::{AsyncCons, AsyncProd};
 use async_ringbuf::producer::AsyncProducer;
 use async_ringbuf::traits::{AsyncObserver, Observer, Producer, Split};
 use async_ringbuf::AsyncHeapRb;
+use ringbuf::SharedRb;
 use std::sync::Arc;
 use std::task::Poll::{Pending, Ready};
 use std::task::{Poll, Waker};
@@ -113,18 +114,28 @@ impl MsgSender {
     /// It caches all received bytes in memory
     /// (efficiently using a chain of ring buffers).
     pub fn send_nonblock(&mut self, bytes: &[u8]) -> std::io::Result<()> {
-        if bytes.is_empty() {
+        let msg_size = bytes.len();
+        if msg_size == 0 {
             return Ok(());
         }
         let mut offset = 0usize;
-        // attempt to write the entire message without new allocation
-        if let BurstWriteState::Finished = burst_write(&mut offset, &mut self.ring_buf, bytes) {
-            return Ok(());
+        if msg_size <= RING_BUFFER_SIZE {
+            // attempt direct write for small message
+            if let BurstWriteState::Finished = burst_write(&mut offset, &mut self.ring_buf, bytes) {
+                return Ok(());
+            }
         }
-        // allocate new ring buffer if unable to write the entire message.
-        let new_buf_size = RING_BUFFER_SIZE.max(bytes.len() - offset);
-        let (mut ring_buf, ring) = AsyncHeapRb::<u8>::new(new_buf_size).split();
-        ring_buf.push_slice(&bytes[offset..]);
+        let (ring_buf, ring) = if msg_size <= RING_BUFFER_SIZE {
+            let mut rb = AsyncHeapRb::<u8>::new(RING_BUFFER_SIZE);
+            rb.push_slice(&bytes[offset..]);
+            rb
+        } else {
+            // direct allocation for large message
+            AsyncHeapRb::<u8>::from(unsafe {
+                SharedRb::from_raw_parts(std::mem::transmute(bytes.to_vec()), 0, msg_size)
+            })
+        }.split();
+        // send new allocation
         self.rings_prd.send(ring).map_err(|e| {
             std::io::Error::new(
                 std::io::ErrorKind::WriteZero,
