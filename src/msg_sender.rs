@@ -2,7 +2,7 @@ use async_ringbuf::{AsyncHeapConsumer, AsyncHeapProducer, AsyncHeapRb};
 use std::future::Future;
 use std::pin::pin;
 use std::task::Poll::Ready;
-use std::task::{Context, Poll, ready, Waker};
+use std::task::{ready, Context, Poll, Waker};
 use tokio::runtime::Handle;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 
