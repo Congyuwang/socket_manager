@@ -1,8 +1,10 @@
-use async_ringbuf::{AsyncHeapConsumer, AsyncHeapProducer, AsyncHeapRb};
-use std::future::Future;
-use std::pin::pin;
-use std::task::Poll::Ready;
-use std::task::{ready, Context, Poll, Waker};
+use async_ringbuf::halves::{AsyncCons, AsyncProd};
+use async_ringbuf::producer::AsyncProducer;
+use async_ringbuf::traits::{AsyncObserver, Observer, Producer, Split};
+use async_ringbuf::AsyncHeapRb;
+use std::sync::Arc;
+use std::task::Poll::{Pending, Ready};
+use std::task::{Poll, Waker};
 use tokio::runtime::Handle;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 
@@ -13,6 +15,9 @@ pub const RING_BUFFER_SIZE: usize = 256 * 1024;
 pub(crate) enum SendCommand {
     Flush,
 }
+
+pub type AsyncHeapProducer<T> = AsyncProd<Arc<AsyncHeapRb<T>>>;
+pub type AsyncHeapConsumer<T> = AsyncCons<Arc<AsyncHeapRb<T>>>;
 
 pub(crate) fn make_sender(handle: Handle) -> (MsgSender, MsgRcv) {
     let (cmd, cmd_recv) = unbounded_channel::<SendCommand>();
@@ -55,7 +60,7 @@ fn burst_write(
     bytes: &[u8],
 ) -> BurstWriteState {
     loop {
-        let n = buf.as_mut_base().push_slice(&bytes[*offset..]);
+        let n = buf.push_slice(&bytes[*offset..]);
         if n == 0 {
             // no bytes read, return
             break BurstWriteState::Pending;
@@ -84,7 +89,7 @@ impl MsgSender {
         // unfinished, enter into future
         self.handle.clone().block_on(async {
             loop {
-                self.ring_buf.wait_free(1).await;
+                self.ring_buf.wait_vacant(1).await;
                 // check if closed
                 if self.ring_buf.is_closed() {
                     break Err(std::io::Error::new(
@@ -119,7 +124,7 @@ impl MsgSender {
         // allocate new ring buffer if unable to write the entire message.
         let new_buf_size = RING_BUFFER_SIZE.max(bytes.len() - offset);
         let (mut ring_buf, ring) = AsyncHeapRb::<u8>::new(new_buf_size).split();
-        ring_buf.as_mut_base().push_slice(&bytes[offset..]);
+        ring_buf.push_slice(&bytes[offset..]);
         self.rings_prd.send(ring).map_err(|e| {
             std::io::Error::new(
                 std::io::ErrorKind::WriteZero,
@@ -143,23 +148,15 @@ impl MsgSender {
             // attempt to write as much as possible
             burst_write(&mut offset, &mut self.ring_buf, bytes);
             if offset > 0 {
-                return Ready(Ok(offset));
+                break Ready(Ok(offset));
             }
-            ready!(pin!(self.ring_buf.wait_free(1)).poll(&mut Context::from_waker(&waker)));
-            // if wait_free returns ready, try again.
-            if self.ring_buf.is_closed() {
-                return Ready(Err(std::io::Error::new(
-                    std::io::ErrorKind::WriteZero,
-                    "connection closed",
-                )));
+            // offset = 0, prepare to wait
+            self.ring_buf.register_read_waker(&waker);
+            // check again that the ring_buf is not empty
+            // to prevent deadlock
+            if !self.ring_buf.is_empty() {
+                break Pending;
             }
-            // New data is available, must try to consume again,
-            // otherwise, we risk to block forever.
-            // i.e., There is a tiny chance that the ring buffer
-            // becomes full *before the waker is registered*,
-            // and no notification will be received by us.
-            // However, the `poll` will have returned OK(()),
-            // indicating that we should try to consume again.
         }
     }
 
