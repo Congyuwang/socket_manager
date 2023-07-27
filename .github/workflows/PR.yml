@@ -147,7 +147,9 @@ jobs:
           SOCKET_LOG: debug
 
       - name: Install
-        run: cmake --install build --config Release
+        run: |
+          cd ${{github.workspace}}
+          cmake --install build --config Release
 
       - name: Test Linking
         run: |
