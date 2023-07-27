@@ -1,8 +1,8 @@
 use async_ringbuf::{AsyncHeapConsumer, AsyncHeapProducer, AsyncHeapRb};
 use std::future::Future;
 use std::pin::pin;
-use std::task::Poll::{Pending, Ready};
-use std::task::{Context, Poll, Waker};
+use std::task::Poll::Ready;
+use std::task::{ready, Context, Poll, Waker};
 use tokio::runtime::Handle;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 
@@ -145,10 +145,8 @@ impl MsgSender {
             if offset > 0 {
                 return Ready(Ok(offset));
             }
-            if let Pending = pin!(self.ring_buf.wait_free(1)).poll(&mut Context::from_waker(&waker))
-            {
-                return Pending;
-            }
+            ready!(pin!(self.ring_buf.wait_free(1)).poll(&mut Context::from_waker(&waker)));
+            // if wait_free returns ready, try again.
             if self.ring_buf.is_closed() {
                 return Ready(Err(std::io::Error::new(
                     std::io::ErrorKind::WriteZero,
@@ -158,7 +156,7 @@ impl MsgSender {
             // New data is available, must try to consume again,
             // otherwise, we risk to block forever.
             // i.e., There is a tiny chance that the ring buffer
-            // becomes full before the waker is registered,
+            // becomes full *before the waker is registered*,
             // and no notification will be received by us.
             // However, the `poll` will have returned OK(()),
             // indicating that we should try to consume again.

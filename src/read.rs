@@ -1,10 +1,11 @@
+use crate::buf_read_write::BufReadWrite;
 use crate::conn::ConnConfig;
 use crate::Msg;
 use std::pin::Pin;
 use std::task::Poll::Ready;
 use std::task::{ready, Context, Poll, Waker};
 use std::time::Duration;
-use tokio::io::{AsyncBufReadExt, AsyncWrite, AsyncWriteExt, BufReader, BufWriter};
+use tokio::io::{AsyncBufReadExt, AsyncWrite, AsyncWriteExt, BufReader};
 use tokio::net::tcp::OwnedReadHalf;
 use tokio::time::MissedTickBehavior;
 
@@ -45,10 +46,8 @@ async fn handle_reader_auto_flush<
     msg_buf_size: usize,
 ) -> std::io::Result<()> {
     debug_assert!(!duration.is_zero());
-    let recv_buffer_size = socket2::SockRef::from(read.as_ref()).recv_buffer_size()?;
-    tracing::trace!("recv buffer size: {}", recv_buffer_size);
-    let mut buf_reader = BufReader::with_capacity(recv_buffer_size, read);
-    let mut msg_writer = BufWriter::with_capacity(msg_buf_size, OnMsgWrite { on_msg });
+    let writer = OnMsgWrite { on_msg };
+    let mut read_write = BufReadWrite::new(read, writer, msg_buf_size);
     let mut flush_tick = tokio::time::interval(duration);
     let mut has_data = false;
     flush_tick.set_missed_tick_behavior(MissedTickBehavior::Skip);
@@ -56,28 +55,22 @@ async fn handle_reader_auto_flush<
     loop {
         tokio::select! {
             biased;
-            fill_result = buf_reader.fill_buf() => {
-                let bytes = fill_result?;
-                let n = bytes.len();
+            n = read_write.fill_flush() => {
+                let n = n?;
                 if n == 0 {
                     break;
                 }
-                msg_writer.write_all(bytes).await?;
-                tracing::trace!("received {n} bytes");
-                buf_reader.consume(n);
-                // enable ticked flush when there is data.
                 has_data = true;
             }
             _ = flush_tick.tick(), if has_data => {
-                msg_writer.flush().await?;
+                read_write.flush().await?;
                 // disable ticked flush when there is no data.
                 has_data = false;
             }
         }
     }
 
-    msg_writer.flush().await?;
-    msg_writer.shutdown().await?;
+    read_write.flush().await?;
     Ok(())
 }
 
@@ -90,24 +83,15 @@ async fn handle_reader_no_auto_flush<
     on_msg: OnMsg,
     msg_buf_size: usize,
 ) -> std::io::Result<()> {
-    let recv_buffer_size = socket2::SockRef::from(read.as_ref()).recv_buffer_size()?;
-    tracing::trace!("recv buffer size: {}", recv_buffer_size);
-    let mut buf_reader = BufReader::with_capacity(recv_buffer_size, read);
-    let mut msg_writer = BufWriter::with_capacity(msg_buf_size, OnMsgWrite { on_msg });
-
+    let writer = OnMsgWrite { on_msg };
+    let mut read_write = BufReadWrite::new(read, writer, msg_buf_size);
     loop {
-        let bytes = buf_reader.fill_buf().await?;
-        let n = bytes.len();
+        let n = read_write.fill_flush().await?;
         if n == 0 {
             break;
         }
-        msg_writer.write_all(bytes).await?;
-        tracing::trace!("received {n} bytes");
-        buf_reader.consume(n);
     }
-
-    msg_writer.flush().await?;
-    msg_writer.shutdown().await?;
+    read_write.flush().await?;
     Ok(())
 }
 
@@ -129,7 +113,6 @@ async fn handle_reader_no_buf<
             break;
         }
         on_msg.write_all(bytes).await?;
-        tracing::trace!("received {n} bytes");
         buf_reader.consume(n);
     }
     Ok(())
