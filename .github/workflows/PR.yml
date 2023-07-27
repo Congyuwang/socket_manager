@@ -98,7 +98,7 @@ jobs:
       - name: Install packages
         run: |
           apt-get update && \
-          apt-get install -y -q\
+          apt-get install -y -q \
           build-essential \
           software-properties-common \
           lsb-core \
