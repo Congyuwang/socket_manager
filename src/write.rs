@@ -55,7 +55,7 @@ async fn handle_writer_auto_flush(
                         break 'ring;
                     }
                     has_data = true;
-                    if ring.occupied_len() >= MIN_MSG_BUFFER_SIZE {
+                    if ring.len() >= MIN_MSG_BUFFER_SIZE {
                         flush(&mut ring, &mut write).await?;
                         has_data = false
                     }
@@ -137,10 +137,10 @@ async fn flush(
     write: &mut OwnedWriteHalf,
 ) -> std::io::Result<()> {
     loop {
-        let (left, _) = ring_buf.as_slices();
+        let (left, _) = ring_buf.as_mut_base().as_slices();
         if !left.is_empty() {
             let count = write.write(left).await?;
-            unsafe { ring_buf.advance_read_index(count) };
+            unsafe { ring_buf.as_mut_base().advance(count) };
         } else {
             // both empty, break
             return Ok(());
