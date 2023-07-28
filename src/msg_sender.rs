@@ -113,6 +113,7 @@ impl MsgSender {
     /// It caches all received bytes in memory
     /// (efficiently using a chain of ring buffers).
     pub fn send_nonblock(&mut self, bytes: &[u8]) -> std::io::Result<()> {
+        const NONBLOCK_RING_BUFFER_SIZE: usize = 1024 * 1024;
         if bytes.is_empty() {
             return Ok(());
         }
@@ -122,7 +123,7 @@ impl MsgSender {
             return Ok(());
         }
         // allocate new ring buffer if unable to write the entire message.
-        let new_buf_size = RING_BUFFER_SIZE.max(bytes.len() - offset);
+        let new_buf_size = NONBLOCK_RING_BUFFER_SIZE.max(bytes.len() - offset);
         let (mut ring_buf, ring) = AsyncHeapRb::<u8>::new(new_buf_size).split();
         ring_buf.push_slice(&bytes[offset..]);
         self.rings_prd.send(ring).map_err(|e| {
