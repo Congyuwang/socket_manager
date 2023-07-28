@@ -1,8 +1,7 @@
+use async_ringbuf::ring_buffer::AsyncRbWrite;
 use async_ringbuf::{AsyncHeapConsumer, AsyncHeapProducer, AsyncHeapRb};
-use std::future::Future;
-use std::pin::pin;
-use std::task::Poll::Ready;
-use std::task::{ready, Context, Poll, Waker};
+use std::task::Poll::{self, Pending, Ready};
+use std::task::Waker;
 use tokio::runtime::Handle;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 
@@ -143,23 +142,15 @@ impl MsgSender {
             // attempt to write as much as possible
             burst_write(&mut offset, &mut self.ring_buf, bytes);
             if offset > 0 {
-                return Ready(Ok(offset));
+                break Ready(Ok(offset));
             }
-            ready!(pin!(self.ring_buf.wait_free(1)).poll(&mut Context::from_waker(&waker)));
-            // if wait_free returns ready, try again.
-            if self.ring_buf.is_closed() {
-                return Ready(Err(std::io::Error::new(
-                    std::io::ErrorKind::WriteZero,
-                    "connection closed",
-                )));
+            // offset = 0, prepare to wait
+            unsafe { self.ring_buf.as_base().rb().register_head_waker(&waker) };
+            // check again that the ring_buf is not empty
+            // to prevent deadlock
+            if !self.ring_buf.is_empty() {
+                break Pending;
             }
-            // New data is available, must try to consume again,
-            // otherwise, we risk to block forever.
-            // i.e., There is a tiny chance that the ring buffer
-            // becomes full *before the waker is registered*,
-            // and no notification will be received by us.
-            // However, the `poll` will have returned OK(()),
-            // indicating that we should try to consume again.
         }
     }
 
