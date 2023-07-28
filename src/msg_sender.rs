@@ -146,9 +146,8 @@ impl MsgSender {
             }
             // offset = 0, prepare to wait
             unsafe { self.ring_buf.as_base().rb().register_head_waker(&waker) };
-            // check again that the ring_buf is not empty
-            // to prevent deadlock
-            if !self.ring_buf.is_empty() {
+            // check the pending state ensues.
+            if self.ring_buf.is_full() && !self.ring_buf.is_closed() {
                 break Pending;
             }
         }
