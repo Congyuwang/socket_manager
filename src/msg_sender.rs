@@ -1,5 +1,6 @@
 use async_ringbuf::ring_buffer::AsyncRbWrite;
 use async_ringbuf::{AsyncHeapConsumer, AsyncHeapProducer, AsyncHeapRb};
+use std::future::poll_fn;
 use std::task::Poll::{self, Pending, Ready};
 use std::task::Waker;
 use tokio::runtime::Handle;
@@ -83,22 +84,25 @@ impl MsgSender {
         // unfinished, enter into future
         self.handle.clone().block_on(async {
             loop {
-                self.ring_buf.wait_free(1).await;
-                // check if closed
-                if self.ring_buf.is_closed() {
-                    break Err(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        "connection closed",
-                    ));
-                }
-                if let BurstWriteState::Finished =
-                    burst_write(&mut offset, &mut self.ring_buf, bytes)
-                {
+                if let BurstWriteState::Finished = burst_write(&mut offset, &mut self.ring_buf, bytes) {
                     return Ok(());
                 }
+                poll_fn(|cx| {
+                    unsafe { self.ring_buf.as_base().rb().register_head_waker(cx.waker()) };
+                    if self.ring_buf.is_closed() {
+                        Ready(Err(std::io::Error::new(
+                            std::io::ErrorKind::Other,
+                            "connection closed",
+                        )))
+                    } else if self.ring_buf.is_full() {
+                        Pending::<std::io::Result<()>>
+                    } else {
+                        // continue to loop until pending
+                        Ready(Ok(()))
+                    }
+                }).await?;
             }
-        })?;
-        Ok(())
+        })
     }
 
     /// The non-blocking API for sending bytes.
