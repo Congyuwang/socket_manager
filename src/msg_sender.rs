@@ -84,7 +84,9 @@ impl MsgSender {
         // unfinished, enter into future
         self.handle.clone().block_on(async {
             loop {
-                if let BurstWriteState::Finished = burst_write(&mut offset, &mut self.ring_buf, bytes) {
+                if let BurstWriteState::Finished =
+                    burst_write(&mut offset, &mut self.ring_buf, bytes)
+                {
                     return Ok(());
                 }
                 poll_fn(|cx| {
@@ -100,7 +102,8 @@ impl MsgSender {
                         // continue to loop until pending
                         Ready(Ok(()))
                     }
-                }).await?;
+                })
+                .await?;
             }
         })
     }
