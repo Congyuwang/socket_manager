@@ -132,6 +132,9 @@ impl MsgSender {
                 format!("connection closed: {e}"),
             )
         })?;
+        // must manually close old ring_buf
+        // since it is not implemented in drop
+        self.ring_buf.close();
         // set head to new ring_buf
         self.ring_buf = ring_buf;
         Ok(())
@@ -168,5 +171,12 @@ impl MsgSender {
                 "failed to send flush command, connection closed",
             )
         })
+    }
+}
+
+impl Drop for MsgSender {
+    fn drop(&mut self) {
+        // close ring_buf on drop
+        self.ring_buf.close();
     }
 }
