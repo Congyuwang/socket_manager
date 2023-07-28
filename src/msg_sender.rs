@@ -5,6 +5,7 @@ use async_ringbuf::AsyncHeapRb;
 use std::sync::Arc;
 use std::task::Poll::{Pending, Ready};
 use std::task::{Poll, Waker};
+use futures::SinkExt;
 use tokio::runtime::Handle;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 
