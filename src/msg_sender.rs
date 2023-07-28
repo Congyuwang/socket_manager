@@ -154,7 +154,12 @@ impl MsgSender {
             // offset = 0, prepare to wait
             unsafe { self.ring_buf.as_base().rb().register_head_waker(&waker) };
             // check the pending state ensues.
-            if self.ring_buf.is_full() && !self.ring_buf.is_closed() {
+            if self.ring_buf.is_closed() {
+                break Ready(Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "connection closed",
+                )));
+            } else if self.ring_buf.is_full() {
                 break Pending;
             }
         }
