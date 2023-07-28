@@ -11,6 +11,7 @@ build:
                    -DCMAKE_TOOLCHAIN_FILE=toolchain.cmake \
                    -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON
     cmake --build build --parallel 4 --config Release --verbose
+    codesign -s - -v -f --entitlements debug.plist ./build/echo_server
 
 run:
     SOCKET_LOG=info ./build/echo_server
