@@ -13,6 +13,9 @@ namespace socket_manager {
   }
 
   Waker &Waker::operator=(Waker &&other) noexcept {
+    if (waker.Data != nullptr && waker.Vtable != nullptr) {
+      socket_manager_waker_free(waker);
+    }
     waker = other.waker;
     other.waker.Data = nullptr;
     other.waker.Vtable = nullptr;
