@@ -103,8 +103,7 @@ impl MsgSender {
                     return Ok(());
                 }
             }
-        })?;
-        Ok(())
+        })
     }
 
     /// The non-blocking API for sending bytes.
