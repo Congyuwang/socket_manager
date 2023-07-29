@@ -5,7 +5,6 @@ use async_ringbuf::AsyncHeapRb;
 use std::sync::Arc;
 use std::task::Poll::{Pending, Ready};
 use std::task::{Poll, Waker};
-use futures::SinkExt;
 use tokio::runtime::Handle;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 
@@ -132,9 +131,6 @@ impl MsgSender {
                 format!("connection closed: {e}"),
             )
         })?;
-        // must manually close old ring_buf
-        // since it is not implemented in drop
-        self.ring_buf.close();
         // set head to new ring_buf
         self.ring_buf = ring_buf;
         Ok(())
@@ -156,9 +152,13 @@ impl MsgSender {
             }
             // offset = 0, prepare to wait
             self.ring_buf.register_read_waker(&waker);
-            // check again that the ring_buf is not empty
-            // to prevent deadlock
-            if !self.ring_buf.is_empty() {
+            // check the pending state ensues.
+            if self.ring_buf.is_closed() {
+                break Ready(Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "connection closed",
+                )));
+            } else if self.ring_buf.is_full() {
                 break Pending;
             }
         }
@@ -171,12 +171,5 @@ impl MsgSender {
                 "failed to send flush command, connection closed",
             )
         })
-    }
-}
-
-impl Drop for MsgSender {
-    fn drop(&mut self) {
-        // close ring_buf on drop
-        self.ring_buf.close();
     }
 }
