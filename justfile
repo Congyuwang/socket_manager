@@ -29,8 +29,10 @@ test-linking:
     cd ../..
 
 debug:
-    cmake -B build -DCMAKE_BUILD_TYPE=Debug
-    cmake --build build --config Debug
+    cmake -B build -DCMAKE_BUILD_TYPE=Debug \
+                   -DCMAKE_TOOLCHAIN_FILE=toolchain.cmake \
+                   -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+    cmake --build build --parallel 4 --config Debug
     just test
 
 build:
