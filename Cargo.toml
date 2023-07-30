@@ -8,7 +8,7 @@ edition = "2021"
 crate-type = ["staticlib"]
 
 [dependencies]
-async-ringbuf = { git = "https://github.com/Congyuwang/ringbuf", branch = "main" }
+async-ringbuf = "0.2.0-rc.1"
 dashmap = { version = "5.4.0", features = ["inline"] }
 libc = "0.2.146"
 socket2 = "0.5.3"
