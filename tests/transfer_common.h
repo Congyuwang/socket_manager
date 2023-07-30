@@ -82,15 +82,15 @@ public:
     std::string data = transfer_private::make_test_message(msg_size);
     size_t msg_count = total_size / msg_size;
 
-    conn->start(std::move(rcv));
+    conn->start(std::move(rcv), waker);
     std::thread([sender, msg_count, data, sem]() {
       int progress = 0;
       size_t offset = 0;
       std::string_view data_view(data);
       while (progress < msg_count) {
         auto sent = sender->send_async(data_view.substr(offset));
-        if (sent < 0) {
-          sem->wait(WAIT_MILLIS);
+        if (sent == PENDING) {
+          sem->wait();
         } else {
           offset += sent;
         }

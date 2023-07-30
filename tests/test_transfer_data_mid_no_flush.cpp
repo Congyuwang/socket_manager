@@ -19,18 +19,15 @@ int test_transfer_data_mid_no_flush(int argc, char **argv) {
   store.connect_to_addr(addr);
 
   // Wait for the connection to close
-  while (true) {
-    if (store_cb->has_closed.load()) {
-      auto avg_size = *store_cb->add_data / *store_cb->count;
-      std::cout << "received " << *store_cb->count << " messages ,"
-                << "total size = " << *store_cb->add_data << " bytes, "
-                << "average size = " << avg_size << " bytes" << std::endl;
-      assert(*store_cb->add_data == TOTAL_SIZE);
-      return 0;
-    }
-    {
-      std::unique_lock<std::mutex> u_lock(store_cb->mutex);
-      store_cb->cond.wait_for(u_lock, std::chrono::milliseconds(WAIT_MILLIS));
-    }
+  {
+    std::unique_lock<std::mutex> u_lock(store_cb->mutex);
+    store_cb->cond.wait(u_lock,
+                        [store_cb]() { return store_cb->has_closed.load(); });
   }
+  auto avg_size = *store_cb->add_data / *store_cb->count;
+  std::cout << "received " << *store_cb->count << " messages ,"
+            << "total size = " << *store_cb->add_data << " bytes, "
+            << "average size = " << avg_size << " bytes" << std::endl;
+  assert(*store_cb->add_data == TOTAL_SIZE);
+  return 0;
 }
