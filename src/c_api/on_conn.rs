@@ -36,7 +36,7 @@ extern "C" {
     /// Set `err` to null_ptr if there is no error.
     pub(crate) fn socket_manager_extern_on_conn(
         this: OnConnObj,
-        conn: ConnStates,
+        states: ConnStates,
         err: *mut *mut c_char,
     );
 }
@@ -44,9 +44,9 @@ extern "C" {
 impl OnConnObj {
     /// connection callback
     pub(crate) fn call_inner(&self, conn_states: crate::ConnState<OnMsgObj>) -> Result<(), String> {
-        let on_conn = |conn| unsafe {
+        let on_conn = |states| unsafe {
             let mut err: *mut c_char = null_mut();
-            socket_manager_extern_on_conn(*self, conn, &mut err);
+            socket_manager_extern_on_conn(*self, states, &mut err);
             parse_c_err_str(err)
         };
         match conn_states {

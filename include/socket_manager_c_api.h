@@ -329,7 +329,7 @@ void socket_manager_msg_sender_free(SOCKET_MANAGER_C_API_MsgSender *sender);
  * Set `err` to null_ptr if there is no error.
  */
 extern void socket_manager_extern_on_conn(SOCKET_MANAGER_C_API_OnConnObj this_,
-                                          SOCKET_MANAGER_C_API_ConnStates conn,
+                                          SOCKET_MANAGER_C_API_ConnStates states,
                                           char **err);
 
 /**

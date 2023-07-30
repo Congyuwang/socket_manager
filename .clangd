@@ -11,6 +11,8 @@ Diagnostics:
         'modernize-use-trailing-return-type',
         'cppcoreguidelines-no-malloc',
         'cppcoreguidelines-owning-memory',
+        'cppcoreguidelines-pro-type-reinterpret-cast',
+        'cppcoreguidelines-pro-type-union-access',
         'cppcoreguidelines-special-member-functions',
         'bugprone-easily-swappable-parameters'
     ]

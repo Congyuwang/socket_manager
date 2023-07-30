@@ -29,7 +29,7 @@ public:
 private:
   friend void ::socket_manager_extern_on_conn(
       struct SOCKET_MANAGER_C_API_OnConnObj this_,
-      SOCKET_MANAGER_C_API_ConnStates conn, char **err);
+      SOCKET_MANAGER_C_API_ConnStates states, char **err);
 
   /**
    * Called when a new connection is established.
