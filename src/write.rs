@@ -1,7 +1,8 @@
 use crate::conn::ConnConfig;
 use crate::msg_sender::MsgRcv;
 use crate::read::MIN_MSG_BUFFER_SIZE;
-use async_ringbuf::AsyncHeapConsumer;
+use crate::AsyncHeapConsumer;
+use async_ringbuf::traits::{AsyncConsumer, AsyncObserver, Consumer, Observer};
 use std::time::Duration;
 use tokio::io::AsyncWriteExt;
 use tokio::net::tcp::OwnedWriteHalf;
@@ -50,12 +51,12 @@ async fn handle_writer_auto_flush(
                 biased;
                 // !has_data => wait for has_data
                 // has_data => wait for write_threshold
-                _ = ring.wait(if !has_data {1} else {MIN_MSG_BUFFER_SIZE}) => {
+                _ = ring.wait_occupied(if !has_data {1} else {MIN_MSG_BUFFER_SIZE}) => {
                     if ring.is_closed() {
                         break 'ring;
                     }
                     has_data = true;
-                    if ring.len() >= MIN_MSG_BUFFER_SIZE {
+                    if ring.occupied_len() >= MIN_MSG_BUFFER_SIZE {
                         flush(&mut ring, &mut write).await?;
                         has_data = false
                     }
@@ -105,7 +106,7 @@ async fn handle_writer_no_auto_flush(
             tokio::select! {
                 biased;
                 // buf threshold
-                _ = ring.wait(MIN_MSG_BUFFER_SIZE) => {
+                _ = ring.wait_occupied(MIN_MSG_BUFFER_SIZE) => {
                     if ring.is_closed() {
                         break 'ring;
                     }
@@ -137,10 +138,10 @@ async fn flush(
     write: &mut OwnedWriteHalf,
 ) -> std::io::Result<()> {
     loop {
-        let (left, _) = ring_buf.as_mut_base().as_slices();
+        let (left, _) = ring_buf.as_slices();
         if !left.is_empty() {
             let count = write.write(left).await?;
-            unsafe { ring_buf.as_mut_base().advance(count) };
+            unsafe { ring_buf.advance_read_index(count) };
         } else {
             // both empty, break
             return Ok(());
