@@ -1,6 +1,7 @@
 use async_ringbuf::halves::{AsyncCons, AsyncProd};
 use async_ringbuf::traits::{AsyncObserver, AsyncProducer, Producer, Split};
 use async_ringbuf::AsyncHeapRb;
+use futures::AsyncWriteExt;
 use std::sync::Arc;
 use std::task::Poll::{Pending, Ready};
 use std::task::{Poll, Waker};
@@ -86,23 +87,9 @@ impl MsgSender {
             return Ok(());
         }
         // unfinished, enter into future
-        self.handle.clone().block_on(async {
-            loop {
-                self.ring_buf.wait_vacant(1).await;
-                // check if closed
-                if self.ring_buf.is_closed() {
-                    break Err(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        "connection closed",
-                    ));
-                }
-                if let BurstWriteState::Finished =
-                    burst_write(&mut offset, &mut self.ring_buf, bytes)
-                {
-                    return Ok(());
-                }
-            }
-        })
+        self.handle
+            .clone()
+            .block_on(self.ring_buf.write_all(&bytes[offset..]))
     }
 
     /// The non-blocking API for sending bytes.
