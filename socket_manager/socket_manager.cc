@@ -5,7 +5,7 @@ namespace socket_manager {
   SocketManager::SocketManager(const std::shared_ptr<ConnCallback> &conn_cb, size_t n_threads)
           : conn_cb(conn_cb) {
     char *err = nullptr;
-    auto inner_ptr = socket_manager_init(SOCKET_MANAGER_C_API_OnConnObj{
+    auto *inner_ptr = socket_manager_init(SOCKET_MANAGER_C_API_OnConnObj{
             conn_cb.get()
     }, n_threads, &err);
     inner = std::unique_ptr<SOCKET_MANAGER_C_API_SocketManager,
@@ -13,7 +13,7 @@ namespace socket_manager {
             inner_ptr,
             [](SOCKET_MANAGER_C_API_SocketManager *ptr) { socket_manager_free(ptr); }
     );
-    if (err) {
+    if (err != nullptr) {
       const std::string err_str(err);
       free(err);
       throw std::runtime_error(err_str);
@@ -22,7 +22,7 @@ namespace socket_manager {
 
   void SocketManager::listen_on_addr(const std::string &addr) {
     char *err = nullptr;
-    if (socket_manager_listen_on_addr(inner.get(), addr.c_str(), &err)) {
+    if (0 != socket_manager_listen_on_addr(inner.get(), addr.c_str(), &err)) {
       const std::string err_str(err);
       free(err);
       throw std::runtime_error(err_str);
@@ -31,7 +31,7 @@ namespace socket_manager {
 
   void SocketManager::connect_to_addr(const std::string &addr, uint64_t delay) {
     char *err = nullptr;
-    if (socket_manager_connect_to_addr(inner.get(), addr.c_str(), delay, &err)) {
+    if (0 != socket_manager_connect_to_addr(inner.get(), addr.c_str(), delay, &err)) {
       const std::string err_str(err);
       free(err);
       throw std::runtime_error(err_str);
@@ -40,7 +40,7 @@ namespace socket_manager {
 
   void SocketManager::cancel_listen_on_addr(const std::string &addr) {
     char *err = nullptr;
-    if (socket_manager_cancel_listen_on_addr(inner.get(), addr.c_str(), &err)) {
+    if (0 != socket_manager_cancel_listen_on_addr(inner.get(), addr.c_str(), &err)) {
       const std::string err_str(err);
       free(err);
       throw std::runtime_error(err_str);
@@ -49,7 +49,7 @@ namespace socket_manager {
 
   void SocketManager::abort(bool wait) {
     char *err = nullptr;
-    if (socket_manager_abort(inner.get(), wait, &err)) {
+    if (0 != socket_manager_abort(inner.get(), wait, &err)) {
       const std::string err_str(err);
       free(err);
       throw std::runtime_error(err_str);
@@ -58,7 +58,7 @@ namespace socket_manager {
 
   void SocketManager::join() {
     char *err = nullptr;
-    if (socket_manager_join(inner.get(), &err)) {
+    if (0 != socket_manager_join(inner.get(), &err)) {
       const std::string err_str(err);
       free(err);
       throw std::runtime_error(err_str);

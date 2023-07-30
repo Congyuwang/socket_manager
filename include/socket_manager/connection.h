@@ -6,20 +6,17 @@
 #include <stdexcept>
 #include <functional>
 #include "msg_receiver.h"
-#include "msg_sender.h"
 #include "socket_manager_c_api.h"
 
 namespace socket_manager {
 
   const unsigned long long DEFAULT_WRITE_FLUSH_MILLI_SEC = 5; // 5 millisecond
   const unsigned long long DEFAULT_READ_MSG_FLUSH_MILLI_SEC = 5; // 5 millisecond
-  const size_t DEFAULT_MSG_BUF_SIZE = 64 * 1024; // 64KB
+  const size_t DEFAULT_MSG_BUF_SIZE = static_cast<const size_t>(64) * 1024; // 64KB
 
   class MsgSender;
 
   class Notifier;
-
-  class NoopNotifier;
 
   /**
    * Use Connection to send and receive messages from

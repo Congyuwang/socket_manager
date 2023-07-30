@@ -1,17 +1,14 @@
 #ifndef SOCKET_MANAGER_MSG_SENDER_H
 #define SOCKET_MANAGER_MSG_SENDER_H
 
-#include "socket_manager_c_api.h"
 #include "connection.h"
+#include "socket_manager_c_api.h"
 #include "notifier.h"
 #include <functional>
 #include <string>
 #include <memory>
-#include <functional>
 
 namespace socket_manager {
-
-  class Connection;
 
   /**
    * Use MsgSender to send messages to the peer.

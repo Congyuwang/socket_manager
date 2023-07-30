@@ -1,3 +1,4 @@
+#include "socket_manager/msg_sender.h"
 #include "socket_manager/connection.h"
 
 
@@ -30,7 +31,7 @@ namespace socket_manager {
     // start the connection.
     // calling twice `connection_start` will throw exception.
     char *err = nullptr;
-    if (socket_manager_connection_start(inner.get(), SOCKET_MANAGER_C_API_OnMsgObj{
+    if (0 != socket_manager_connection_start(inner.get(), SOCKET_MANAGER_C_API_OnMsgObj{
             this->receiver.get(),
     }, msg_buffer_size, read_msg_flush_interval, write_flush_interval, &err)) {
       const std::string err_str(err);
@@ -41,7 +42,7 @@ namespace socket_manager {
 
   void Connection::close() {
     char *err = nullptr;
-    if (socket_manager_connection_close(inner.get(), &err)) {
+    if (0 != socket_manager_connection_close(inner.get(), &err)) {
       const std::string err_str(err);
       free(err);
       throw std::runtime_error(err_str);

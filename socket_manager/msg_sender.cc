@@ -5,7 +5,7 @@ namespace socket_manager {
 
   void MsgSender::send_block(std::string_view data) {
     char *err = nullptr;
-    if (socket_manager_msg_sender_send_block(
+    if (0 != socket_manager_msg_sender_send_block(
             inner.get(), data.data(), data.length(), &err)) {
       const std::string err_str(err);
       free(err);
@@ -15,7 +15,7 @@ namespace socket_manager {
 
   void MsgSender::send_nonblock(std::string_view data) {
     char *err = nullptr;
-    if (socket_manager_msg_sender_send_nonblock(
+    if (0 != socket_manager_msg_sender_send_nonblock(
             inner.get(), data.data(), data.length(), &err)) {
       const std::string err_str(err);
       free(err);
@@ -25,23 +25,23 @@ namespace socket_manager {
 
   long MsgSender::send_async(std::string_view data) {
     char *err = nullptr;
-    long n = socket_manager_msg_sender_send_async(
+    long const bytes_sent = socket_manager_msg_sender_send_async(
             inner.get(),
             data.data(),
             data.length(),
             SOCKET_MANAGER_C_API_Notifier{conn->notifier.get()},
             &err);
-    if (err) {
+    if (err != nullptr) {
       const std::string err_str(err);
       free(err);
       throw std::runtime_error(err_str);
     }
-    return n;
+    return bytes_sent;
   }
 
   void MsgSender::flush() {
     char *err = nullptr;
-    if (socket_manager_msg_sender_flush(inner.get(), &err)) {
+    if (0 != socket_manager_msg_sender_flush(inner.get(), &err)) {
       const std::string err_str(err);
       free(err);
       throw std::runtime_error(err_str);
