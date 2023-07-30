@@ -88,7 +88,6 @@ impl MsgSender {
         }
         // unfinished, enter into future
         self.handle
-            .clone()
             .block_on(self.ring_buf.write_all(&bytes[offset..]))
     }
 
