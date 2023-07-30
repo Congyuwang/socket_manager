@@ -1,0 +1,15 @@
+Diagnostics:
+  ClangTidy:
+    Add: [
+      'bugprone*',
+      'modernize*',
+      'cppcoreguidelines*',
+      'performance*',
+      'readability*'
+    ]
+    Remove: [
+        'modernize-use-trailing-return-type',
+        'cppcoreguidelines-no-malloc',
+        'cppcoreguidelines-owning-memory',
+        'cppcoreguidelines-special-member-functions'
+    ]
