@@ -1,7 +1,6 @@
 use crate::conn::{Conn, ConnConfig};
 use crate::msg_sender::make_sender;
 use crate::{read, write, ConnState, ConnectionState, Msg};
-use futures::FutureExt;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::task::{Poll, Waker};
@@ -81,7 +80,7 @@ pub(crate) fn handle_connection<
 
 /// On connection end, remove connection from connection state.
 async fn join_reader_writer(
-    (writer, reader): (
+    (mut writer, mut reader): (
         JoinHandle<std::io::Result<()>>,
         JoinHandle<std::io::Result<()>>,
     ),
@@ -89,28 +88,22 @@ async fn join_reader_writer(
 ) {
     let writer_abort = writer.abort_handle();
     let reader_abort = reader.abort_handle();
-    let mut writer = writer.fuse();
-    let mut reader = reader.fuse();
-    loop {
-        tokio::select! {
-            w = &mut writer => {
-                if let Err(e) = w {
-                    tracing::error!("writer stopped on error ({e}), local={local_addr}, peer={peer_addr}");
-                } else {
-                    tracing::debug!("writer stopped local={local_addr}, peer={peer_addr}");
-                }
-                reader_abort.abort();
-                break;
+    tokio::select! {
+        w = &mut writer => {
+            if let Err(e) = w {
+                tracing::error!("writer stopped on error ({e}), local={local_addr}, peer={peer_addr}");
+            } else {
+                tracing::debug!("writer stopped local={local_addr}, peer={peer_addr}");
             }
-            r = &mut reader => {
-                if let Err(e) = r {
-                    tracing::error!("reader stopped on error ({e}), local={local_addr}, peer={peer_addr}");
-                } else {
-                    tracing::debug!("reader stopped local={local_addr}, peer={peer_addr}");
-                }
-                writer_abort.abort();
-                break;
+            reader_abort.abort();
+        }
+        r = &mut reader => {
+            if let Err(e) = r {
+                tracing::error!("reader stopped on error ({e}), local={local_addr}, peer={peer_addr}");
+            } else {
+                tracing::debug!("reader stopped local={local_addr}, peer={peer_addr}");
             }
+            writer_abort.abort();
         }
     }
 }
