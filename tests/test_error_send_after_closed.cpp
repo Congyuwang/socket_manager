@@ -15,20 +15,20 @@ int test_error_send_after_closed(int argc, char **argv) {
   server.listen_on_addr(addr);
 
   // Wait for 100ms
-  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  std::this_thread::sleep_for(std::chrono::milliseconds(WAIT_MILLIS));
 
   client.connect_to_addr(addr);
 
   // wait for connection success (server)
   std::string s_conn_id;
   while (true) {
-    std::unique_lock<std::mutex> u_lock(server_cb->mutex);
-    if (server_cb->events.size() == 1) {
-      assert(std::get<0>(server_cb->events[0]) == CONNECTED);
-      s_conn_id = std::get<1>(server_cb->events[0]);
+    std::unique_lock<std::mutex> u_lock(*server_cb->mutex);
+    if (server_cb->events->size() == 1) {
+      assert(std::get<0>(server_cb->events->at(0)) == CONNECTED);
+      s_conn_id = std::get<1>(server_cb->events->at(0));
       break;
     }
-    server_cb->cond.wait_for(u_lock, std::chrono::milliseconds(10));
+    server_cb->cond->wait_for(u_lock, std::chrono::milliseconds(WAIT_MILLIS));
   }
 
   // close connection from server (by dropping sender)
@@ -37,19 +37,19 @@ int test_error_send_after_closed(int argc, char **argv) {
   // wait for connection closed (client)
   std::string c_conn_id;
   while (true) {
-    std::unique_lock<std::mutex> u_lock(client_cb->mutex);
-    if (client_cb->events.size() == 2) {
-      assert(std::get<0>(client_cb->events[0]) == CONNECTED);
-      assert(std::get<0>(client_cb->events[1]) == CONNECTION_CLOSED);
-      c_conn_id = std::get<1>(client_cb->events[0]);
-      assert(std::get<1>(client_cb->events[1]) == c_conn_id);
+    std::unique_lock<std::mutex> u_lock(*client_cb->mutex);
+    if (client_cb->events->size() == 2) {
+      assert(std::get<0>(client_cb->events->at(0)) == CONNECTED);
+      assert(std::get<0>(client_cb->events->at(1)) == CONNECTION_CLOSED);
+      c_conn_id = std::get<1>(client_cb->events->at(0));
+      assert(std::get<1>(client_cb->events->at(1)) == c_conn_id);
       break;
     }
-    client_cb->cond.wait_for(u_lock, std::chrono::milliseconds(10));
+    client_cb->cond->wait_for(u_lock, std::chrono::milliseconds(WAIT_MILLIS));
   }
 
   // Wait for 100ms
-  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  std::this_thread::sleep_for(std::chrono::milliseconds(WAIT_MILLIS));
 
   // should emit runtime error if attempt to send from client after closed
   try {

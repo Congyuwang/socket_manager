@@ -62,7 +62,7 @@ int test_error_twice_start(int argc, char **argv) {
 
   bad.listen_on_addr(addr);
   // wait 100ms
-  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  std::this_thread::sleep_for(std::chrono::milliseconds(WAIT_MILLIS));
   good.connect_to_addr(addr);
 
   // wait for error
@@ -71,7 +71,7 @@ int test_error_twice_start(int argc, char **argv) {
     if (bad_cb->error_thrown.load(std::memory_order_acquire) == 2) {
       break;
     }
-    bad_cb->cond.wait_for(lock, std::chrono::milliseconds(10));
+    bad_cb->cond.wait_for(lock, std::chrono::milliseconds(WAIT_MILLIS));
   }
 
   return 0;
