@@ -1,6 +1,5 @@
 use async_ringbuf::halves::{AsyncCons, AsyncProd};
-use async_ringbuf::producer::AsyncProducer;
-use async_ringbuf::traits::{AsyncObserver, Observer, Producer, Split};
+use async_ringbuf::traits::{AsyncObserver, AsyncProducer, Producer, Split};
 use async_ringbuf::AsyncHeapRb;
 use std::sync::Arc;
 use std::task::Poll::{Pending, Ready};
@@ -143,23 +142,28 @@ impl MsgSender {
             return Ready(Ok(0));
         }
         let mut offset = 0usize;
+        let mut waker_registered = false;
         loop {
+            // check if closed
+            if self.ring_buf.is_closed() {
+                break Ready(Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "connection closed",
+                )));
+            }
             // attempt to write as much as possible
             burst_write(&mut offset, &mut self.ring_buf, bytes);
             if offset > 0 {
                 break Ready(Ok(offset));
             }
             // offset = 0, prepare to wait
-            self.ring_buf.register_read_waker(&waker);
-            // check the pending state ensues.
-            if self.ring_buf.is_closed() {
-                break Ready(Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    "connection closed",
-                )));
-            } else if self.ring_buf.is_full() {
+            if waker_registered {
                 break Pending;
             }
+            // register waker
+            self.ring_buf.register_read_waker(&waker);
+            waker_registered = true;
+            // try again to ensure no missing wake
         }
     }
 
