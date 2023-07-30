@@ -12,10 +12,11 @@ public:
 class TwiceStartCallback : public ConnCallback {
 
 public:
-  TwiceStartCallback() : error_thrown(0) {};
+  TwiceStartCallback() : error_thrown(0){};
 
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  std::shared_ptr<Connection> conn, std::shared_ptr<MsgSender> sender) override {
+                  std::shared_ptr<Connection> conn,
+                  std::shared_ptr<MsgSender> sender) override {
     auto receiver = std::make_unique<DoNothingMsgReceiver>();
     auto receiver2 = std::make_unique<DoNothingMsgReceiver>();
     conn->start(std::move(receiver));
@@ -36,11 +37,14 @@ public:
     cond.notify_all();
   }
 
-  void on_connection_close(const std::string &local_addr, const std::string &peer_addr) override {}
+  void on_connection_close(const std::string &local_addr,
+                           const std::string &peer_addr) override {}
 
-  void on_listen_error(const std::string &addr, const std::string &err) override {}
+  void on_listen_error(const std::string &addr,
+                       const std::string &err) override {}
 
-  void on_connect_error(const std::string &addr, const std::string &err) override {}
+  void on_connect_error(const std::string &addr,
+                        const std::string &err) override {}
 
   std::atomic_int error_thrown;
   std::mutex mutex;
@@ -58,7 +62,7 @@ int test_error_twice_start(int argc, char **argv) {
 
   bad.listen_on_addr(addr);
   // wait 100ms
-  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  std::this_thread::sleep_for(std::chrono::milliseconds(WAIT_MILLIS));
   good.connect_to_addr(addr);
 
   // wait for error
@@ -67,7 +71,7 @@ int test_error_twice_start(int argc, char **argv) {
     if (bad_cb->error_thrown.load(std::memory_order_acquire) == 2) {
       break;
     }
-    bad_cb->cond.wait_for(lock, std::chrono::milliseconds(10));
+    bad_cb->cond.wait_for(lock, std::chrono::milliseconds(WAIT_MILLIS));
   }
 
   return 0;

@@ -4,10 +4,10 @@
 #include <chrono>
 #include <thread>
 
-int test_transfer_data_small_async(int argc, char **argv) {
+int test_transfer_data_large_block(int argc, char **argv) {
   const std::string addr = "127.0.0.1:40013";
 
-  auto send_cb = std::make_shared<SendAsyncCB>(SMALL_MSG_SIZE, TOTAL_SIZE);
+  auto send_cb = std::make_shared<SendBlockCB>(LARGE_MSG_SIZE, TOTAL_SIZE);
   auto store_cb = std::make_shared<CountDataNotifyOnCloseCallback>();
   SocketManager send(send_cb);
   SocketManager store(store_cb);

@@ -29,21 +29,25 @@ test-linking:
     cd ../..
 
 debug:
-    cmake -B build -DCMAKE_BUILD_TYPE=Debug
-    cmake --build build --config Debug
+    cmake -B build -DCMAKE_BUILD_TYPE=Debug \
+                   -DCMAKE_TOOLCHAIN_FILE=toolchain.cmake \
+                   -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+    cmake --build build --parallel 4 --config Debug
     just test
 
 build:
     cmake -B build -DCMAKE_BUILD_TYPE=Release \
                    -DCMAKE_TOOLCHAIN_FILE=toolchain.cmake \
-                   -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON
+                   -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
+                   -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
     cmake --build build --parallel 4 --config Release --verbose
     just test
 
 build-static:
     cmake -B build -DCMAKE_BUILD_TYPE=Release \
                    -DCMAKE_TOOLCHAIN_FILE=toolchain.cmake \
-                   -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=true \
+                   -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON \
+                   -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
                    -DBUILD_SHARED_LIBS=OFF
     cmake --build build --parallel 4 --config Release --verbose
     just test

@@ -1,12 +1,10 @@
 #undef NDEBUG
-#include <thread>
 #include "test_utils.h"
+#include <thread>
 
 using namespace socket_manager;
 
-void abort_manager(SocketManager &manager) {
-  manager.abort();
-}
+void abort_manager(SocketManager &manager) { manager.abort(); }
 
 int test_abort_join(int argc, char **argv) {
   auto nothing_cb = std::make_shared<DoNothingConnCallback>();

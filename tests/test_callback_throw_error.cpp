@@ -1,22 +1,24 @@
 #undef NDEBUG
 
 #include "test_utils.h"
-#include <stdexcept>
 #include <chrono>
+#include <stdexcept>
 #include <thread>
 
 using namespace socket_manager;
 
 class OnConnectErrorBeforeStartCallback : public DoNothingConnCallback {
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  std::shared_ptr<Connection> conn, std::shared_ptr<MsgSender> sender) override {
+                  std::shared_ptr<Connection> conn,
+                  std::shared_ptr<MsgSender> sender) override {
     throw std::runtime_error("throw some error before calling start");
   }
 };
 
 class OnConnectErrorAfterStartCallback : public DoNothingConnCallback {
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  std::shared_ptr<Connection> conn, std::shared_ptr<MsgSender> sender) override {
+                  std::shared_ptr<Connection> conn,
+                  std::shared_ptr<MsgSender> sender) override {
     conn->start(std::make_unique<DoNothingReceiver>());
     throw std::runtime_error("throw some error after calling start");
   }
@@ -30,38 +32,45 @@ class OnMsgErrorReceiver : public MsgReceiver {
 
 class OnMsgErrorCallback : public ConnCallback {
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  std::shared_ptr<Connection> conn, std::shared_ptr<MsgSender> send) override {
+                  std::shared_ptr<Connection> conn,
+                  std::shared_ptr<MsgSender> send) override {
     conn->start(std::make_unique<OnMsgErrorReceiver>());
     this->sender = send;
     sender.use_count();
   }
 
-  void on_connection_close(const std::string &local_addr, const std::string &peer_addr) override {}
+  void on_connection_close(const std::string &local_addr,
+                           const std::string &peer_addr) override {}
 
-  void on_listen_error(const std::string &addr, const std::string &err) override {}
+  void on_listen_error(const std::string &addr,
+                       const std::string &err) override {}
 
-  void on_connect_error(const std::string &addr, const std::string &err) override {}
+  void on_connect_error(const std::string &addr,
+                        const std::string &err) override {}
 
   std::shared_ptr<MsgSender> sender;
 };
 
 class StoreAllEventsConnHelloCallback : public StoreAllEventsConnCallback {
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  std::shared_ptr<Connection> conn, std::shared_ptr<MsgSender> sender) override {
-    std::unique_lock<std::mutex> lock(mutex);
+                  std::shared_ptr<Connection> conn,
+                  std::shared_ptr<MsgSender> sender) override {
+    std::unique_lock<std::mutex> lock(*mutex);
     auto conn_id = local_addr + "->" + peer_addr;
-    events.emplace_back(CONNECTED, conn_id);
-    auto msg_storer = std::make_unique<MsgStoreReceiver>(conn_id, mutex, cond, buffer);
+    events->emplace_back(CONNECTED, conn_id);
+    auto msg_storer =
+        std::make_unique<MsgStoreReceiver>(conn_id, mutex, cond, buffer);
     conn->start(std::move(msg_storer));
-    std::thread t1([sender]() {
+    std::thread sender_t([sender]() {
       try {
         sender->send_block("hello");
-      } catch (std::runtime_error &e) { /* ignore */ }
+      } catch (std::runtime_error &e) { /* ignore */
+      }
     });
-    t1.detach();
+    sender_t.detach();
     senders.emplace(conn_id, sender);
-    connected_count.fetch_add(1, std::memory_order_seq_cst);
-    cond.notify_all();
+    connected_count->fetch_add(1, std::memory_order_seq_cst);
+    cond->notify_all();
   }
 };
 
@@ -79,26 +88,29 @@ int test_callback_throw_error(int argc, char **argv) {
   SocketManager store_record(store_record_cb);
 
   store_record.listen_on_addr(addr);
-  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  std::this_thread::sleep_for(std::chrono::milliseconds(WAIT_MILLIS));
   err_before.connect_to_addr(addr);
-  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  std::this_thread::sleep_for(std::chrono::milliseconds(WAIT_MILLIS));
   err_after.connect_to_addr(addr);
-  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  std::this_thread::sleep_for(std::chrono::milliseconds(WAIT_MILLIS));
   err_on_msg.connect_to_addr(addr);
-  std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  std::this_thread::sleep_for(std::chrono::milliseconds(WAIT_MILLIS));
+
+  const size_t EXPECTED = 6;
 
   while (true) {
-    std::unique_lock<std::mutex> u_lock(store_record_cb->mutex);
-    if (store_record_cb->events.size() == 6) {
-      assert(std::get<0>(store_record_cb->events[0]) == CONNECTED);
-      assert(std::get<0>(store_record_cb->events[1]) == CONNECTION_CLOSED);
-      assert(std::get<0>(store_record_cb->events[2]) == CONNECTED);
-      assert(std::get<0>(store_record_cb->events[3]) == CONNECTION_CLOSED);
-      assert(std::get<0>(store_record_cb->events[4]) == CONNECTED);
-      assert(std::get<0>(store_record_cb->events[5]) == CONNECTION_CLOSED);
+    std::unique_lock<std::mutex> u_lock(*store_record_cb->mutex);
+    if (store_record_cb->events->size() == EXPECTED) {
+      assert(std::get<0>(store_record_cb->events->at(0)) == CONNECTED);
+      assert(std::get<0>(store_record_cb->events->at(1)) == CONNECTION_CLOSED);
+      assert(std::get<0>(store_record_cb->events->at(2)) == CONNECTED);
+      assert(std::get<0>(store_record_cb->events->at(3)) == CONNECTION_CLOSED);
+      assert(std::get<0>(store_record_cb->events->at(4)) == CONNECTED);
+      assert(std::get<0>(store_record_cb->events->at(5)) == CONNECTION_CLOSED);
       break;
     }
-    store_record_cb->cond.wait_for(u_lock, std::chrono::milliseconds(10));
+    store_record_cb->cond->wait_for(u_lock,
+                                    std::chrono::milliseconds(WAIT_MILLIS));
   }
 
   return 0;
