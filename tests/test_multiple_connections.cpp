@@ -42,8 +42,9 @@ int test_multiple_connections(int argc, char **argv) {
   while (true) {
     std::unique_lock<std::mutex> u_lock(p0_cb->mutex);
     if (p0_cb->events.size() == 7) {
-      for (auto &e: p0_cb->events) {
-        std::cout << "p0 connection established: " << std::get<1>(e) << std::endl;
+      for (auto &e : p0_cb->events) {
+        std::cout << "p0 connection established: " << std::get<1>(e)
+                  << std::endl;
         assert(std::get<0>(e) == CONNECTED);
       }
       break;
@@ -53,8 +54,9 @@ int test_multiple_connections(int argc, char **argv) {
   while (true) {
     std::unique_lock<std::mutex> u_lock(p1_cb->mutex);
     if (p1_cb->events.size() == 7) {
-      for (auto &e: p1_cb->events) {
-        std::cout << "p0 connection established: " << std::get<1>(e) << std::endl;
+      for (auto &e : p1_cb->events) {
+        std::cout << "p0 connection established: " << std::get<1>(e)
+                  << std::endl;
         assert(std::get<0>(e) == CONNECTED);
       }
       break;
@@ -63,10 +65,10 @@ int test_multiple_connections(int argc, char **argv) {
   }
 
   // send messages from p0 to p1 and vice versa
-  for (auto &e: p0_cb->events) {
+  for (auto &e : p0_cb->events) {
     p0_cb->send_to(std::get<1>(e), "hello world");
   }
-  for (auto &e: p1_cb->events) {
+  for (auto &e : p1_cb->events) {
     p1_cb->send_to(std::get<1>(e), "hello world");
   }
 
@@ -74,9 +76,9 @@ int test_multiple_connections(int argc, char **argv) {
   while (true) {
     std::unique_lock<std::mutex> u_lock(p0_cb->mutex);
     if (p0_cb->buffer.size() == 7) {
-      for (auto &m: p0_cb->buffer) {
-        std::cout << "p0 received from connection " << std::get<0>(m)
-                  << ": " << *std::get<1>(m) << std::endl;
+      for (auto &m : p0_cb->buffer) {
+        std::cout << "p0 received from connection " << std::get<0>(m) << ": "
+                  << *std::get<1>(m) << std::endl;
         assert(*std::get<1>(m) == "hello world");
       }
       break;
@@ -86,9 +88,9 @@ int test_multiple_connections(int argc, char **argv) {
   while (true) {
     std::unique_lock<std::mutex> u_lock(p1_cb->mutex);
     if (p1_cb->buffer.size() == 7) {
-      for (auto &m: p1_cb->buffer) {
-        std::cout << "p1 received from connection " << std::get<0>(m)
-                  << ": " << *std::get<1>(m) << std::endl;
+      for (auto &m : p1_cb->buffer) {
+        std::cout << "p1 received from connection " << std::get<0>(m) << ": "
+                  << *std::get<1>(m) << std::endl;
         assert(*std::get<1>(m) == "hello world");
       }
       break;
@@ -100,20 +102,21 @@ int test_multiple_connections(int argc, char **argv) {
   std::vector<std::string> connections;
   {
     std::unique_lock<std::mutex> u_lock(p0_cb->mutex);
-    for (auto &e: p0_cb->events) {
+    for (auto &e : p0_cb->events) {
       if (std::get<0>(e) == CONNECTED) {
         connections.push_back(std::get<1>(e));
       }
     }
   }
   assert(connections.size() == 7);
-  for (auto &c: connections) {
+  for (auto &c : connections) {
     p0_cb->drop_connection(c);
   }
 
   // confirm all connections from p1 are closed
   while (true) {
-    std::cout << "p1 connected count: " << p1_cb->connected_count.load() << std::endl;
+    std::cout << "p1 connected count: " << p1_cb->connected_count.load()
+              << std::endl;
     if (p1_cb->connected_count.load() == 0) {
       break;
     }
@@ -123,7 +126,8 @@ int test_multiple_connections(int argc, char **argv) {
     }
   }
   while (true) {
-    std::cout << "p0 connected count: " << p0_cb->connected_count.load() << std::endl;
+    std::cout << "p0 connected count: " << p0_cb->connected_count.load()
+              << std::endl;
     if (p0_cb->connected_count.load() == 0) {
       break;
     }

@@ -1,6 +1,6 @@
 #undef NDEBUG
-#include <socket_manager/socket_manager.h>
 #include "test_utils.h"
+#include <socket_manager/socket_manager.h>
 
 int test_error_connect(int argc, char **argv) {
   std::mutex lock;
@@ -15,7 +15,7 @@ int test_error_connect(int argc, char **argv) {
   // Wait for the connection to fail
   while (true) {
     int load_sig = sig.load(std::memory_order_seq_cst);
-    if (load_sig & CONNECT_ERROR) {
+    if (0 == (load_sig & CONNECT_ERROR)) {
       assert(!(load_sig & CONNECTED));
       assert(!(load_sig & CONNECTION_CLOSED));
       assert(!(load_sig & LISTEN_ERROR));

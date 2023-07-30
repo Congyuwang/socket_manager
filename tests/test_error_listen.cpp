@@ -1,6 +1,6 @@
 #undef NDEBUG
-#include <socket_manager/socket_manager.h>
 #include "test_utils.h"
+#include <socket_manager/socket_manager.h>
 
 int test_error_listen(int argc, char **argv) {
   std::mutex lock;

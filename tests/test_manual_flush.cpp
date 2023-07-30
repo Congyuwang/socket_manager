@@ -1,18 +1,18 @@
 #undef NDEBUG
 
 #include "test_utils.h"
-#include <memory>
 #include <chrono>
-#include <thread>
 #include <iostream>
+#include <memory>
+#include <thread>
 
 class FinalReceiver : public MsgReceiver {
 public:
-  FinalReceiver(bool &hasReceived, std::mutex &mutex, std::condition_variable &cond)
-          : has_received(hasReceived), mutex(mutex), cond(cond) {}
+  FinalReceiver(bool &hasReceived, std::mutex &mutex,
+                std::condition_variable &cond)
+      : has_received(hasReceived), mutex(mutex), cond(cond) {}
 
 private:
-
   void on_message(std::string_view data) override {
     assert(data == "hello world");
     std::unique_lock<std::mutex> lk(mutex);
@@ -28,8 +28,9 @@ private:
 
 class EchoReceiver : public MsgReceiver {
 public:
-  EchoReceiver(bool &hasReceived, std::string &data, std::mutex &mutex, std::condition_variable &cond)
-          : has_received(hasReceived), _data(data), mutex(mutex), cond(cond) {}
+  EchoReceiver(bool &hasReceived, std::string &data, std::mutex &mutex,
+               std::condition_variable &cond)
+      : has_received(hasReceived), _data(data), mutex(mutex), cond(cond) {}
 
 private:
   void on_message(std::string_view data) override {
@@ -48,7 +49,8 @@ private:
 
 class HelloCallback : public ConnCallback {
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  std::shared_ptr<Connection> conn, std::shared_ptr<MsgSender> sender) override {
+                  std::shared_ptr<Connection> conn,
+                  std::shared_ptr<MsgSender> sender) override {
     auto rcv = std::make_unique<FinalReceiver>(has_received, mutex, cond);
     // disable write auto flush
     conn->start(std::move(rcv), nullptr, DEFAULT_MSG_BUF_SIZE, 1, 0);
@@ -61,11 +63,14 @@ class HelloCallback : public ConnCallback {
     std::cout << "hello world sent" << std::endl;
   }
 
-  void on_connection_close(const std::string &local_addr, const std::string &peer_addr) override {}
+  void on_connection_close(const std::string &local_addr,
+                           const std::string &peer_addr) override {}
 
-  void on_listen_error(const std::string &addr, const std::string &err) override {}
+  void on_listen_error(const std::string &addr,
+                       const std::string &err) override {}
 
-  void on_connect_error(const std::string &addr, const std::string &err) override {}
+  void on_connect_error(const std::string &addr,
+                        const std::string &err) override {}
 
 public:
   std::shared_ptr<MsgSender> _sender;
@@ -76,7 +81,8 @@ public:
 
 class EchoCallback : public ConnCallback {
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  std::shared_ptr<Connection> conn, std::shared_ptr<MsgSender> sender) override {
+                  std::shared_ptr<Connection> conn,
+                  std::shared_ptr<MsgSender> sender) override {
     auto rcv = std::make_unique<EchoReceiver>(has_received, _data, mutex, cond);
     // disable write auto flush
     conn->start(std::move(rcv), nullptr, DEFAULT_MSG_BUF_SIZE, 1, 0);
@@ -89,11 +95,14 @@ class EchoCallback : public ConnCallback {
     t.detach();
   }
 
-  void on_connection_close(const std::string &local_addr, const std::string &peer_addr) override {}
+  void on_connection_close(const std::string &local_addr,
+                           const std::string &peer_addr) override {}
 
-  void on_listen_error(const std::string &addr, const std::string &err) override {}
+  void on_listen_error(const std::string &addr,
+                       const std::string &err) override {}
 
-  void on_connect_error(const std::string &addr, const std::string &err) override {}
+  void on_connect_error(const std::string &addr,
+                        const std::string &err) override {}
 
   bool has_received{false};
   std::string _data;

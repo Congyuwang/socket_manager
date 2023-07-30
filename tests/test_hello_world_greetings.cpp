@@ -1,8 +1,8 @@
 #undef NDEBUG
 #include "test_utils.h"
 #include <chrono>
-#include <thread>
 #include <iostream>
+#include <thread>
 
 int test_hello_world_greetings(int argc, char **argv) {
 
@@ -32,7 +32,8 @@ int test_hello_world_greetings(int argc, char **argv) {
     std::unique_lock<std::mutex> u_lock(client_cb->mutex);
     std::cout << "client lock" << std::endl;
     if (client_cb->events.size() == 1) {
-      std::cout << "Client connection established: " << std::get<1>(client_cb->events[0]) << std::endl;
+      std::cout << "Client connection established: "
+                << std::get<1>(client_cb->events[0]) << std::endl;
       assert(std::get<0>(client_cb->events[0]) == CONNECTED);
       c_conn_id = std::get<1>(client_cb->events[0]);
       break;
@@ -44,7 +45,8 @@ int test_hello_world_greetings(int argc, char **argv) {
   while (true) {
     std::unique_lock<std::mutex> u_lock(server_cb->mutex);
     if (server_cb->events.size() == 1) {
-      std::cout << "Server connection established: " << std::get<1>(server_cb->events[0]) << std::endl;
+      std::cout << "Server connection established: "
+                << std::get<1>(server_cb->events[0]) << std::endl;
       assert(std::get<0>(server_cb->events[0]) == CONNECTED);
       s_conn_id = std::get<1>(server_cb->events[0]);
       server.cancel_listen_on_addr(addr);
@@ -61,7 +63,8 @@ int test_hello_world_greetings(int argc, char **argv) {
     std::unique_lock<std::mutex> u_lock(server_cb->mutex);
     if (server_cb->buffer.size() == 1) {
       std::cout << "Server received: " << *std::get<1>(server_cb->buffer[0])
-                << " from connection=" << std::get<0>(server_cb->buffer[0]) << std::endl;
+                << " from connection=" << std::get<0>(server_cb->buffer[0])
+                << std::endl;
       assert(std::get<0>(server_cb->buffer[0]) == s_conn_id);
       assert(*std::get<1>(server_cb->buffer[0]) == "hello world");
       break;
@@ -76,7 +79,8 @@ int test_hello_world_greetings(int argc, char **argv) {
     std::unique_lock<std::mutex> u_lock(client_cb->mutex);
     if (client_cb->buffer.size() == 1) {
       std::cout << "Client received: " << *std::get<1>(client_cb->buffer[0])
-                << " from connection=" << std::get<0>(client_cb->buffer[0]) << std::endl;
+                << " from connection=" << std::get<0>(client_cb->buffer[0])
+                << std::endl;
       assert(std::get<0>(client_cb->buffer[0]) == c_conn_id);
       assert(*std::get<1>(client_cb->buffer[0]) == "hello world");
       break;
@@ -91,7 +95,8 @@ int test_hello_world_greetings(int argc, char **argv) {
   while (true) {
     std::unique_lock<std::mutex> u_lock(server_cb->mutex);
     if (server_cb->events.size() == 2) {
-      std::cout << "Connection closed: " << std::get<1>(server_cb->events[1]) << std::endl;
+      std::cout << "Connection closed: " << std::get<1>(server_cb->events[1])
+                << std::endl;
       assert(std::get<0>(server_cb->events[1]) == CONNECTION_CLOSED);
       break;
     }
@@ -103,7 +108,8 @@ int test_hello_world_greetings(int argc, char **argv) {
     std::unique_lock<std::mutex> u_lock(client_cb->mutex);
     if (client_cb->events.size() == 2) {
       assert(std::get<0>(client_cb->events[1]) == CONNECTION_CLOSED);
-      std::cout << "Connection closed: " << std::get<1>(client_cb->events[1]) << std::endl;
+      std::cout << "Connection closed: " << std::get<1>(client_cb->events[1])
+                << std::endl;
       break;
     }
     client_cb->cond.wait_for(u_lock, std::chrono::milliseconds(10));

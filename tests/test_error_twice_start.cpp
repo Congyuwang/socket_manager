@@ -12,10 +12,11 @@ public:
 class TwiceStartCallback : public ConnCallback {
 
 public:
-  TwiceStartCallback() : error_thrown(0) {};
+  TwiceStartCallback() : error_thrown(0){};
 
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  std::shared_ptr<Connection> conn, std::shared_ptr<MsgSender> sender) override {
+                  std::shared_ptr<Connection> conn,
+                  std::shared_ptr<MsgSender> sender) override {
     auto receiver = std::make_unique<DoNothingMsgReceiver>();
     auto receiver2 = std::make_unique<DoNothingMsgReceiver>();
     conn->start(std::move(receiver));
@@ -36,11 +37,14 @@ public:
     cond.notify_all();
   }
 
-  void on_connection_close(const std::string &local_addr, const std::string &peer_addr) override {}
+  void on_connection_close(const std::string &local_addr,
+                           const std::string &peer_addr) override {}
 
-  void on_listen_error(const std::string &addr, const std::string &err) override {}
+  void on_listen_error(const std::string &addr,
+                       const std::string &err) override {}
 
-  void on_connect_error(const std::string &addr, const std::string &err) override {}
+  void on_connect_error(const std::string &addr,
+                        const std::string &err) override {}
 
   std::atomic_int error_thrown;
   std::mutex mutex;

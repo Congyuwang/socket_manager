@@ -1,22 +1,24 @@
 #undef NDEBUG
 
 #include "test_utils.h"
-#include <stdexcept>
 #include <chrono>
+#include <stdexcept>
 #include <thread>
 
 using namespace socket_manager;
 
 class OnConnectErrorBeforeStartCallback : public DoNothingConnCallback {
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  std::shared_ptr<Connection> conn, std::shared_ptr<MsgSender> sender) override {
+                  std::shared_ptr<Connection> conn,
+                  std::shared_ptr<MsgSender> sender) override {
     throw std::runtime_error("throw some error before calling start");
   }
 };
 
 class OnConnectErrorAfterStartCallback : public DoNothingConnCallback {
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  std::shared_ptr<Connection> conn, std::shared_ptr<MsgSender> sender) override {
+                  std::shared_ptr<Connection> conn,
+                  std::shared_ptr<MsgSender> sender) override {
     conn->start(std::make_unique<DoNothingReceiver>());
     throw std::runtime_error("throw some error after calling start");
   }
@@ -30,33 +32,40 @@ class OnMsgErrorReceiver : public MsgReceiver {
 
 class OnMsgErrorCallback : public ConnCallback {
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  std::shared_ptr<Connection> conn, std::shared_ptr<MsgSender> send) override {
+                  std::shared_ptr<Connection> conn,
+                  std::shared_ptr<MsgSender> send) override {
     conn->start(std::make_unique<OnMsgErrorReceiver>());
     this->sender = send;
     sender.use_count();
   }
 
-  void on_connection_close(const std::string &local_addr, const std::string &peer_addr) override {}
+  void on_connection_close(const std::string &local_addr,
+                           const std::string &peer_addr) override {}
 
-  void on_listen_error(const std::string &addr, const std::string &err) override {}
+  void on_listen_error(const std::string &addr,
+                       const std::string &err) override {}
 
-  void on_connect_error(const std::string &addr, const std::string &err) override {}
+  void on_connect_error(const std::string &addr,
+                        const std::string &err) override {}
 
   std::shared_ptr<MsgSender> sender;
 };
 
 class StoreAllEventsConnHelloCallback : public StoreAllEventsConnCallback {
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  std::shared_ptr<Connection> conn, std::shared_ptr<MsgSender> sender) override {
+                  std::shared_ptr<Connection> conn,
+                  std::shared_ptr<MsgSender> sender) override {
     std::unique_lock<std::mutex> lock(mutex);
     auto conn_id = local_addr + "->" + peer_addr;
     events.emplace_back(CONNECTED, conn_id);
-    auto msg_storer = std::make_unique<MsgStoreReceiver>(conn_id, mutex, cond, buffer);
+    auto msg_storer =
+        std::make_unique<MsgStoreReceiver>(conn_id, mutex, cond, buffer);
     conn->start(std::move(msg_storer));
     std::thread t1([sender]() {
       try {
         sender->send_block("hello");
-      } catch (std::runtime_error &e) { /* ignore */ }
+      } catch (std::runtime_error &e) { /* ignore */
+      }
     });
     t1.detach();
     senders.emplace(conn_id, sender);

@@ -1,19 +1,18 @@
 #undef NDEBUG
 
-#include "test_utils.h"
-#include <string_view>
 #include "concurrentqueue/concurrentqueue.h"
 #include "concurrentqueue/lightweightsemaphore.h"
+#include "test_utils.h"
+#include <string_view>
 #include <thread>
-
 
 class CondWaker : public Notifier {
 public:
-  explicit CondWaker(const std::shared_ptr<moodycamel::LightweightSemaphore> &sem) : sem(sem) {}
+  explicit CondWaker(
+      const std::shared_ptr<moodycamel::LightweightSemaphore> &sem)
+      : sem(sem) {}
 
-  void wake() override {
-    sem->signal();
-  }
+  void wake() override { sem->signal(); }
 
 private:
   std::shared_ptr<moodycamel::LightweightSemaphore> sem;
@@ -22,7 +21,8 @@ private:
 class SendLargeDataConnCallbackAsyncSmall : public DoNothingConnCallback {
 public:
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  std::shared_ptr<Connection> conn, std::shared_ptr<MsgSender> sender) override {
+                  std::shared_ptr<Connection> conn,
+                  std::shared_ptr<MsgSender> sender) override {
     auto rcv = std::make_unique<DoNothingReceiver>();
     auto sem = std::make_shared<moodycamel::LightweightSemaphore>();
     auto waker = std::make_shared<CondWaker>(sem);
@@ -58,7 +58,8 @@ public:
 
 class StoreAllDataAsyncSmall : public MsgReceiver {
 public:
-  explicit StoreAllDataAsyncSmall(size_t &buffer, int &count) : buffer(buffer), count(count) {}
+  explicit StoreAllDataAsyncSmall(size_t &buffer, int &count)
+      : buffer(buffer), count(count) {}
 
   void on_message(std::string_view data) override {
     if (count % 100 == 0) {
@@ -75,25 +76,28 @@ public:
 
 class StoreAllDataNotifyOnCloseCallbackAsyncSmall : public ConnCallback {
 public:
-
   void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  std::shared_ptr<Connection> conn, std::shared_ptr<MsgSender> send) override {
+                  std::shared_ptr<Connection> conn,
+                  std::shared_ptr<MsgSender> send) override {
     auto rcv = std::make_unique<StoreAllDataAsyncSmall>(add_data, count);
     // store sender so connection is not dropped.
     this->sender = send;
     conn->start(std::move(rcv));
   }
 
-  void on_connection_close(const std::string &local_addr, const std::string &peer_addr) override {
+  void on_connection_close(const std::string &local_addr,
+                           const std::string &peer_addr) override {
     std::unique_lock<std::mutex> lk(mutex);
     has_closed.store(true);
     std::cout << "on_connection_close" << std::endl;
     cond.notify_all();
   }
 
-  void on_listen_error(const std::string &addr, const std::string &err) override {}
+  void on_listen_error(const std::string &addr,
+                       const std::string &err) override {}
 
-  void on_connect_error(const std::string &addr, const std::string &err) override {}
+  void on_connect_error(const std::string &addr,
+                        const std::string &err) override {}
 
   std::mutex mutex;
   std::condition_variable cond;
@@ -107,7 +111,8 @@ int test_transfer_data_small_async(int argc, char **argv) {
   const std::string addr = "127.0.0.1:40013";
 
   auto send_cb = std::make_shared<SendLargeDataConnCallbackAsyncSmall>();
-  auto store_cb = std::make_shared<StoreAllDataNotifyOnCloseCallbackAsyncSmall>();
+  auto store_cb =
+      std::make_shared<StoreAllDataNotifyOnCloseCallbackAsyncSmall>();
   SocketManager send(send_cb);
   SocketManager store(store_cb);
 
@@ -123,8 +128,7 @@ int test_transfer_data_small_async(int argc, char **argv) {
       auto avg_size = store_cb->add_data / store_cb->count;
       std::cout << "received " << store_cb->count << " messages ,"
                 << "total size = " << store_cb->add_data << " bytes, "
-                << "average size = " << avg_size << " bytes"
-                << std::endl;
+                << "average size = " << avg_size << " bytes" << std::endl;
       assert(store_cb->add_data == 1024 * 1024 * 1000);
       return 0;
     }
