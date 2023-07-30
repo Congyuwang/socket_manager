@@ -1,0 +1,9 @@
+Diagnostics:
+  ClangTidy:
+    Add: [
+      'bugprone*',
+      'modernize*',
+      'cppcoreguidelines*',
+      'performance*',
+      'readability*'
+    ]
