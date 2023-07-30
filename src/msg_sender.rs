@@ -1,8 +1,9 @@
-use async_ringbuf::ring_buffer::AsyncRbWrite;
-use async_ringbuf::{AsyncHeapConsumer, AsyncHeapProducer, AsyncHeapRb};
-use std::future::poll_fn;
-use std::task::Poll::{self, Pending, Ready};
-use std::task::Waker;
+use async_ringbuf::halves::{AsyncCons, AsyncProd};
+use async_ringbuf::traits::{AsyncObserver, AsyncProducer, Producer, Split};
+use async_ringbuf::AsyncHeapRb;
+use std::sync::Arc;
+use std::task::Poll::{Pending, Ready};
+use std::task::{Poll, Waker};
 use tokio::runtime::Handle;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 
@@ -13,6 +14,9 @@ pub const RING_BUFFER_SIZE: usize = 256 * 1024;
 pub(crate) enum SendCommand {
     Flush,
 }
+
+pub type AsyncHeapProducer<T> = AsyncProd<Arc<AsyncHeapRb<T>>>;
+pub type AsyncHeapConsumer<T> = AsyncCons<Arc<AsyncHeapRb<T>>>;
 
 pub(crate) fn make_sender(handle: Handle) -> (MsgSender, MsgRcv) {
     let (cmd, cmd_recv) = unbounded_channel::<SendCommand>();
@@ -55,7 +59,7 @@ fn burst_write(
     bytes: &[u8],
 ) -> BurstWriteState {
     loop {
-        let n = buf.as_mut_base().push_slice(&bytes[*offset..]);
+        let n = buf.push_slice(&bytes[*offset..]);
         if n == 0 {
             // no bytes read, return
             break BurstWriteState::Pending;
@@ -84,26 +88,19 @@ impl MsgSender {
         // unfinished, enter into future
         self.handle.clone().block_on(async {
             loop {
+                self.ring_buf.wait_vacant(1).await;
+                // check if closed
+                if self.ring_buf.is_closed() {
+                    break Err(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        "connection closed",
+                    ));
+                }
                 if let BurstWriteState::Finished =
                     burst_write(&mut offset, &mut self.ring_buf, bytes)
                 {
                     return Ok(());
                 }
-                poll_fn(|cx| {
-                    unsafe { self.ring_buf.as_base().rb().register_head_waker(cx.waker()) };
-                    if self.ring_buf.is_closed() {
-                        Ready(Err(std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            "connection closed",
-                        )))
-                    } else if self.ring_buf.is_full() {
-                        Pending::<std::io::Result<()>>
-                    } else {
-                        // continue to loop until pending
-                        Ready(Ok(()))
-                    }
-                })
-                .await?;
             }
         })
     }
@@ -125,7 +122,7 @@ impl MsgSender {
         // allocate new ring buffer if unable to write the entire message.
         let new_buf_size = RING_BUFFER_SIZE.max(bytes.len() - offset);
         let (mut ring_buf, ring) = AsyncHeapRb::<u8>::new(new_buf_size).split();
-        ring_buf.as_mut_base().push_slice(&bytes[offset..]);
+        ring_buf.push_slice(&bytes[offset..]);
         self.rings_prd.send(ring).map_err(|e| {
             std::io::Error::new(
                 std::io::ErrorKind::WriteZero,
@@ -145,23 +142,28 @@ impl MsgSender {
             return Ready(Ok(0));
         }
         let mut offset = 0usize;
+        let mut waker_registered = false;
         loop {
+            // check if closed
+            if self.ring_buf.is_closed() {
+                break Ready(Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "connection closed",
+                )));
+            }
             // attempt to write as much as possible
             burst_write(&mut offset, &mut self.ring_buf, bytes);
             if offset > 0 {
                 break Ready(Ok(offset));
             }
             // offset = 0, prepare to wait
-            unsafe { self.ring_buf.as_base().rb().register_head_waker(&waker) };
-            // check the pending state ensues.
-            if self.ring_buf.is_closed() {
-                break Ready(Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    "connection closed",
-                )));
-            } else if self.ring_buf.is_full() {
+            if waker_registered {
                 break Pending;
             }
+            // register waker
+            self.ring_buf.register_read_waker(&waker);
+            waker_registered = true;
+            // try again to ensure no missing wake
         }
     }
 
