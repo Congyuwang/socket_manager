@@ -10,8 +10,8 @@
 
 namespace socket_manager {
 
-const unsigned long long DEFAULT_WRITE_FLUSH_MILLI_SEC = 5;    // 5 millisecond
-const unsigned long long DEFAULT_READ_MSG_FLUSH_MILLI_SEC = 5; // 5 millisecond
+const unsigned long long DEFAULT_WRITE_FLUSH_MILLI_SEC = 1;    // 1 millisecond
+const unsigned long long DEFAULT_READ_MSG_FLUSH_MILLI_SEC = 1; // 1 millisecond
 const size_t DEFAULT_MSG_BUF_SIZE =
     static_cast<const size_t>(64) * 1024; // 64KB
 
