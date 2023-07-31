@@ -51,7 +51,7 @@ async fn handle_writer_auto_flush(
                 biased;
                 // !has_data => wait for has_data
                 // has_data => wait for write_threshold
-                _ = ring.wait_occupied(if !has_data {1} else {MIN_MSG_BUFFER_SIZE}) => {
+                _ = ring.wait_occupied((has_data as usize) * MIN_MSG_BUFFER_SIZE + (!has_data as usize)) => {
                     if ring.is_closed() {
                         break 'ring;
                     }
@@ -60,15 +60,6 @@ async fn handle_writer_auto_flush(
                         flush(&mut ring, &mut write).await?;
                         has_data = false
                     }
-                }
-                // flush
-                cmd = recv.cmd_recv.recv() => {
-                    // always flush, including if sender is dropped
-                    flush(&mut ring, &mut write).await?;
-                    if cmd.is_none() {
-                        break 'close;
-                    }
-                    has_data = false;
                 }
                 // tick flush
                 _ = flush_tick.tick(), if has_data => {
@@ -111,14 +102,6 @@ async fn handle_writer_no_auto_flush(
                         break 'ring;
                     }
                     flush(&mut ring, &mut write).await?;
-                }
-                // flush
-                cmd = recv.cmd_recv.recv() => {
-                    // always flush, including if sender is dropped
-                    flush(&mut ring, &mut write).await?;
-                    if cmd.is_none() {
-                        break 'close;
-                    }
                 }
                 _ = stop.closed() => break 'close,
             }

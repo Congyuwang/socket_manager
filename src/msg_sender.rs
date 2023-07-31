@@ -11,38 +11,29 @@ use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 /// 256KB ring buffer.
 pub const RING_BUFFER_SIZE: usize = 256 * 1024;
 
-/// Sender Commands other than bytes.
-pub(crate) enum SendCommand {
-    Flush,
-}
-
 pub type AsyncHeapProducer<T> = AsyncProd<Arc<AsyncHeapRb<T>>>;
 pub type AsyncHeapConsumer<T> = AsyncCons<Arc<AsyncHeapRb<T>>>;
 
 pub(crate) fn make_sender(handle: Handle) -> (MsgSender, MsgRcv) {
-    let (cmd, cmd_recv) = unbounded_channel::<SendCommand>();
     let (rings_prd, rings) = unbounded_channel::<AsyncHeapConsumer<u8>>();
     let (ring_buf, ring) = AsyncHeapRb::<u8>::new(RING_BUFFER_SIZE).split();
     rings_prd.send(ring).unwrap();
     (
         MsgSender {
-            cmd,
             ring_buf,
             rings_prd,
             handle,
         },
-        MsgRcv { cmd_recv, rings },
+        MsgRcv { rings },
     )
 }
 
 pub(crate) struct MsgRcv {
-    pub(crate) cmd_recv: UnboundedReceiver<SendCommand>,
     pub(crate) rings: UnboundedReceiver<AsyncHeapConsumer<u8>>,
 }
 
 /// Drop the sender to close the connection.
 pub struct MsgSender {
-    pub(crate) cmd: UnboundedSender<SendCommand>,
     pub(crate) ring_buf: AsyncHeapProducer<u8>,
     pub(crate) rings_prd: UnboundedSender<AsyncHeapConsumer<u8>>,
     pub(crate) handle: Handle,
@@ -115,7 +106,7 @@ impl MsgSender {
                 format!("connection closed: {e}"),
             )
         })?;
-        // set head to new ring_buf
+        // set head to new ring_buf (must send before closing the old one)
         self.ring_buf = ring_buf;
         Ok(())
     }
@@ -154,11 +145,15 @@ impl MsgSender {
     }
 
     pub fn flush(&mut self) -> std::io::Result<()> {
-        self.cmd.send(SendCommand::Flush).map_err(|_| {
+        let (ring_buf, ring) = AsyncHeapRb::<u8>::new(RING_BUFFER_SIZE).split();
+        self.rings_prd.send(ring).map_err(|e| {
             std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "failed to send flush command, connection closed",
+                std::io::ErrorKind::WriteZero,
+                format!("connection closed: {e}"),
             )
-        })
+        })?;
+        // set head to new ring_buf (must send before closing the old one)
+        self.ring_buf = ring_buf;
+        Ok(())
     }
 }
