@@ -1,5 +1,5 @@
-use async_ringbuf::halves::{AsyncCons, AsyncProd};
-use async_ringbuf::traits::{AsyncObserver, AsyncProducer, Producer, Split};
+use async_ringbuf::traits::{AsyncProducer, Producer, Split};
+use async_ringbuf::wrap::{AsyncCons, AsyncProd};
 use async_ringbuf::AsyncHeapRb;
 use futures::AsyncWriteExt;
 use std::sync::Arc;
@@ -138,7 +138,7 @@ impl MsgSender {
                 break Pending;
             }
             // register waker
-            self.ring_buf.register_read_waker(&waker);
+            self.ring_buf.register_waker(&waker);
             waker_registered = true;
             // try again to ensure no missing wake
         }

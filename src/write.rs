@@ -2,7 +2,7 @@ use crate::conn::ConnConfig;
 use crate::msg_sender::MsgRcv;
 use crate::read::MIN_MSG_BUFFER_SIZE;
 use crate::AsyncHeapConsumer;
-use async_ringbuf::traits::{AsyncConsumer, AsyncObserver, Consumer, Observer};
+use async_ringbuf::traits::{AsyncConsumer, Consumer, Observer};
 use std::time::Duration;
 use tokio::io::AsyncWriteExt;
 use tokio::net::tcp::OwnedWriteHalf;
