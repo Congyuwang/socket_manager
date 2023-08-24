@@ -12,7 +12,6 @@ RUN apt-get update && \
         apt-get install -y -q\
         build-essential \
         software-properties-common \
-        lsb-core \
         cmake \
         git \
         vim \
