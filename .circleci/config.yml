@@ -75,5 +75,5 @@ workflows:
       - build:
           matrix:
             parameters:
-              os: [ "jammy", "focal" ]
+              os: [ "jammy", "focal", "debian-10", "debian-11" ]
               shared: [ "ON", "OFF" ]
