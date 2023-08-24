@@ -12,7 +12,7 @@ RUN apt-get update && \
         apt-get install -y -q\
         build-essential \
         software-properties-common \
-        openssl \
+        libssl-dev \
         git \
         vim \
         wget \
