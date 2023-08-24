@@ -13,15 +13,26 @@ RUN apt-get update && \
         build-essential \
         software-properties-common \
         lsb-core \
-        cmake \
         git \
         vim \
         wget \
         curl \
         screen
 
-# install llvm@16
+# install cmake
 WORKDIR /root
+RUN mkdir temp && cd temp
+RUN curl -OL https://github.com/Kitware/CMake/releases/download/v3.27.4/cmake-3.27.4.tar.gz
+RUN tar -xzvf cmake-3.27.4.tar.gz
+RUN cd cmake-3.27.4/
+RUN make -j4
+RUN make install
+RUN ./bootstrap -- -DCMAKE_BUILD_TYPE:STRING=Release
+
+WORKDIR /root
+RUN rm -rf temp
+
+# install llvm@16
 COPY ./update-alternatives-clang.sh /root
 RUN wget https://apt.llvm.org/llvm.sh
 RUN chmod +x llvm.sh
