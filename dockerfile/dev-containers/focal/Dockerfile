@@ -21,10 +21,12 @@ RUN apt-get update && \
 
 # install cmake
 WORKDIR /root
-RUN mkdir temp && cd temp
+RUN mkdir temp
+WORKDIR /root/temp
 RUN curl -OL https://github.com/Kitware/CMake/releases/download/v3.27.4/cmake-3.27.4.tar.gz
 RUN tar -xzvf cmake-3.27.4.tar.gz
-RUN cd cmake-3.27.4/
+
+WORKDIR /root/temp/cmake-3.27.4
 RUN ./bootstrap -- -DCMAKE_BUILD_TYPE:STRING=Release
 RUN make -j4
 RUN make install
