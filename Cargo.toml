@@ -8,13 +8,10 @@ edition = "2021"
 crate-type = ["staticlib"]
 
 [dependencies]
+async-ringbuf = "0.2.0-rc.4"
 dashmap = { version = "5.4.0", features = ["inline"] }
 libc = "0.2.146"
 socket2 = "0.5.3"
-
-[dependencies.async-ringbuf]
-git = "https://gitlab.com/Congyuwang/ringbuf"
-branch = "master"
 
 [dependencies.tokio]
 version = "1.29.1"
