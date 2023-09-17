@@ -1,13 +1,13 @@
 # A C++ Library Developed In Rust Tokio To Manage Multiple TCP Connections
 
-Easily manage multiple socket connections asynchronously in C++. 
+Easily manage multiple socket connections asynchronously in C++.
 
 ## Installation
 
 - Step 1: Install Rust Nightly
 
 ```shell
-curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain nightly
+curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain nightly-2023-07-07
 ```
 
 - Step 2: Install LLVM 16
