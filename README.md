@@ -7,7 +7,7 @@ Easily manage multiple socket connections asynchronously in C++.
 - Step 1: Install Rust Nightly
 
 ```shell
-curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain nightly-2023-07-07
+curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain nightly
 ```
 
 - Step 2: Install LLVM 16
