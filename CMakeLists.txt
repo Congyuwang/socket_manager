@@ -18,11 +18,6 @@ set(Rust_TOOLCHAIN "nightly" CACHE STRING "requires nightly")
 # enable cross language lto
 corrosion_add_target_rustflags(tokio-socket-manager -C linker-plugin-lto)
 
-# set target triple as rust target
-set(BUILD_TRIPLE ${Rust_CARGO_TARGET_ARCH}-${Rust_CARGO_TARGET_VENDOR}-${Rust_CARGO_TARGET_OS}-${Rust_CARGO_TARGET_ENV})
-set(CMAKE_C_COMPILER_TARGET ${BUILD_TRIPLE})
-set(CMAKE_CXX_COMPILER_TARGET ${BUILD_TRIPLE})
-
 set(include_dest "include/${PROJECT_NAME}-${PROJECT_VERSION}")
 set(main_lib_dest "lib/${PROJECT_NAME}-${PROJECT_VERSION}")
 
