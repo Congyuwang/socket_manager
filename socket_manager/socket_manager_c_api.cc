@@ -11,6 +11,16 @@ inline char *string_dup(const std::string &str) {
   return buffer;
 }
 
+#define SOCKET_MANAGER_CATCH_ERROR(err, expr)                                  \
+  try {                                                                        \
+    *(err) = nullptr;                                                          \
+    expr;                                                                      \
+  } catch (std::runtime_error & e) {                                           \
+    *(err) = string_dup(e.what());                                             \
+  } catch (...) {                                                              \
+    *(err) = string_dup("unknown error");                                      \
+  }
+
 /**
  * RecvWaker for the sender.
  */
@@ -26,18 +36,12 @@ socket_manager_extern_on_msg(SOCKET_MANAGER_C_API_OnMsgObj this_,
                              SOCKET_MANAGER_C_API_CWaker waker, char **err) {
   auto *receiver =
       reinterpret_cast<socket_manager::MsgReceiverAsync *>(this_.This);
-  try {
-    auto recv = receiver->on_message_async(std::string_view(msg.Bytes, msg.Len),
-                                           socket_manager::Waker(waker));
-    *err = nullptr;
-    return recv;
-  } catch (std::runtime_error &e) {
-    *err = string_dup(e.what());
-    return 0;
-  } catch (...) {
-    *err = string_dup("unknown error");
-    return 0;
-  }
+  SOCKET_MANAGER_CATCH_ERROR(err, return receiver->on_message_async(
+                                      std::string_view(msg.Bytes, msg.Len),
+                                      socket_manager::Waker(waker)))
+  // on error, return error and no-byte read, the runtime will close the
+  // connection.
+  return 0;
 }
 
 extern "C" void
@@ -62,15 +66,9 @@ socket_manager_extern_on_conn(SOCKET_MANAGER_C_API_OnConnObj this_,
       std::unique_lock<std::mutex> const lock(conn_cb->lock);
       conn_cb->conns[local_addr + peer_addr] = conn;
     }
-    try {
-      conn_cb->on_connect(local_addr, peer_addr, std::move(conn),
-                          std::move(sender));
-      *error = nullptr;
-    } catch (std::runtime_error &e) {
-      *error = string_dup(e.what());
-    } catch (...) {
-      *error = string_dup("unknown error");
-    }
+    SOCKET_MANAGER_CATCH_ERROR(error, conn_cb->on_connect(local_addr, peer_addr,
+                                                          std::move(conn),
+                                                          std::move(sender)))
     break;
   }
   case SOCKET_MANAGER_C_API_ConnStateCode::ConnectionClose: {
@@ -83,42 +81,22 @@ socket_manager_extern_on_conn(SOCKET_MANAGER_C_API_OnConnObj this_,
       std::unique_lock<std::mutex> const lock(conn_cb->lock);
       conn_cb->conns.erase(local_addr + peer_addr);
     }
-    try {
-      conn_cb->on_connection_close(local_addr, peer_addr);
-      *error = nullptr;
-    } catch (std::runtime_error &e) {
-      *error = string_dup(e.what());
-    } catch (...) {
-      *error = string_dup("unknown error");
-    }
+    SOCKET_MANAGER_CATCH_ERROR(
+        error, conn_cb->on_connection_close(local_addr, peer_addr))
     break;
   }
   case SOCKET_MANAGER_C_API_ConnStateCode::ListenError: {
     auto listen_error = states.Data.OnListenError;
     auto addr = std::string(listen_error.Addr);
     auto err = std::string(listen_error.Err);
-    try {
-      conn_cb->on_listen_error(addr, err);
-      *error = nullptr;
-    } catch (std::runtime_error &e) {
-      *error = string_dup(e.what());
-    } catch (...) {
-      *error = string_dup("unknown error");
-    }
+    SOCKET_MANAGER_CATCH_ERROR(error, conn_cb->on_listen_error(addr, err))
     break;
   }
   case SOCKET_MANAGER_C_API_ConnStateCode::ConnectError: {
     auto connect_error = states.Data.OnConnectError;
     auto addr = std::string(connect_error.Addr);
     auto err = std::string(connect_error.Err);
-    try {
-      conn_cb->on_connect_error(addr, err);
-      *error = nullptr;
-    } catch (std::runtime_error &e) {
-      *error = string_dup(e.what());
-    } catch (...) {
-      *error = string_dup("unknown error");
-    }
+    SOCKET_MANAGER_CATCH_ERROR(error, conn_cb->on_connect_error(addr, err))
     break;
   }
   default: {
