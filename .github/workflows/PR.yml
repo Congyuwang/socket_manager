@@ -24,7 +24,7 @@ jobs:
           submodules: true
 
       - name: Install LLVM and Clang
-        run: brew install llvm@16
+        run: brew install llvm@17
 
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1

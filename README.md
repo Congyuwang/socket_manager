@@ -10,11 +10,11 @@ Easily manage multiple socket connections asynchronously in C++.
 curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain nightly
 ```
 
-- Step 2: Install LLVM 16
+- Step 2: Install LLVM 17
 
 macOS:
 ```shell
-brew install llvm@16
+brew install llvm@17
 # get brew environment
 eval "$(brew shellenv)"
 ```
@@ -23,8 +23,8 @@ linux
 ```shell
 wget https://apt.llvm.org/llvm.sh
 chmod +x llvm.sh
-sudo ./llvm.sh 16 all
-sudo ./update-alternatives-clang.sh 16 9999
+sudo ./llvm.sh 17 all
+sudo ./update-alternatives-clang.sh 17 9999
 ```
 
 - Step 3: Pull the source code
