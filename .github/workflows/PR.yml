@@ -25,8 +25,8 @@ jobs:
 
       - name: Install LLVM and Clang
         run: |
-          brew update
-          brew install llvm@17
+          brew update || true
+          brew install llvm@17 || true
 
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
