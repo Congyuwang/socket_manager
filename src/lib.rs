@@ -13,6 +13,7 @@ mod read;
 mod utils;
 mod write;
 
+use c_api::tracer::ForeignLogger;
 use dashmap::DashMap;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -23,12 +24,15 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::runtime::Handle;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::sync::{mpsc, oneshot};
-use tracing_subscriber::EnvFilter;
+use tracing_subscriber::filter::{Filtered, LevelFilter};
+use tracing_subscriber::util::{SubscriberInitExt, TryInitError};
+use tracing_subscriber::Layer;
+use tracing_subscriber::{prelude::*, Registry};
 
+pub use c_api::tracer::TraceLevel;
 pub use conn::*;
 pub use msg_sender::*;
 
-const SOCKET_LOG: &str = "SOCKET_LOG";
 const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// The Main Struct of the Library.
@@ -104,6 +108,23 @@ impl ConnectionState {
     }
 }
 
+/// Initialize socket manager logger.
+/// Call this before anything else to prevent missing info.
+/// This cannot be called twice, even accross multiple socket_manager instances.
+pub fn init_logger(
+    log_print_level: LevelFilter,
+    foreign_logger: Filtered<ForeignLogger, LevelFilter, Registry>,
+) -> Result<(), TryInitError> {
+    let fmt_layer = {
+        let fmt = tracing_subscriber::fmt::layer();
+        fmt.with_filter(log_print_level)
+    };
+    tracing_subscriber::registry()
+        .with(foreign_logger)
+        .with(fmt_layer)
+        .try_init()
+}
+
 /// Msg struct for the on_msg callback.
 pub struct Msg<'a> {
     bytes: &'a [u8],
@@ -125,13 +146,6 @@ impl SocketManager {
         on_conn: OnConn,
         n_threads: usize,
     ) -> std::io::Result<SocketManager> {
-        let _ = tracing_subscriber::fmt()
-            .with_env_filter(
-                EnvFilter::builder()
-                    .with_env_var(SOCKET_LOG)
-                    .from_env_lossy(),
-            )
-            .try_init();
         let runtime = utils::start_runtime(n_threads)?;
         let (cmd_send, cmd_recv) = mpsc::unbounded_channel::<Command>();
         let connection_state = ConnectionState::new();

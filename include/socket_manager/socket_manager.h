@@ -7,8 +7,40 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <string_view>
 
 namespace socket_manager {
+
+/**
+ * @brief The log data structure.
+ *
+ * This structure is used to pass log data from C to C++.
+ */
+struct LogData {
+  SOCKET_MANAGER_C_API_TraceLevel level;
+  std::string_view target;
+  std::string_view message;
+};
+
+/**
+ * Helper function to convert from C log data to C++ log data.
+ */
+LogData from_c_log_data(SOCKET_MANAGER_C_API_LogData log_data);
+
+/**
+ * @brief Initialize the logger for the socket manager.
+ *
+ * This function cannot be called more than once,
+ * otherwise it will throw an exception.
+ *
+ * The tracer if the function callback on log,
+ * which the input arguments are (level, target, name, message).
+ *
+ * Tracer must be thread safe (as most loggers are thread safe).
+ */
+void init_logger(void (*tracer)(SOCKET_MANAGER_C_API_LogData),
+                 SOCKET_MANAGER_C_API_TraceLevel tracer_max_level,
+                 SOCKET_MANAGER_C_API_TraceLevel log_print_level);
 
 /**
  * @brief Manages a set of sockets.

@@ -36,8 +36,6 @@ jobs:
       - run:
           name: "Test"
           command: cd build && ctest -C Release --output-on-failure && cd ..
-          environment:
-            SOCKET_LOG: debug
       - run:
           name: "Install"
           command: cmake --install build --config Release

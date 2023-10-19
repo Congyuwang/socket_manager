@@ -3,6 +3,7 @@
 #include <socket_manager/socket_manager.h>
 
 int test_error_connect(int argc, char **argv) {
+  SpdLogger::init();
   auto lock = std::make_shared<std::mutex>();
   auto cond = std::make_shared<std::condition_variable>();
   auto sig = std::make_shared<std::atomic_int>(0);

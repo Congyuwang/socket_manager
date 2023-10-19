@@ -126,6 +126,7 @@ public:
 };
 
 int test_manual_flush(int argc, char **argv) {
+  SpdLogger::init();
 
   const std::string addr = "127.0.0.1:40201";
 

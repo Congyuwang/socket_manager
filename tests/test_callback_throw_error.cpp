@@ -75,6 +75,7 @@ class StoreAllEventsConnHelloCallback : public StoreAllEventsConnCallback {
 };
 
 int test_callback_throw_error(int argc, char **argv) {
+  SpdLogger::init();
   const std::string addr = "127.0.0.1:40102";
 
   auto err_before_cb = std::make_shared<OnConnectErrorBeforeStartCallback>();

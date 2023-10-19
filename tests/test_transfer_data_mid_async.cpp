@@ -5,6 +5,7 @@
 #include <thread>
 
 int test_transfer_data_mid_async(int argc, char **argv) {
+  SpdLogger::init();
   const std::string addr = "127.0.0.1:40013";
 
   auto send_cb = std::make_shared<SendAsyncCB>(MID_MSG_SIZE, TOTAL_SIZE);

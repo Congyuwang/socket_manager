@@ -4,6 +4,7 @@
 #include <thread>
 
 int test_multiple_connections(int argc, char **argv) {
+  SpdLogger::init();
 
   // establish 3 connections from p0 (client) -> p1 (server) port 0
   // and 2 connections from p0 (client) -> p1 (server) port 1

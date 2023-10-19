@@ -17,8 +17,9 @@ create_test_sourcelist(Tests CommonCxxTests.cxx ${test_files})
 
 # build test driver
 add_executable(CommonCxxTests ${Tests})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/spdlog-repo/include/)
 target_link_libraries(CommonCxxTests
-        PUBLIC
+        PRIVATE
         socket_manager
         ${CMAKE_THREAD_LIBS_INIT})
 

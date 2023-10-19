@@ -4,6 +4,7 @@
 using namespace socket_manager;
 
 int test_error_call_after_abort(int argc, char **argv) {
+  SpdLogger::init();
   auto nothing_cb = std::make_shared<DoNothingConnCallback>();
   SocketManager nothing(nothing_cb);
 

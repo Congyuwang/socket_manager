@@ -64,6 +64,7 @@ private:
 };
 
 int test_auto_flush(int argc, char **argv) {
+  SpdLogger::init();
   const std::string addr = "127.0.0.1:40101";
 
   auto send_cb = std::make_shared<SendHelloWorldDoNotClose>();
