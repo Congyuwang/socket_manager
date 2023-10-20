@@ -5,4 +5,5 @@ mod msg_sender;
 pub(crate) mod on_conn;
 pub(crate) mod on_msg;
 mod socket_manager;
+pub(crate) mod tracer;
 mod utils;

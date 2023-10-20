@@ -1,6 +1,29 @@
 #include "socket_manager/socket_manager.h"
+#include "socket_manager_c_api.h"
+#include <string_view>
 
 namespace socket_manager {
+
+LogData from_c_log_data(SOCKET_MANAGER_C_API_LogData log_data) {
+  return {
+      log_data.Level,
+      std::string_view(log_data.Target, log_data.TargetN),
+      std::string_view(log_data.File, log_data.FileN),
+      std::string_view(log_data.Message, log_data.MessageN),
+  };
+}
+
+void init_logger(void (*tracer)(SOCKET_MANAGER_C_API_LogData),
+                 SOCKET_MANAGER_C_API_TraceLevel tracer_max_level,
+                 SOCKET_MANAGER_C_API_TraceLevel log_print_level) {
+  char *err = nullptr;
+  socket_manager_logger_init(tracer, tracer_max_level, log_print_level, &err);
+  if (err != nullptr) {
+    const std::string err_str(err);
+    free(err);
+    throw std::runtime_error(err_str);
+  }
+}
 
 SocketManager::SocketManager(const std::shared_ptr<ConnCallback> &conn_cb,
                              size_t n_threads)

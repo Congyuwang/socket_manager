@@ -25,8 +25,8 @@ jobs:
 
       - name: Install LLVM and Clang
         run: |
-          brew update
-          brew install llvm@17
+          brew update || true
+          brew install llvm@17 || true
 
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
@@ -54,8 +54,6 @@ jobs:
         # Execute tests defined by the CMake configuration.
         # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
         run: ctest -C ${{env.BUILD_TYPE}} --output-on-failure
-        env:
-          SOCKET_LOG: debug
 
       - name: Install
         run: sudo cmake --install build --config Release

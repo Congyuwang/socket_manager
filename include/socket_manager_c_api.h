@@ -15,6 +15,48 @@ enum class SOCKET_MANAGER_C_API_ConnStateCode {
   ConnectError = 3,
 };
 
+/**
+ * Trace Level
+ */
+enum class SOCKET_MANAGER_C_API_TraceLevel {
+  /**
+   * The "trace" level.
+   *
+   * Designates very low priority, often extremely verbose, information.
+   */
+  Trace = 0,
+  /**
+   * The "debug" level.
+   *
+   * Designates lower priority information.
+   */
+  Debug = 1,
+  /**
+   * The "info" level.
+   *
+   * Designates useful information.
+   */
+  Info = 2,
+  /**
+   * The "warn" level.
+   *
+   * Designates hazardous situations.
+   */
+  Warn = 3,
+  /**
+   * The "error" level.
+   *
+   * Designates very serious errors.
+   */
+  Error = 4,
+  /**
+   * Turn off all levels.
+   *
+   * Disable log output.
+   */
+  Off = 5,
+};
+
 struct SOCKET_MANAGER_C_API_Connection;
 
 /**
@@ -156,6 +198,22 @@ struct SOCKET_MANAGER_C_API_ConnStates {
 struct SOCKET_MANAGER_C_API_ConnMsg {
   const char *Bytes;
   size_t Len;
+};
+
+/**
+ * Log Data
+ */
+struct SOCKET_MANAGER_C_API_LogData {
+  SOCKET_MANAGER_C_API_TraceLevel Level;
+  const char *Target;
+  size_t TargetN;
+  const char *File;
+  size_t FileN;
+  /**
+   * The `message` pointer is only valid for the duration of the callback.
+   */
+  const char *Message;
+  size_t MessageN;
 };
 
 extern "C" {
@@ -462,6 +520,19 @@ int socket_manager_join(SOCKET_MANAGER_C_API_SocketManager *manager, char **err)
  * and free the `SocketManager`.
  */
 void socket_manager_free(SOCKET_MANAGER_C_API_SocketManager *manager);
+
+/**
+ * Init logger.
+ *
+ * # Arguments
+ * - `tracer`: The tracer object.
+ * - `tracer_max_level`: The max level of the tracer.
+ * - `log_print_level`: The level of the log to print.
+ */
+void socket_manager_logger_init(void (*tracer)(SOCKET_MANAGER_C_API_LogData),
+                                SOCKET_MANAGER_C_API_TraceLevel tracer_max_level,
+                                SOCKET_MANAGER_C_API_TraceLevel log_print_level,
+                                char **err);
 
 } // extern "C"
 

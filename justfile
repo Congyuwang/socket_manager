@@ -15,8 +15,7 @@ dev-docker:
     docker build -f ./dockerfile/dev-containers/jammy/Dockerfile -t congyuwang/socket-manager-dev:jammy .
 
 test:
-    cd build && SOCKET_LOG=debug ctest --output-on-failure && cd ..
-
+    cd build && ctest --output-on-failure && cd ..
 time:
     /usr/bin/time -l -h -p ./build/tests/CommonCxxTests test_transfer_data_large
     /usr/bin/time -l -h -p ./build/tests/CommonCxxTests test_transfer_data_large_async

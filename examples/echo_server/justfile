@@ -14,4 +14,4 @@ build:
     codesign -s - -v -f --entitlements debug.plist ./build/echo_server
 
 run:
-    SOCKET_LOG=info ./build/echo_server
+    ./build/echo_server

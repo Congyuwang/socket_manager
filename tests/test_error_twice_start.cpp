@@ -52,6 +52,7 @@ public:
 };
 
 int test_error_twice_start(int argc, char **argv) {
+  SpdLogger::init();
   const std::string addr = "127.0.0.1:40108";
 
   auto bad_cb = std::make_shared<TwiceStartCallback>();

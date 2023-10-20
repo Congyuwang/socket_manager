@@ -6,6 +6,7 @@
 // this test is to test that dropping sender object closes remote connections
 
 int test_drop_sender(int argc, char **argv) {
+  SpdLogger::init();
   const std::string local_addr = "127.0.0.1:40100";
 
   auto lock = std::make_shared<std::mutex>();

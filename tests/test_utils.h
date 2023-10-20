@@ -1,7 +1,9 @@
+#include "spdlog/common.h"
 #undef NDEBUG
 #ifndef SOCKET_MANAGER_TEST_UTILS_H
 #define SOCKET_MANAGER_TEST_UTILS_H
 
+#include "spdlog/spdlog.h"
 #include <atomic>
 #include <cassert>
 #include <condition_variable>
@@ -10,6 +12,71 @@
 #include <socket_manager/socket_manager.h>
 #include <utility>
 #include <vector>
+
+class SpdLogger {
+public:
+  static void init(SOCKET_MANAGER_C_API_TraceLevel level =
+                       SOCKET_MANAGER_C_API_TraceLevel::Debug) {
+    switch (level) {
+    case SOCKET_MANAGER_C_API_TraceLevel::Trace: {
+      spdlog::set_level(spdlog::level::trace);
+      break;
+    }
+    case SOCKET_MANAGER_C_API_TraceLevel::Debug: {
+      spdlog::set_level(spdlog::level::debug);
+      break;
+    }
+    case SOCKET_MANAGER_C_API_TraceLevel::Info: {
+      spdlog::set_level(spdlog::level::info);
+      break;
+    }
+    case SOCKET_MANAGER_C_API_TraceLevel::Warn: {
+      spdlog::set_level(spdlog::level::warn);
+      break;
+    }
+    case SOCKET_MANAGER_C_API_TraceLevel::Error: {
+      spdlog::set_level(spdlog::level::err);
+      break;
+    }
+    case SOCKET_MANAGER_C_API_TraceLevel::Off: {
+      spdlog::set_level(spdlog::level::off);
+      break;
+    }
+    }
+    socket_manager::init_logger(print_log, level,
+                                SOCKET_MANAGER_C_API_TraceLevel::Off);
+  };
+
+private:
+  static void print_log(SOCKET_MANAGER_C_API_LogData log_data) {
+    socket_manager::LogData data = socket_manager::from_c_log_data(log_data);
+    switch (data.level) {
+    case SOCKET_MANAGER_C_API_TraceLevel::Trace: {
+      spdlog::trace("{}: {} {}", data.target, data.file, data.message);
+      break;
+    }
+    case SOCKET_MANAGER_C_API_TraceLevel::Debug: {
+      spdlog::debug("{}: {} {}", data.target, data.file, data.message);
+      break;
+    }
+    case SOCKET_MANAGER_C_API_TraceLevel::Info: {
+      spdlog::info("{}: {} {}", data.target, data.file, data.message);
+      break;
+    }
+    case SOCKET_MANAGER_C_API_TraceLevel::Warn: {
+      spdlog::warn("{}: {} {}", data.target, data.file, data.message);
+      break;
+    }
+    case SOCKET_MANAGER_C_API_TraceLevel::Error: {
+      spdlog::error("{}: {} {}", data.target, data.file, data.message);
+      break;
+    }
+    case SOCKET_MANAGER_C_API_TraceLevel::Off: {
+      break;
+    }
+    }
+  }
+};
 
 using namespace socket_manager;
 const long long WAIT_MILLIS = 10;

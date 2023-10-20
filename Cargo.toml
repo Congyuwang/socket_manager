@@ -8,10 +8,12 @@ edition = "2021"
 crate-type = ["staticlib"]
 
 [dependencies]
-async-ringbuf = "0.2.0-rc.4"
 dashmap = { version = "5.4.0", features = ["inline"] }
 libc = "0.2.146"
 socket2 = "0.5.3"
+
+[dependencies.async-ringbuf]
+git = "https://github.com/Congyuwang/ringbuf.git"
 
 [dependencies.tokio]
 version = "1.29.1"
@@ -31,4 +33,4 @@ features = ["std"]
 [dependencies.tracing-subscriber]
 version = "0.3.17"
 default-features = false
-features = ["std", "fmt", "env-filter"]
+features = ["std", "fmt", "env-filter", "registry"]
