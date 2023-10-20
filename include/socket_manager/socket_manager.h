@@ -32,10 +32,7 @@ LogData from_c_log_data(SOCKET_MANAGER_C_API_LogData log_data);
  * @brief Initialize the logger for the socket manager.
  *
  * This function cannot be called more than once,
- * otherwise it will throw an exception.
- *
- * The tracer if the function callback on log,
- * which the input arguments are (level, target, name, message).
+ * otherwise it will throw an exception..
  *
  * Tracer must be thread safe (as most loggers are thread safe).
  */
