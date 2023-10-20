@@ -19,6 +19,7 @@ namespace socket_manager {
 struct LogData {
   SOCKET_MANAGER_C_API_TraceLevel level;
   std::string_view target;
+  std::string_view file;
   std::string_view message;
 };
 

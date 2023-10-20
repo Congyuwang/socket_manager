@@ -52,23 +52,23 @@ private:
     socket_manager::LogData data = socket_manager::from_c_log_data(log_data);
     switch (data.level) {
     case SOCKET_MANAGER_C_API_TraceLevel::Trace: {
-      spdlog::trace("{}: {}", data.target, data.message);
+      spdlog::trace("{}: {} {}", data.target, data.file, data.message);
       break;
     }
     case SOCKET_MANAGER_C_API_TraceLevel::Debug: {
-      spdlog::debug("{}: {}", data.target, data.message);
+      spdlog::debug("{}: {} {}", data.target, data.file, data.message);
       break;
     }
     case SOCKET_MANAGER_C_API_TraceLevel::Info: {
-      spdlog::info("{}: {}", data.target, data.message);
+      spdlog::info("{}: {} {}", data.target, data.file, data.message);
       break;
     }
     case SOCKET_MANAGER_C_API_TraceLevel::Warn: {
-      spdlog::warn("{}: {}", data.target, data.message);
+      spdlog::warn("{}: {} {}", data.target, data.file, data.message);
       break;
     }
     case SOCKET_MANAGER_C_API_TraceLevel::Error: {
-      spdlog::error("{}: {}", data.target, data.message);
+      spdlog::error("{}: {} {}", data.target, data.file, data.message);
       break;
     }
     case SOCKET_MANAGER_C_API_TraceLevel::Off: {

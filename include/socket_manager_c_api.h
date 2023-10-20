@@ -207,6 +207,8 @@ struct SOCKET_MANAGER_C_API_LogData {
   SOCKET_MANAGER_C_API_TraceLevel Level;
   const char *Target;
   size_t TargetN;
+  const char *File;
+  size_t FileN;
   /**
    * The `message` pointer is only valid for the duration of the callback.
    */

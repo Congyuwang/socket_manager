@@ -44,6 +44,8 @@ pub struct LogData {
     pub level: TraceLevel,
     pub target: *const c_char,
     pub target_n: size_t,
+    pub file: *const c_char,
+    pub file_n: size_t,
     /// The `message` pointer is only valid for the duration of the callback.
     pub message: *const c_char,
     pub message_n: size_t,
@@ -82,11 +84,17 @@ where
     ) {
         let mut get_msg = GetMsgVisitor(None);
         event.record(&mut get_msg);
-        event.metadata().callsite();
+        let file = if let (Some(f), Some(l)) = (event.metadata().file(), event.metadata().line()) {
+            format!("{}:{}", f, l)
+        } else {
+            String::new()
+        };
         let data = LogData {
             level: event.metadata().level().into(),
             target: event.metadata().target().as_ptr() as *const c_char,
             target_n: event.metadata().target().len(),
+            file: file.as_ptr() as *const c_char,
+            file_n: file.len(),
             message: get_msg
                 .0
                 .as_ref()
