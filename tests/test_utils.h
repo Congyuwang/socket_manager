@@ -1,4 +1,3 @@
-#include "spdlog/common.h"
 #undef NDEBUG
 #ifndef SOCKET_MANAGER_TEST_UTILS_H
 #define SOCKET_MANAGER_TEST_UTILS_H
@@ -15,66 +14,24 @@
 
 class SpdLogger {
 public:
-  static void init(SOCKET_MANAGER_C_API_TraceLevel level =
-                       SOCKET_MANAGER_C_API_TraceLevel::Debug) {
-    switch (level) {
-    case SOCKET_MANAGER_C_API_TraceLevel::Trace: {
-      spdlog::set_level(spdlog::level::trace);
-      break;
+  static void
+  init(spdlog::level::level_enum level = spdlog::level::level_enum::debug) {
+    spdlog::set_level(level);
+    SOCKET_MANAGER_C_API_TraceLevel log_level =
+        SOCKET_MANAGER_C_API_TraceLevel::Off;
+    // Socket Manager level is the same as spdlog level from trace to err
+    if (level <= spdlog::level::err) {
+      log_level = static_cast<SOCKET_MANAGER_C_API_TraceLevel>(level);
     }
-    case SOCKET_MANAGER_C_API_TraceLevel::Debug: {
-      spdlog::set_level(spdlog::level::debug);
-      break;
-    }
-    case SOCKET_MANAGER_C_API_TraceLevel::Info: {
-      spdlog::set_level(spdlog::level::info);
-      break;
-    }
-    case SOCKET_MANAGER_C_API_TraceLevel::Warn: {
-      spdlog::set_level(spdlog::level::warn);
-      break;
-    }
-    case SOCKET_MANAGER_C_API_TraceLevel::Error: {
-      spdlog::set_level(spdlog::level::err);
-      break;
-    }
-    case SOCKET_MANAGER_C_API_TraceLevel::Off: {
-      spdlog::set_level(spdlog::level::off);
-      break;
-    }
-    }
-    socket_manager::init_logger(print_log, level,
+    socket_manager::init_logger(print_log, log_level,
                                 SOCKET_MANAGER_C_API_TraceLevel::Off);
   };
 
 private:
   static void print_log(SOCKET_MANAGER_C_API_LogData log_data) {
     socket_manager::LogData data = socket_manager::from_c_log_data(log_data);
-    switch (data.level) {
-    case SOCKET_MANAGER_C_API_TraceLevel::Trace: {
-      spdlog::trace("{}: {} {}", data.target, data.file, data.message);
-      break;
-    }
-    case SOCKET_MANAGER_C_API_TraceLevel::Debug: {
-      spdlog::debug("{}: {} {}", data.target, data.file, data.message);
-      break;
-    }
-    case SOCKET_MANAGER_C_API_TraceLevel::Info: {
-      spdlog::info("{}: {} {}", data.target, data.file, data.message);
-      break;
-    }
-    case SOCKET_MANAGER_C_API_TraceLevel::Warn: {
-      spdlog::warn("{}: {} {}", data.target, data.file, data.message);
-      break;
-    }
-    case SOCKET_MANAGER_C_API_TraceLevel::Error: {
-      spdlog::error("{}: {} {}", data.target, data.file, data.message);
-      break;
-    }
-    case SOCKET_MANAGER_C_API_TraceLevel::Off: {
-      break;
-    }
-    }
+    spdlog::log(static_cast<spdlog::level::level_enum>(data.level), "{}: {} {}",
+                data.target, data.file, data.message);
   }
 };
 
