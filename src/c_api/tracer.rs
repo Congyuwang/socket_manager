@@ -2,7 +2,11 @@
 use super::utils::write_error_c_str;
 use crate::init_logger;
 use libc::size_t;
-use std::{ffi::c_char, fmt, ptr::null_mut};
+use std::{
+    ffi::{c_char, c_int},
+    fmt,
+    ptr::null_mut,
+};
 use tracing::{field::Field, Level};
 use tracing_subscriber::{filter::LevelFilter, Layer};
 
@@ -46,6 +50,8 @@ pub struct LogData {
     pub target_n: size_t,
     pub file: *const c_char,
     pub file_n: size_t,
+    /// -1 if not available
+    pub line: c_int,
     /// The `message` pointer is only valid for the duration of the callback.
     pub message: *const c_char,
     pub message_n: size_t,
@@ -84,23 +90,18 @@ where
     ) {
         let mut get_msg = GetMsgVisitor(None);
         event.record(&mut get_msg);
-        let file = if let (Some(f), Some(l)) = (event.metadata().file(), event.metadata().line()) {
-            format!("{}:{}", f, l)
-        } else {
-            String::new()
-        };
+        let file = event.metadata().file().unwrap_or(EMPTY);
+        let line = event.metadata().line().map(|l| l as c_int);
+        let message = get_msg.0.as_deref().unwrap_or(EMPTY);
         let data = LogData {
             level: event.metadata().level().into(),
             target: event.metadata().target().as_ptr() as *const c_char,
             target_n: event.metadata().target().len(),
             file: file.as_ptr() as *const c_char,
             file_n: file.len(),
-            message: get_msg
-                .0
-                .as_ref()
-                .map(|s| s.as_ptr())
-                .unwrap_or(EMPTY.as_ptr()) as *const c_char,
-            message_n: get_msg.0.as_ref().map(|s| s.len()).unwrap_or(0),
+            line: line.unwrap_or(-1),
+            message: message.as_ptr() as *const c_char,
+            message_n: message.len(),
         };
         unsafe { self.0(data) }
     }

@@ -30,8 +30,9 @@ public:
 private:
   static void print_log(SOCKET_MANAGER_C_API_LogData log_data) {
     socket_manager::LogData data = socket_manager::from_c_log_data(log_data);
-    spdlog::log(static_cast<spdlog::level::level_enum>(data.level), "{}: {} {}",
-                data.target, data.file, data.message);
+    spdlog::log(static_cast<spdlog::level::level_enum>(data.level),
+                "{}: {}:{} {}", data.target, data.file, data.line,
+                data.message);
   }
 };
 

@@ -17,9 +17,15 @@ namespace socket_manager {
  * This structure is used to pass log data from C to C++.
  */
 struct LogData {
+  // log level
   SOCKET_MANAGER_C_API_TraceLevel level;
+  // module name
   std::string_view target;
+  // file name (empty if not available)
   std::string_view file;
+  // code line (-1 if not available)
+  int line;
+  // log message
   std::string_view message;
 };
 

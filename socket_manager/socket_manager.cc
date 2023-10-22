@@ -9,6 +9,7 @@ LogData from_c_log_data(SOCKET_MANAGER_C_API_LogData log_data) {
       log_data.Level,
       std::string_view(log_data.Target, log_data.TargetN),
       std::string_view(log_data.File, log_data.FileN),
+      log_data.Line,
       std::string_view(log_data.Message, log_data.MessageN),
   };
 }

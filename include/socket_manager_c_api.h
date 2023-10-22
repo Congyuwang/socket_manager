@@ -210,6 +210,10 @@ struct SOCKET_MANAGER_C_API_LogData {
   const char *File;
   size_t FileN;
   /**
+   * -1 if not available
+   */
+  int Line;
+  /**
    * The `message` pointer is only valid for the duration of the callback.
    */
   const char *Message;
