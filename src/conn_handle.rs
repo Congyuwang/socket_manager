@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::task::{Poll, Waker};
 use tokio::net::TcpStream;
 use tokio::runtime::Handle;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 
 /// This function handles connection from a client.
@@ -50,10 +50,10 @@ pub(crate) fn handle_connection<
 
         if let Ok((on_msg, config)) = wait_for_start.await {
             // spawn reader and writer
-            let (stop, stopper) = mpsc::channel::<()>(1);
+            let (stop, stopper) = oneshot::channel::<()>();
             let (read, write) = stream.into_split();
-            let writer = handle.spawn(write::handle_writer(write, recv, config, stop.clone()));
-            let reader = handle.spawn(read::handle_reader(read, on_msg, config, stop));
+            let writer = handle.spawn(write::handle_writer(write, recv, config));
+            let reader = handle.spawn(read::handle_reader(read, on_msg, config));
 
             // insert the stopper into connection_state
             connection_state
@@ -61,7 +61,7 @@ pub(crate) fn handle_connection<
                 .insert((local_addr, peer_addr), stopper);
 
             // join reader and writer
-            join_reader_writer((writer, reader), (local_addr, peer_addr)).await;
+            join_reader_writer((writer, reader), (local_addr, peer_addr), stop).await;
 
             // remove connection from connection_state after reader and writer are done
             connection_state
@@ -79,48 +79,76 @@ pub(crate) fn handle_connection<
 
 /// On connection end, remove connection from connection state.
 async fn join_reader_writer(
-    (writer, reader): (
+    (mut writer, mut reader): (
         JoinHandle<std::io::Result<()>>,
         JoinHandle<std::io::Result<()>>,
     ),
     (local_addr, peer_addr): (SocketAddr, SocketAddr),
+    mut stop: oneshot::Sender<()>,
 ) {
     let writer_abort = writer.abort_handle();
     let reader_abort = reader.abort_handle();
-    let _ = tokio::join!(
-        async {
-            match writer.await {
-                Ok(Ok(_)) => tracing::debug!("writer stopped local={local_addr}, peer={peer_addr}"),
-                Ok(Err(e)) => {
-                    tracing::error!(
-                        "writer stopped on error ({e}), local={local_addr}, peer={peer_addr}"
-                    );
-                    reader_abort.abort();
+    let mut writer_stopped = false;
+    let mut reader_stopped = false;
+
+    loop {
+        tokio::select! {
+            _ = stop.closed() => {
+                // abort everything on killing connection
+                writer_abort.abort();
+                reader_abort.abort();
+                break;
+            },
+            w = &mut writer, if !writer_stopped => {
+                match w {
+                    Ok(Ok(_)) => {
+                        tracing::debug!("writer stopped local={local_addr}, peer={peer_addr}");
+                        writer_stopped = true;
+                        if reader_stopped {
+                            break;
+                        }
+                    }
+                    Ok(Err(e)) => {
+                        tracing::error!(
+                            "writer stopped on error ({e}), local={local_addr}, peer={peer_addr}"
+                        );
+                        reader_abort.abort();
+                        break;
+                    }
+                    Err(e) => {
+                        tracing::error!(
+                            "writer aborted/paniced ({e}), local={local_addr}, peer={peer_addr}"
+                        );
+                        reader_abort.abort();
+                        break;
+                    }
                 }
-                Err(e) => {
-                    tracing::error!(
-                        "writer aborted/paniced ({e}), local={local_addr}, peer={peer_addr}"
-                    );
-                    reader_abort.abort();
-                }
-            }
-        },
-        async {
-            match reader.await {
-                Ok(Ok(_)) => tracing::debug!("reader stopped local={local_addr}, peer={peer_addr}"),
-                Ok(Err(e)) => {
-                    tracing::error!(
-                        "reader stopped on error ({e}), local={local_addr}, peer={peer_addr}"
-                    );
-                    writer_abort.abort();
-                }
-                Err(e) => {
-                    tracing::error!(
-                        "reader aborted/paniced ({e}), local={local_addr}, peer={peer_addr}"
-                    );
-                    writer_abort.abort();
+            },
+            r = &mut reader, if !reader_stopped => {
+                match r {
+                    Ok(Ok(_)) => {
+                        tracing::debug!("reader stopped local={local_addr}, peer={peer_addr}");
+                        reader_stopped = true;
+                        if writer_stopped {
+                            break;
+                        }
+                    }
+                    Ok(Err(e)) => {
+                        tracing::error!(
+                            "reader stopped on error ({e}), local={local_addr}, peer={peer_addr}"
+                        );
+                        writer_abort.abort();
+                        break;
+                    }
+                    Err(e) => {
+                        tracing::error!(
+                            "reader aborted/paniced ({e}), local={local_addr}, peer={peer_addr}"
+                        );
+                        writer_abort.abort();
+                        break;
+                    }
                 }
             }
         }
-    );
+    }
 }

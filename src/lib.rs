@@ -83,7 +83,7 @@ pub enum ConnState<OnMsg> {
 /// Internal connection state.
 struct ConnectionState {
     listeners: DashMap<SocketAddr, oneshot::Receiver<()>>,
-    connections: DashMap<(SocketAddr, SocketAddr), mpsc::Receiver<()>>,
+    connections: DashMap<(SocketAddr, SocketAddr), oneshot::Receiver<()>>,
 }
 
 impl ConnectionState {

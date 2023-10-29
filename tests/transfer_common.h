@@ -1,3 +1,5 @@
+#include "connection.h"
+#include <memory>
 #undef NDEBUG
 
 #ifndef SOCKET_MANAGER_TEST_TRANSFER_COMMON_H
@@ -45,8 +47,6 @@ public:
       for (int i = 0; i < msg_count; ++i) {
         sender->send_block(data);
       }
-      // close connection after sender finished.
-      conn->close();
     }).detach();
   }
 
@@ -98,8 +98,6 @@ public:
           progress += 1;
         }
       }
-      // close connection after sender finished.
-      conn->close();
     }).detach();
   }
 
@@ -126,8 +124,6 @@ public:
       for (int i = 0; i < msg_count; ++i) {
         sender->send_block(data);
       }
-      // close connection after sender finished.
-      conn->close();
     }).detach();
   }
 
@@ -153,8 +149,6 @@ public:
       for (int i = 0; i < msg_count; ++i) {
         sender->send_nonblock(data);
       }
-      // close connection after sender finished.
-      conn->close();
     }).detach();
   }
 
