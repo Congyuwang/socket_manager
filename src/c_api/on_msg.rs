@@ -68,7 +68,6 @@ impl OnMsgObj {
             let this = OnMsgObj { this: self.this };
             let cb_result = socket_manager_extern_on_msg(this, conn_msg, waker, &mut err);
             if let Err(e) = parse_c_err_str(err) {
-                tracing::error!("Error thrown in OnMsg callback: {e}");
                 Poll::Ready(Err(e))
             } else if cb_result > 0 {
                 assert!(cb_result <= len as c_long);

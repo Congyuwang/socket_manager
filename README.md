@@ -83,8 +83,8 @@ set_property(TARGET <your-target> PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 ## Memory (resource) Model
 
-Dropping `Sender` will close the connection, and drop its
-reference to `Connection`.
+Dropping `Sender` will close the `Write` side of the connection,
+and drop its reference to `Connection`.
 `ConnCallback` will drop its internal reference to `Connection` when
 the connection is closed.
 Thus `Connection` will free any reference to `Notifier`

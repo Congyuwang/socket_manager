@@ -1,5 +1,5 @@
 use crate::c_api::on_conn::OnConnObj;
-use crate::c_api::utils::{socket_addr, write_error_c_str};
+use crate::c_api::utils::{socket_addr, write_display_c_str};
 use crate::SocketManager;
 use libc::size_t;
 use std::ffi::{c_char, c_int};
@@ -37,7 +37,7 @@ pub unsafe extern "C" fn socket_manager_init(
             Box::into_raw(Box::new(manager))
         }
         Err(e) => {
-            write_error_c_str(e, err);
+            write_display_c_str(e, err);
             null_mut()
         }
     }
@@ -65,12 +65,12 @@ pub unsafe extern "C" fn socket_manager_listen_on_addr(
                 0
             }
             Err(e) => {
-                write_error_c_str(e, err);
+                write_display_c_str(e, err);
                 1
             }
         },
         Err(e) => {
-            write_error_c_str(e, err);
+            write_display_c_str(e, err);
             1
         }
     }
@@ -102,12 +102,12 @@ pub unsafe extern "C" fn socket_manager_connect_to_addr(
                 0
             }
             Err(e) => {
-                write_error_c_str(e, err);
+                write_display_c_str(e, err);
                 1
             }
         },
         Err(e) => {
-            write_error_c_str(e, err);
+            write_display_c_str(e, err);
             1
         }
     }
@@ -135,12 +135,12 @@ pub unsafe extern "C" fn socket_manager_cancel_listen_on_addr(
                 0
             }
             Err(e) => {
-                write_error_c_str(e, err);
+                write_display_c_str(e, err);
                 1
             }
         },
         Err(e) => {
-            write_error_c_str(e, err);
+            write_display_c_str(e, err);
             1
         }
     }
@@ -170,7 +170,7 @@ pub unsafe extern "C" fn socket_manager_abort(
             0
         }
         Err(e) => {
-            write_error_c_str(e, err);
+            write_display_c_str(e, err);
             1
         }
     }
@@ -198,7 +198,7 @@ pub unsafe extern "C" fn socket_manager_join(
             0
         }
         Err(e) => {
-            write_error_c_str(e, err);
+            write_display_c_str(e, err);
             1
         }
     }

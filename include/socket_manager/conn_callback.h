@@ -40,16 +40,13 @@ private:
    * <br /><br />
    * It should be non-blocking.
    * <br /><br />
-   * Drop the returned `MsgSender` to close the connection.
+   * Drop the returned `MsgSender` to close the `Write` side of the
+   * socket connection.
    *
-   * @param local_addr the local address of the connection.
-   * @param peer_addr the peer address of the connection.
    * @param conn a `Connection` object for starting the connection.
    * @param sender a `Sender` object for sending data.
    */
-  virtual void on_connect(const std::string &local_addr,
-                          const std::string &peer_addr,
-                          std::shared_ptr<Connection> conn,
+  virtual void on_connect(std::shared_ptr<Connection> conn,
                           std::shared_ptr<MsgSender> sender) = 0;
 
   /**
@@ -66,6 +63,23 @@ private:
    */
   virtual void on_connection_close(const std::string &local_addr,
                                    const std::string &peer_addr) = 0;
+
+  /**
+   * Called when socket remote is closed.
+   *
+   * No more message will be received from this peer.
+   *
+   * <h3>Error handling</h3>
+   * Throwing error in `on_connection_close` callback is logged as error,
+   * but ignored.
+   * <br /><br />
+   * It should be non-blocking.
+   *
+   * @param local_addr the local address of the connection.
+   * @param peer_addr the peer address of the connection.
+   */
+  virtual void on_remote_close(const std::string &local_addr,
+                               const std::string &peer_addr) = 0;
 
   /**
    * Called when an error occurs when listening on the given address.

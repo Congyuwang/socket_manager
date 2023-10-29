@@ -51,8 +51,7 @@ private:
 };
 
 class HelloCallback : public ConnCallback {
-  void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  std::shared_ptr<Connection> conn,
+  void on_connect(std::shared_ptr<Connection> conn,
                   std::shared_ptr<MsgSender> sender) override {
     auto rcv = std::make_unique<FinalReceiver>(has_received, mutex, cond);
     // disable write auto flush
@@ -73,6 +72,9 @@ class HelloCallback : public ConnCallback {
   void on_listen_error(const std::string &addr,
                        const std::string &err) override {}
 
+  void on_remote_close(const std::string &addr,
+                       const std::string &err) override {}
+
   void on_connect_error(const std::string &addr,
                         const std::string &err) override {}
 
@@ -88,8 +90,7 @@ public:
 };
 
 class EchoCallback : public ConnCallback {
-  void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  std::shared_ptr<Connection> conn,
+  void on_connect(std::shared_ptr<Connection> conn,
                   std::shared_ptr<MsgSender> sender) override {
     auto rcv = std::make_unique<EchoReceiver>(has_received, _data, mutex, cond);
     // disable write auto flush
@@ -111,6 +112,9 @@ class EchoCallback : public ConnCallback {
 
   void on_connect_error(const std::string &addr,
                         const std::string &err) override {}
+
+  void on_remote_close(const std::string &addr,
+                       const std::string &err) override {}
 
 public:
   EchoCallback()

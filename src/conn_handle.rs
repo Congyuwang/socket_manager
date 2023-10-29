@@ -27,12 +27,11 @@ pub(crate) fn handle_connection<
     let on_connect_on_conn = on_conn.clone();
     // Call `on_conn` callback, and wait for user to call `start` on connection.
     // Return the OnMsg callback and conn_config.
+    let conn_state = connection_state.clone();
     let wait_for_start = async move {
         on_connect_on_conn(ConnState::OnConnect {
-            local_addr,
-            peer_addr,
             send,
-            conn: Conn::new(conn_config_setter),
+            conn: Conn::new(conn_config_setter, local_addr, peer_addr, conn_state),
         })
         .map_err(|_| ())?;
 
@@ -53,7 +52,7 @@ pub(crate) fn handle_connection<
             // spawn reader and writer
             let (stop, stopper) = oneshot::channel::<()>();
             let (read, write) = stream.into_split();
-            let writer = handle.spawn(write::handle_writer(write, recv, config, stop));
+            let writer = handle.spawn(write::handle_writer(write, recv, config));
             let reader = handle.spawn(read::handle_reader(read, on_msg, config));
 
             // insert the stopper into connection_state
@@ -62,7 +61,14 @@ pub(crate) fn handle_connection<
                 .insert((local_addr, peer_addr), stopper);
 
             // join reader and writer
-            join_reader_writer((writer, reader), (local_addr, peer_addr)).await;
+            let on_conn_remote_close = on_conn.clone();
+            join_reader_writer(
+                (writer, reader),
+                (local_addr, peer_addr),
+                on_conn_remote_close,
+                stop,
+            )
+            .await;
 
             // remove connection from connection_state after reader and writer are done
             connection_state
@@ -79,31 +85,85 @@ pub(crate) fn handle_connection<
 }
 
 /// On connection end, remove connection from connection state.
-async fn join_reader_writer(
+async fn join_reader_writer<
+    OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + 'static + Clone,
+    OnMsg: Fn(Msg<'_>, Waker) -> Poll<Result<usize, String>> + Send + Unpin + 'static,
+>(
     (mut writer, mut reader): (
         JoinHandle<std::io::Result<()>>,
         JoinHandle<std::io::Result<()>>,
     ),
     (local_addr, peer_addr): (SocketAddr, SocketAddr),
+    on_conn_remote_close: OnConn,
+    mut stop: oneshot::Sender<()>,
 ) {
     let writer_abort = writer.abort_handle();
     let reader_abort = reader.abort_handle();
-    tokio::select! {
-        w = &mut writer => {
-            if let Err(e) = w {
-                tracing::error!("writer stopped on error ({e}), local={local_addr}, peer={peer_addr}");
-            } else {
-                tracing::debug!("writer stopped local={local_addr}, peer={peer_addr}");
+    let mut writer_stopped = false;
+    let mut reader_stopped = false;
+
+    loop {
+        tokio::select! {
+            _ = stop.closed() => {
+                // abort everything on killing connection
+                writer_abort.abort();
+                reader_abort.abort();
+                break;
+            },
+            w = &mut writer, if !writer_stopped => {
+                match w {
+                    Ok(Ok(_)) => {
+                        tracing::debug!("writer stopped local={local_addr}, peer={peer_addr}");
+                        writer_stopped = true;
+                        if reader_stopped {
+                            break;
+                        }
+                    }
+                    Ok(Err(e)) => {
+                        tracing::error!(
+                            "writer stopped on error ({e}), local={local_addr}, peer={peer_addr}"
+                        );
+                        reader_abort.abort();
+                        break;
+                    }
+                    Err(e) => {
+                        tracing::error!(
+                            "writer aborted/paniced ({e}), local={local_addr}, peer={peer_addr}"
+                        );
+                        reader_abort.abort();
+                        break;
+                    }
+                }
+            },
+            r = &mut reader, if !reader_stopped => {
+                match r {
+                    Ok(Ok(_)) => {
+                        tracing::debug!("reader stopped local={local_addr}, peer={peer_addr}");
+                        reader_stopped = true;
+                        let _ = on_conn_remote_close(ConnState::OnRemoteClose {
+                            local_addr,
+                            peer_addr
+                        });
+                        if writer_stopped {
+                            break;
+                        }
+                    }
+                    Ok(Err(e)) => {
+                        tracing::error!(
+                            "reader stopped on error ({e}), local={local_addr}, peer={peer_addr}"
+                        );
+                        writer_abort.abort();
+                        break;
+                    }
+                    Err(e) => {
+                        tracing::error!(
+                            "reader aborted/paniced ({e}), local={local_addr}, peer={peer_addr}"
+                        );
+                        writer_abort.abort();
+                        break;
+                    }
+                }
             }
-            reader_abort.abort();
-        }
-        r = &mut reader => {
-            if let Err(e) = r {
-                tracing::error!("reader stopped on error ({e}), local={local_addr}, peer={peer_addr}");
-            } else {
-                tracing::debug!("reader stopped local={local_addr}, peer={peer_addr}");
-            }
-            writer_abort.abort();
         }
     }
 }

@@ -31,8 +31,8 @@ pub(crate) unsafe fn parse_c_err_str(c_str: *mut c_char) -> Result<(), String> {
 }
 
 /// Turn an error with `Display` into a C string pointer using `malloc`.
-pub(crate) unsafe fn write_error_c_str<E: Display>(e: E, error: *mut *mut c_char) {
-    let error_str = CString::new(format!("{}", e)).unwrap();
+pub(crate) unsafe fn write_display_c_str<D: Display>(d: D, error: *mut *mut c_char) {
+    let error_str = CString::new(format!("{}", d)).unwrap();
     *error = libc::malloc(error_str.as_bytes().len() + 1) as *mut c_char;
     libc::strcpy(*error, error_str.as_ptr());
 }

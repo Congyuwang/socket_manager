@@ -1,5 +1,5 @@
 //! Define a layer to pass log message to foreign interface.
-use super::utils::write_error_c_str;
+use super::utils::write_display_c_str;
 use crate::init_logger;
 use libc::size_t;
 use std::{
@@ -73,7 +73,7 @@ pub unsafe extern "C" fn socket_manager_logger_init(
     let foreign_logger = ForeignLogger(tracer).with_filter(tracer_max_level.into());
     match init_logger(log_print_level.into(), foreign_logger) {
         Ok(_) => *err = null_mut(),
-        Err(e) => write_error_c_str(e, err),
+        Err(e) => write_display_c_str(e, err),
     }
 }
 

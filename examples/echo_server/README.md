@@ -4,8 +4,8 @@ Implementing Echo using SocketManager is a bit tricky to
 make the memory model correct.
 
 ## The Memory Model Before Echo
-Dropping `Sender` will close the connection, and drop its
-reference to `Connection`.
+Dropping `Sender` will close the `Write` side of the socket connection,
+and drop its reference to `Connection`.
 `ConnCallback` will drop its internal reference to `Connection` when
 the connection is closed.
 Thus `Connection` will free any reference to `Notifier`

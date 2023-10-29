@@ -56,8 +56,7 @@ async fn handle_reader_auto_flush<
         tokio::select! {
             biased;
             n = read_write.fill_flush() => {
-                let n = n?;
-                if n == 0 {
+                if n? == 0 {
                     break;
                 }
                 has_data = true;
@@ -85,12 +84,7 @@ async fn handle_reader_no_auto_flush<
 ) -> std::io::Result<()> {
     let writer = OnMsgWrite { on_msg };
     let mut read_write = BufReadWrite::new(read, writer, msg_buf_size);
-    loop {
-        let n = read_write.fill_flush().await?;
-        if n == 0 {
-            break;
-        }
-    }
+    while read_write.fill_flush().await? != 0 {}
     read_write.flush().await?;
     Ok(())
 }

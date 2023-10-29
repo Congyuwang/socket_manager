@@ -6,7 +6,6 @@ use async_ringbuf::traits::{AsyncConsumer, Consumer, Observer};
 use std::time::Duration;
 use tokio::io::AsyncWriteExt;
 use tokio::net::tcp::OwnedWriteHalf;
-use tokio::sync::oneshot;
 use tokio::time::MissedTickBehavior;
 
 /// Receive bytes from recv and write to WriteHalf of TcpStream.
@@ -14,13 +13,12 @@ pub(crate) async fn handle_writer(
     write: OwnedWriteHalf,
     recv: MsgRcv,
     config: ConnConfig,
-    stop: oneshot::Sender<()>,
 ) -> std::io::Result<()> {
     let duration = config.write_flush_interval;
     if duration.is_zero() {
-        handle_writer_no_auto_flush(write, recv, stop).await
+        handle_writer_no_auto_flush(write, recv).await
     } else {
-        handle_writer_auto_flush(write, recv, duration, stop).await
+        handle_writer_auto_flush(write, recv, duration).await
     }
 }
 
@@ -28,45 +26,32 @@ async fn handle_writer_auto_flush(
     mut write: OwnedWriteHalf,
     mut recv: MsgRcv,
     duration: Duration,
-    mut stop: oneshot::Sender<()>,
 ) -> std::io::Result<()> {
     debug_assert!(!duration.is_zero());
     let mut flush_tick = tokio::time::interval(duration);
     flush_tick.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
-    'close: loop {
-        // obtain a ring buffer
-        let ring = tokio::select! {
-            biased;
-            ring = recv.rings.recv() => ring,
-            _ = stop.closed() => break 'close,
-        };
-        let mut ring = match ring {
-            Some(ring) => ring,
-            None => break 'close,
-        };
-        let mut has_data = true;
-        'ring: loop {
+    while let Some(mut ring) = recv.rings.recv().await {
+        let mut tick_flush = true;
+        loop {
             tokio::select! {
                 biased;
                 // !has_data => wait for has_data
                 // has_data => wait for write_threshold
-                _ = ring.wait_occupied((has_data as usize) * MIN_MSG_BUFFER_SIZE + (!has_data as usize)) => {
+                _ = ring.wait_occupied((tick_flush as usize) * MIN_MSG_BUFFER_SIZE + (!tick_flush as usize)) => {
                     if ring.is_closed() {
-                        break 'ring;
+                        break;
                     }
-                    has_data = true;
-                    if ring.occupied_len() >= MIN_MSG_BUFFER_SIZE {
+                    tick_flush = ring.occupied_len() < MIN_MSG_BUFFER_SIZE;
+                    if !tick_flush {
                         flush(&mut ring, &mut write).await?;
-                        has_data = false
                     }
                 }
                 // tick flush
-                _ = flush_tick.tick(), if has_data => {
+                _ = flush_tick.tick(), if tick_flush => {
                     flush(&mut ring, &mut write).await?;
-                    has_data = false;
+                    tick_flush = false;
                 }
-                _ = stop.closed() => break 'close,
             }
         }
         // always clear the old ring_buf before reading the next
@@ -80,31 +65,14 @@ async fn handle_writer_auto_flush(
 async fn handle_writer_no_auto_flush(
     mut write: OwnedWriteHalf,
     mut recv: MsgRcv,
-    mut stop: oneshot::Sender<()>,
 ) -> std::io::Result<()> {
-    'close: loop {
-        // obtain a ring buffer
-        let ring = tokio::select! {
-            biased;
-            ring = recv.rings.recv() => ring,
-            _ = stop.closed() => break 'close,
-        };
-        let mut ring = match ring {
-            Some(ring) => ring,
-            None => break 'close,
-        };
-        'ring: loop {
-            tokio::select! {
-                biased;
-                // buf threshold
-                _ = ring.wait_occupied(MIN_MSG_BUFFER_SIZE) => {
-                    if ring.is_closed() {
-                        break 'ring;
-                    }
-                    flush(&mut ring, &mut write).await?;
-                }
-                _ = stop.closed() => break 'close,
+    while let Some(mut ring) = recv.rings.recv().await {
+        loop {
+            ring.wait_occupied(MIN_MSG_BUFFER_SIZE).await;
+            if ring.is_closed() {
+                break;
             }
+            flush(&mut ring, &mut write).await?;
         }
         // always clear the old ring_buf before reading the next
         flush(&mut ring, &mut write).await?;

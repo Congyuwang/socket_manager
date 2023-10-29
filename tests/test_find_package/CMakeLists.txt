@@ -8,5 +8,5 @@ set(CMAKE_CXX_STANDARD 17)
 add_executable(helloworld_server helloworld_server.cpp)
 set_property(TARGET helloworld_server PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 
-find_package(socket_manager 0.3.0 REQUIRED)
+find_package(socket_manager 0.4.0 REQUIRED)
 target_link_libraries(helloworld_server PUBLIC socket_manager)

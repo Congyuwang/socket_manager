@@ -89,11 +89,13 @@ private:
 /// Do Nothing
 class DoNothingConnCallback : public ConnCallback {
 public:
-  void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  std::shared_ptr<Connection> conn,
+  void on_connect(std::shared_ptr<Connection> conn,
                   std::shared_ptr<MsgSender> sender) override {
     conn->close();
   }
+
+  void on_remote_close(const std::string &local_addr,
+                       const std::string &peer_addr) override {}
 
   void on_connection_close(const std::string &local_addr,
                            const std::string &peer_addr) override {}
@@ -116,15 +118,17 @@ public:
           &buffer)
       : mutex(mutex), cond(cond), sig(sig), buffer(buffer) {}
 
-  void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  std::shared_ptr<Connection> conn,
+  void on_connect(std::shared_ptr<Connection> conn,
                   std::shared_ptr<MsgSender> sender) override {
     set_sig(CONNECTED);
-    auto conn_id = local_addr + "->" + peer_addr;
+    auto conn_id = conn->local_address() + "->" + conn->peer_address();
     auto msg_storer =
         std::make_unique<MsgStoreReceiver>(conn_id, mutex, cond, buffer);
     conn->start(std::move(msg_storer));
   }
+
+  void on_remote_close(const std::string &local_addr,
+                       const std::string &peer_addr) override {}
 
   void on_connection_close(const std::string &local_addr,
                            const std::string &peer_addr) override {
@@ -172,11 +176,10 @@ public:
                    std::tuple<std::string, std::shared_ptr<std::string>>>>()),
         clean_sender_on_close(clean_sender_on_close) {}
 
-  void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  std::shared_ptr<Connection> conn,
+  void on_connect(std::shared_ptr<Connection> conn,
                   std::shared_ptr<MsgSender> sender) override {
     std::unique_lock<std::mutex> lock(*mutex);
-    auto conn_id = local_addr + "->" + peer_addr;
+    auto conn_id = conn->local_address() + "->" + conn->peer_address();
     events->emplace_back(CONNECTED, conn_id);
     auto msg_storer =
         std::make_unique<MsgStoreReceiver>(conn_id, mutex, cond, buffer);
@@ -196,6 +199,15 @@ public:
     }
     connected_count->fetch_sub(1, std::memory_order_seq_cst);
     cond->notify_all();
+  }
+
+  void on_remote_close(const std::string &local_addr,
+                       const std::string &peer_addr) override {
+    std::unique_lock<std::mutex> lock(*mutex);
+    auto conn_id = local_addr + "->" + peer_addr;
+    if (clean_sender_on_close) {
+      senders.erase(conn_id);
+    }
   }
 
   void on_listen_error(const std::string &addr,

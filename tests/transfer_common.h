@@ -1,3 +1,5 @@
+#include "connection.h"
+#include <memory>
 #undef NDEBUG
 
 #ifndef SOCKET_MANAGER_TEST_TRANSFER_COMMON_H
@@ -33,8 +35,7 @@ public:
   explicit SendBlockCB(size_t msg_size, size_t total_size)
       : msg_size(msg_size), total_size(total_size) {}
 
-  void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  std::shared_ptr<Connection> conn,
+  void on_connect(std::shared_ptr<Connection> conn,
                   std::shared_ptr<MsgSender> sender) override {
     auto rcv = std::make_unique<DoNothingReceiver>();
 
@@ -42,11 +43,10 @@ public:
     size_t msg_count = total_size / msg_size;
 
     conn->start(std::move(rcv));
-    std::thread([sender, data, msg_count]() {
+    std::thread([sender, data, conn, msg_count]() {
       for (int i = 0; i < msg_count; ++i) {
         sender->send_block(data);
       }
-      // close connection after sender finished.
     }).detach();
   }
 
@@ -72,8 +72,7 @@ public:
   explicit SendAsyncCB(size_t msg_size, size_t total_size)
       : msg_size(msg_size), total_size(total_size) {}
 
-  void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  std::shared_ptr<Connection> conn,
+  void on_connect(std::shared_ptr<Connection> conn,
                   std::shared_ptr<MsgSender> sender) override {
     auto rcv = std::make_unique<DoNothingReceiver>();
     auto sem = std::make_shared<moodycamel::LightweightSemaphore>();
@@ -83,7 +82,7 @@ public:
     size_t msg_count = total_size / msg_size;
 
     conn->start(std::move(rcv), waker);
-    std::thread([sender, msg_count, data, sem]() {
+    std::thread([sender, conn, msg_count, data, sem]() {
       int progress = 0;
       size_t offset = 0;
       std::string_view data_view(data);
@@ -99,7 +98,6 @@ public:
           progress += 1;
         }
       }
-      // close connection after sender finished.
     }).detach();
   }
 
@@ -113,8 +111,7 @@ public:
   explicit SendNoFlushCB(size_t msg_size, size_t total_size)
       : msg_size(msg_size), total_size(total_size) {}
 
-  void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  std::shared_ptr<Connection> conn,
+  void on_connect(std::shared_ptr<Connection> conn,
                   std::shared_ptr<MsgSender> sender) override {
     auto rcv = std::make_unique<DoNothingReceiver>();
 
@@ -123,11 +120,10 @@ public:
 
     conn->start(std::move(rcv), nullptr, DEFAULT_MSG_BUF_SIZE,
                 DEFAULT_READ_MSG_FLUSH_MILLI_SEC, 0);
-    std::thread([sender, data, msg_count]() {
+    std::thread([sender, data, msg_count, conn]() {
       for (int i = 0; i < msg_count; ++i) {
         sender->send_block(data);
       }
-      // close connection after sender finished.
     }).detach();
   }
 
@@ -141,8 +137,7 @@ public:
   explicit SendNonBlockCB(size_t msg_size, size_t total_size)
       : msg_size(msg_size), total_size(total_size) {}
 
-  void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  std::shared_ptr<Connection> conn,
+  void on_connect(std::shared_ptr<Connection> conn,
                   std::shared_ptr<MsgSender> sender) override {
     auto rcv = std::make_unique<DoNothingReceiver>();
 
@@ -150,11 +145,10 @@ public:
     size_t msg_count = total_size / msg_size;
 
     conn->start(std::move(rcv));
-    std::thread([sender, data, msg_count]() {
+    std::thread([sender, data, msg_count, conn]() {
       for (int i = 0; i < msg_count; ++i) {
         sender->send_nonblock(data);
       }
-      // close connection after sender finished.
     }).detach();
   }
 
@@ -188,13 +182,11 @@ public:
       : has_closed(false), add_data(std::make_shared<size_t>(0)),
         count(std::make_shared<size_t>(0)) {}
 
-  void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  std::shared_ptr<Connection> conn,
+  void on_connect(std::shared_ptr<Connection> conn,
                   std::shared_ptr<MsgSender> send) override {
     auto rcv = std::make_unique<CountReceived>(add_data, count);
-    // store sender so connection is not dropped.
-    this->sender = send;
     conn->start(std::move(rcv));
+    this->sender = send;
   }
 
   void on_connection_close(const std::string &local_addr,
@@ -202,6 +194,12 @@ public:
     has_closed.store(true);
     std::cout << "on_connection_close" << std::endl;
     cond.notify_all();
+  }
+
+  void on_remote_close(const std::string &local_addr,
+                       const std::string &peer_addr) override {
+    std::cout << "on_remote_close" << std::endl;
+    this->sender.reset();
   }
 
   void on_listen_error(const std::string &addr,

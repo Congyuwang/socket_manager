@@ -31,8 +31,7 @@ public:
         cond(std::make_shared<std::condition_variable>()),
         received(std::make_shared<std::atomic_bool>(false)) {}
 
-  void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  std::shared_ptr<Connection> conn,
+  void on_connect(std::shared_ptr<Connection> conn,
                   std::shared_ptr<MsgSender> send) override {
     auto do_nothing =
         std::make_unique<ReceiverHelloWorld>(mutex, cond, received);
@@ -48,8 +47,7 @@ public:
 };
 
 class SendHelloWorldDoNotClose : public DoNothingConnCallback {
-  void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  std::shared_ptr<Connection> conn,
+  void on_connect(std::shared_ptr<Connection> conn,
                   std::shared_ptr<MsgSender> sender) override {
     auto do_nothing = std::make_unique<DoNothingReceiver>();
     conn->start(std::move(do_nothing));

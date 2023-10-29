@@ -57,12 +57,14 @@ enum Command {
 
 /// Connection state changes for the on_conn callback.
 pub enum ConnState<OnMsg> {
-    /// sent on connection success
-    OnConnect {
+    /// sent on connection success.
+    OnConnect { send: MsgSender, conn: Conn<OnMsg> },
+    /// sent on remote closed write.
+    /// Remote stopped writing.
+    /// No more message will be received from the socket.
+    OnRemoteClose {
         local_addr: SocketAddr,
         peer_addr: SocketAddr,
-        send: MsgSender,
-        conn: Conn<OnMsg>,
     },
     /// sent on connection closed
     /// `OnConnection` and `OnConnectionClose` are
@@ -71,12 +73,12 @@ pub enum ConnState<OnMsg> {
         local_addr: SocketAddr,
         peer_addr: SocketAddr,
     },
-    /// sent on listen error
+    /// sent on listen error.
     OnListenError {
         addr: SocketAddr,
         error: std::io::Error,
     },
-    /// sent on connection error
+    /// sent on connection error.
     /// `OnConnect` and `OnConnectError`
     /// are mutually exclusive.
     OnConnectError {

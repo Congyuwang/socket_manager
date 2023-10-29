@@ -1,6 +1,6 @@
 use crate::c_api::conn_events::{
     ConnStateCode, ConnStateData, ConnStates, Connection, OnConnect, OnConnectError,
-    OnConnectionClose, OnListenError,
+    OnConnectionClose, OnListenError, OnRemoteClose,
 };
 use crate::c_api::on_msg::OnMsgObj;
 use crate::c_api::utils::parse_c_err_str;
@@ -50,31 +50,17 @@ impl OnConnObj {
             parse_c_err_str(err)
         };
         match conn_states {
-            crate::ConnState::OnConnect {
-                local_addr,
-                peer_addr,
-                send,
-                conn,
-            } => {
-                let local = CString::new(local_addr.to_string()).unwrap();
-                let peer = CString::new(peer_addr.to_string()).unwrap();
+            crate::ConnState::OnConnect { send, conn } => {
                 let send = Box::into_raw(Box::new(send));
                 let conn = Box::into_raw(Box::new(Connection { conn }));
                 let conn_msg = ConnStates {
                     code: ConnStateCode::Connect,
                     data: ConnStateData {
-                        on_connect: OnConnect {
-                            local: local.as_ptr(),
-                            peer: peer.as_ptr(),
-                            send,
-                            conn,
-                        },
+                        on_connect: OnConnect { send, conn },
                     },
                 };
                 if let Err(e) = on_conn(conn_msg) {
-                    tracing::error!(
-                        "Error thrown in OnConnect callback (local={local_addr}, peer={peer_addr}): {e}"
-                    );
+                    tracing::error!("Error thrown in OnConnect callback: {e}");
                     Err(e)
                 } else {
                     Ok(())
@@ -135,6 +121,28 @@ impl OnConnObj {
                 };
                 if let Err(e) = on_conn(conn_msg) {
                     tracing::error!("Error thrown in OnConnectError callback addr={addr}: {e}");
+                    Err(e)
+                } else {
+                    Ok(())
+                }
+            }
+            crate::ConnState::OnRemoteClose {
+                local_addr,
+                peer_addr,
+            } => {
+                let local = CString::new(local_addr.to_string()).unwrap();
+                let peer = CString::new(peer_addr.to_string()).unwrap();
+                let conn_msg = ConnStates {
+                    code: ConnStateCode::RemoteClose,
+                    data: ConnStateData {
+                        on_remote_close: OnRemoteClose {
+                            local: local.as_ptr(),
+                            peer: peer.as_ptr(),
+                        },
+                    },
+                };
+                if let Err(e) = on_conn(conn_msg) {
+                    tracing::error!("Error thrown in OnRemoteClose callback (local={local_addr}, peer={peer_addr}): {e}");
                     Err(e)
                 } else {
                     Ok(())

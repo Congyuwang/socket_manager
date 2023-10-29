@@ -56,21 +56,26 @@ private:
  */
 class EchoCallback : public socket_manager::ConnCallback {
 private:
-  void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  std::shared_ptr<socket_manager::Connection> conn,
+  void on_connect(std::shared_ptr<socket_manager::Connection> conn,
                   std::shared_ptr<socket_manager::MsgSender> sender) override {
     auto waker = std::make_shared<WrapWaker>(socket_manager::Waker());
     auto recv = std::make_shared<EchoReceiver>(std::move(sender), waker);
     {
       // add the receiver to the map for cleanup
       std::lock_guard<std::mutex> lock(mutex);
-      receivers[local_addr + peer_addr] = recv;
+      receivers[conn->local_address() + conn->peer_address()] = recv;
     }
     conn->start(std::move(recv), std::move(waker));
   }
 
   void on_connection_close(const std::string &local_addr,
                            const std::string &peer_addr) override {
+    std::cout << "connection closed: " << local_addr << " -> " << peer_addr
+              << std::endl;
+  }
+
+  void on_remote_close(const std::string &local_addr,
+                       const std::string &peer_addr) override {
     {
       std::lock_guard<std::mutex> lock(mutex);
       auto find = receivers.find(local_addr + peer_addr);
@@ -83,7 +88,7 @@ private:
                                  " -> " + peer_addr);
       }
     }
-    std::cout << "connection closed: " << local_addr << " -> " << peer_addr
+    std::cout << "remote closed: " << local_addr << " -> " << peer_addr
               << std::endl;
   }
 
