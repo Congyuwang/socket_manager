@@ -1,4 +1,6 @@
-# A C++ Library Developed In Rust Tokio To Manage Multiple TCP Connections
+# Socket Manager
+
+## Safe and Efficient Socket Networking Library for C++
 
 Easily manage multiple socket connections asynchronously in C++.
 
