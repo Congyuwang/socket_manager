@@ -96,6 +96,14 @@ socket_manager_extern_on_conn(SOCKET_MANAGER_C_API_OnConnObj this_,
     SOCKET_MANAGER_CATCH_ERROR(error, conn_cb->on_connect_error(addr, err))
     break;
   }
+  case SOCKET_MANAGER_C_API_ConnStateCode::RemoteClose: {
+    auto on_remote_close = states.Data.OnRemoteClose;
+    auto local_addr = std::string(on_remote_close.Local);
+    auto peer_addr = std::string(on_remote_close.Peer);
+    SOCKET_MANAGER_CATCH_ERROR(error,
+                               conn_cb->on_remote_close(local_addr, peer_addr))
+    break;
+  }
   default: {
     // should never reach here
     *error = nullptr;

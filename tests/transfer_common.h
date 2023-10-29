@@ -186,6 +186,7 @@ public:
                   std::shared_ptr<MsgSender> send) override {
     auto rcv = std::make_unique<CountReceived>(add_data, count);
     conn->start(std::move(rcv));
+    this->sender = send;
   }
 
   void on_connection_close(const std::string &local_addr,
@@ -193,6 +194,12 @@ public:
     has_closed.store(true);
     std::cout << "on_connection_close" << std::endl;
     cond.notify_all();
+  }
+
+  void on_remote_close(const std::string &local_addr,
+                       const std::string &peer_addr) override {
+    std::cout << "on_remote_close" << std::endl;
+    this->sender.reset();
   }
 
   void on_listen_error(const std::string &addr,
@@ -206,6 +213,7 @@ public:
   std::atomic_bool has_closed;
   std::shared_ptr<size_t> add_data;
   std::shared_ptr<size_t> count;
+  std::shared_ptr<MsgSender> sender;
 };
 
 #endif // SOCKET_MANAGER_TEST_TRANSFER_COMMON_H

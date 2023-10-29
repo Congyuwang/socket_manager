@@ -61,7 +61,14 @@ pub(crate) fn handle_connection<
                 .insert((local_addr, peer_addr), stopper);
 
             // join reader and writer
-            join_reader_writer((writer, reader), (local_addr, peer_addr), stop).await;
+            let on_conn_remote_close = on_conn.clone();
+            join_reader_writer(
+                (writer, reader),
+                (local_addr, peer_addr),
+                on_conn_remote_close,
+                stop,
+            )
+            .await;
 
             // remove connection from connection_state after reader and writer are done
             connection_state
@@ -78,12 +85,16 @@ pub(crate) fn handle_connection<
 }
 
 /// On connection end, remove connection from connection state.
-async fn join_reader_writer(
+async fn join_reader_writer<
+    OnConn: Fn(ConnState<OnMsg>) -> Result<(), String> + Send + 'static + Clone,
+    OnMsg: Fn(Msg<'_>, Waker) -> Poll<Result<usize, String>> + Send + Unpin + 'static,
+>(
     (mut writer, mut reader): (
         JoinHandle<std::io::Result<()>>,
         JoinHandle<std::io::Result<()>>,
     ),
     (local_addr, peer_addr): (SocketAddr, SocketAddr),
+    on_conn_remote_close: OnConn,
     mut stop: oneshot::Sender<()>,
 ) {
     let writer_abort = writer.abort_handle();
@@ -129,6 +140,10 @@ async fn join_reader_writer(
                     Ok(Ok(_)) => {
                         tracing::debug!("reader stopped local={local_addr}, peer={peer_addr}");
                         reader_stopped = true;
+                        let _ = on_conn_remote_close(ConnState::OnRemoteClose {
+                            local_addr,
+                            peer_addr
+                        });
                         if writer_stopped {
                             break;
                         }

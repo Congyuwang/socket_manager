@@ -94,6 +94,9 @@ public:
     conn->close();
   }
 
+  void on_remote_close(const std::string &local_addr,
+                       const std::string &peer_addr) override {}
+
   void on_connection_close(const std::string &local_addr,
                            const std::string &peer_addr) override {}
 
@@ -123,6 +126,9 @@ public:
         std::make_unique<MsgStoreReceiver>(conn_id, mutex, cond, buffer);
     conn->start(std::move(msg_storer));
   }
+
+  void on_remote_close(const std::string &local_addr,
+                       const std::string &peer_addr) override {}
 
   void on_connection_close(const std::string &local_addr,
                            const std::string &peer_addr) override {
@@ -193,6 +199,15 @@ public:
     }
     connected_count->fetch_sub(1, std::memory_order_seq_cst);
     cond->notify_all();
+  }
+
+  void on_remote_close(const std::string &local_addr,
+                       const std::string &peer_addr) override {
+    std::unique_lock<std::mutex> lock(*mutex);
+    auto conn_id = local_addr + "->" + peer_addr;
+    if (clean_sender_on_close) {
+      senders.erase(conn_id);
+    }
   }
 
   void on_listen_error(const std::string &addr,

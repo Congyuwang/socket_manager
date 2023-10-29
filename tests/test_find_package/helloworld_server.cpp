@@ -44,7 +44,10 @@ public:
   }
 
   void on_connection_close(const std::string &local_addr,
-                           const std::string &peer_addr) override {
+                           const std::string &peer_addr) override {}
+
+  void on_remote_close(const std::string &local_addr,
+                       const std::string &peer_addr) override {
     auto id = local_addr + "->" + peer_addr;
     {
       std::unique_lock<std::mutex> my_lock(mutex);

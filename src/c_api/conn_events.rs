@@ -26,6 +26,7 @@ pub enum ConnStateCode {
     ConnectionClose = 1,
     ListenError = 2,
     ConnectError = 3,
+    RemoteClose = 4,
 }
 
 #[repr(C)]
@@ -34,6 +35,7 @@ pub union ConnStateData {
     pub(crate) on_connection_close: OnConnectionClose,
     pub(crate) on_listen_error: OnListenError,
     pub(crate) on_connect_error: OnConnectError,
+    pub(crate) on_remote_close: OnRemoteClose,
 }
 
 #[repr(C)]
@@ -62,6 +64,13 @@ pub struct OnListenError {
 pub struct OnConnectError {
     pub(crate) addr: *const c_char,
     pub(crate) err: *const c_char,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct OnRemoteClose {
+    pub(crate) local: *const c_char,
+    pub(crate) peer: *const c_char,
 }
 
 pub struct Connection {

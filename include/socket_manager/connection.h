@@ -31,9 +31,7 @@ public:
    * Start a connection.
    *
    * <h3>Start / Close</h3>
-   * Exactly one of `start` or `close` should be called!
-   * Calling more than once will throw runtime exception.
-   * Not calling any of them might result in resource leak.
+   * If start is not called, close must be called to prevent memory leak.
    *
    * <h3>Close started connection</h3>
    * Drop the returned MsgSender object to close the `Write` side of the

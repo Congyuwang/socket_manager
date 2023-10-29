@@ -70,6 +70,12 @@ private:
 
   void on_connection_close(const std::string &local_addr,
                            const std::string &peer_addr) override {
+    std::cout << "connection closed: " << local_addr << " -> " << peer_addr
+              << std::endl;
+  }
+
+  void on_remote_close(const std::string &local_addr,
+                       const std::string &peer_addr) override {
     {
       std::lock_guard<std::mutex> lock(mutex);
       auto find = receivers.find(local_addr + peer_addr);
@@ -82,7 +88,7 @@ private:
                                  " -> " + peer_addr);
       }
     }
-    std::cout << "connection closed: " << local_addr << " -> " << peer_addr
+    std::cout << "remote closed: " << local_addr << " -> " << peer_addr
               << std::endl;
   }
 

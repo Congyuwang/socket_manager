@@ -13,6 +13,7 @@ enum class SOCKET_MANAGER_C_API_ConnStateCode {
   ConnectionClose = 1,
   ListenError = 2,
   ConnectError = 3,
+  RemoteClose = 4,
 };
 
 /**
@@ -172,11 +173,17 @@ struct SOCKET_MANAGER_C_API_OnConnectError {
   const char *Err;
 };
 
+struct SOCKET_MANAGER_C_API_OnRemoteClose {
+  const char *Local;
+  const char *Peer;
+};
+
 union SOCKET_MANAGER_C_API_ConnStateData {
   SOCKET_MANAGER_C_API_OnConnect OnConnect;
   SOCKET_MANAGER_C_API_OnConnectionClose OnConnectionClose;
   SOCKET_MANAGER_C_API_OnListenError OnListenError;
   SOCKET_MANAGER_C_API_OnConnectError OnConnectError;
+  SOCKET_MANAGER_C_API_OnRemoteClose OnRemoteClose;
 };
 
 /**

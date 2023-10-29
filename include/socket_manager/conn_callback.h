@@ -65,6 +65,23 @@ private:
                                    const std::string &peer_addr) = 0;
 
   /**
+   * Called when socket remote is closed.
+   *
+   * No more message will be received from this peer.
+   *
+   * <h3>Error handling</h3>
+   * Throwing error in `on_connection_close` callback is logged as error,
+   * but ignored.
+   * <br /><br />
+   * It should be non-blocking.
+   *
+   * @param local_addr the local address of the connection.
+   * @param peer_addr the peer address of the connection.
+   */
+  virtual void on_remote_close(const std::string &local_addr,
+                               const std::string &peer_addr) = 0;
+
+  /**
    * Called when an error occurs when listening on the given address.
    *
    * <h3>Error handling</h3>

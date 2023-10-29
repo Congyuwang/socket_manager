@@ -36,6 +36,9 @@ class OnMsgErrorCallback : public ConnCallback {
     sender.use_count();
   }
 
+  void on_remote_close(const std::string &local_addr,
+                       const std::string &peer_addr) override {}
+
   void on_connection_close(const std::string &local_addr,
                            const std::string &peer_addr) override {}
 
