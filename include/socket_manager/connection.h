@@ -7,6 +7,7 @@
 #include <functional>
 #include <memory>
 #include <stdexcept>
+#include <string>
 
 namespace socket_manager {
 
@@ -35,8 +36,8 @@ public:
    * Not calling any of them might result in resource leak.
    *
    * <h3>Close started connection</h3>
-   * Drop the returned MsgSender object to close the connection
-   * after starting it.
+   * Drop the returned MsgSender object to close the `Write` side of the
+   * connection after starting it.
    *
    * <h3>Thread Safety</h3>
    * Thread safe, but should be called exactly once,
@@ -69,14 +70,19 @@ public:
       unsigned long long write_flush_interval = DEFAULT_WRITE_FLUSH_MILLI_SEC);
 
   /**
-   * Close the connection without using it.
-   * <br /><br />
-   * `on_connection_close` callback will be called.
-   *
-   * <h3>Start / Close</h3>
-   * Exactly one of `start` or `close` should be called!
-   * Calling more than once will throw runtime exception.
-   * Not calling any of them might result in resource leak.
+   * Get a string representation of the peer address.
+   */
+  std::string peer_address();
+
+  /**
+   * Get a string representation of the local address.
+   */
+  std::string local_address();
+
+  /**
+   * The close API works either before `start_connection` is called
+   * or after the `on_connect` callback.
+   * It won't have effect between the two points
    */
   void close();
 

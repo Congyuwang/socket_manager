@@ -58,12 +58,7 @@ enum Command {
 /// Connection state changes for the on_conn callback.
 pub enum ConnState<OnMsg> {
     /// sent on connection success
-    OnConnect {
-        local_addr: SocketAddr,
-        peer_addr: SocketAddr,
-        send: MsgSender,
-        conn: Conn<OnMsg>,
-    },
+    OnConnect { send: MsgSender, conn: Conn<OnMsg> },
     /// sent on connection closed
     /// `OnConnection` and `OnConnectionClose` are
     /// sent within `handle connection`.
@@ -88,7 +83,7 @@ pub enum ConnState<OnMsg> {
 /// Internal connection state.
 struct ConnectionState {
     listeners: DashMap<SocketAddr, oneshot::Receiver<()>>,
-    connections: DashMap<(SocketAddr, SocketAddr), oneshot::Receiver<()>>,
+    connections: DashMap<(SocketAddr, SocketAddr), mpsc::Receiver<()>>,
 }
 
 impl ConnectionState {

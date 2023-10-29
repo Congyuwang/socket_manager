@@ -6,7 +6,7 @@ use async_ringbuf::traits::{AsyncConsumer, Consumer, Observer};
 use std::time::Duration;
 use tokio::io::AsyncWriteExt;
 use tokio::net::tcp::OwnedWriteHalf;
-use tokio::sync::oneshot;
+use tokio::sync::mpsc;
 use tokio::time::MissedTickBehavior;
 
 /// Receive bytes from recv and write to WriteHalf of TcpStream.
@@ -14,7 +14,7 @@ pub(crate) async fn handle_writer(
     write: OwnedWriteHalf,
     recv: MsgRcv,
     config: ConnConfig,
-    stop: oneshot::Sender<()>,
+    stop: mpsc::Sender<()>,
 ) -> std::io::Result<()> {
     let duration = config.write_flush_interval;
     if duration.is_zero() {
@@ -28,7 +28,7 @@ async fn handle_writer_auto_flush(
     mut write: OwnedWriteHalf,
     mut recv: MsgRcv,
     duration: Duration,
-    mut stop: oneshot::Sender<()>,
+    stop: mpsc::Sender<()>,
 ) -> std::io::Result<()> {
     debug_assert!(!duration.is_zero());
     let mut flush_tick = tokio::time::interval(duration);
@@ -80,7 +80,7 @@ async fn handle_writer_auto_flush(
 async fn handle_writer_no_auto_flush(
     mut write: OwnedWriteHalf,
     mut recv: MsgRcv,
-    mut stop: oneshot::Sender<()>,
+    stop: mpsc::Sender<()>,
 ) -> std::io::Result<()> {
     'close: loop {
         // obtain a ring buffer

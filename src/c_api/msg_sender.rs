@@ -1,5 +1,5 @@
 use crate::c_api::async_ffi::notifier::Notifier;
-use crate::c_api::utils::write_error_c_str;
+use crate::c_api::utils::write_display_c_str;
 use crate::msg_sender::MsgSender;
 use libc::size_t;
 use std::ffi::{c_char, c_int, c_long};
@@ -38,7 +38,7 @@ pub unsafe extern "C" fn socket_manager_msg_sender_send_block(
             0
         }
         Err(e) => {
-            write_error_c_str(e, err);
+            write_display_c_str(e, err);
             1
         }
     }
@@ -77,7 +77,7 @@ pub unsafe extern "C" fn socket_manager_msg_sender_send_nonblock(
             0
         }
         Err(e) => {
-            write_error_c_str(e, err);
+            write_display_c_str(e, err);
             1
         }
     }
@@ -119,7 +119,7 @@ pub unsafe extern "C" fn socket_manager_msg_sender_send_async(
             n as c_long
         }
         Poll::Ready(Err(e)) => {
-            write_error_c_str(e, err);
+            write_display_c_str(e, err);
             0 as c_long
         }
         Poll::Pending => PENDING,
@@ -146,14 +146,14 @@ pub unsafe extern "C" fn socket_manager_msg_sender_flush(
             0
         }
         Err(e) => {
-            write_error_c_str(e, err);
+            write_display_c_str(e, err);
             1
         }
     }
 }
 
 /// Destructor of `MsgSender`.
-/// Drop sender to actively close the connection.
+/// Drop sender to actively close the `Write` side of the connection.
 #[no_mangle]
 pub unsafe extern "C" fn socket_manager_msg_sender_free(sender: *mut MsgSender) {
     drop(Box::from_raw(sender))

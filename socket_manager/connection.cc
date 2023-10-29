@@ -1,5 +1,6 @@
 #include "socket_manager/connection.h"
 #include "socket_manager/msg_sender.h"
+#include "socket_manager_c_api.h"
 
 namespace socket_manager {
 
@@ -39,6 +40,20 @@ void Connection::start(std::shared_ptr<MsgReceiverAsync> msg_receiver,
     free(err);
     throw std::runtime_error(err_str);
   }
+}
+
+std::string Connection::peer_address() {
+  char *addr = socket_manager_connection_peer_addr(inner.get());
+  std::string peer(addr);
+  free(addr);
+  return peer;
+}
+
+std::string Connection::local_address() {
+  char *addr = socket_manager_connection_local_addr(inner.get());
+  std::string local(addr);
+  free(addr);
+  return local;
 }
 
 void Connection::close() {

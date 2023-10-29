@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::task::{Poll, Waker};
 use tokio::net::TcpStream;
 use tokio::runtime::Handle;
-use tokio::sync::oneshot;
+use tokio::sync::{mpsc, oneshot};
 use tokio::task::JoinHandle;
 
 /// This function handles connection from a client.
@@ -27,12 +27,11 @@ pub(crate) fn handle_connection<
     let on_connect_on_conn = on_conn.clone();
     // Call `on_conn` callback, and wait for user to call `start` on connection.
     // Return the OnMsg callback and conn_config.
+    let conn_state = connection_state.clone();
     let wait_for_start = async move {
         on_connect_on_conn(ConnState::OnConnect {
-            local_addr,
-            peer_addr,
             send,
-            conn: Conn::new(conn_config_setter),
+            conn: Conn::new(conn_config_setter, local_addr, peer_addr, conn_state),
         })
         .map_err(|_| ())?;
 
@@ -51,10 +50,10 @@ pub(crate) fn handle_connection<
 
         if let Ok((on_msg, config)) = wait_for_start.await {
             // spawn reader and writer
-            let (stop, stopper) = oneshot::channel::<()>();
+            let (stop, stopper) = mpsc::channel::<()>(1);
             let (read, write) = stream.into_split();
-            let writer = handle.spawn(write::handle_writer(write, recv, config, stop));
-            let reader = handle.spawn(read::handle_reader(read, on_msg, config));
+            let writer = handle.spawn(write::handle_writer(write, recv, config, stop.clone()));
+            let reader = handle.spawn(read::handle_reader(read, on_msg, config, stop));
 
             // insert the stopper into connection_state
             connection_state
@@ -80,7 +79,7 @@ pub(crate) fn handle_connection<
 
 /// On connection end, remove connection from connection state.
 async fn join_reader_writer(
-    (mut writer, mut reader): (
+    (writer, reader): (
         JoinHandle<std::io::Result<()>>,
         JoinHandle<std::io::Result<()>>,
     ),
@@ -88,22 +87,40 @@ async fn join_reader_writer(
 ) {
     let writer_abort = writer.abort_handle();
     let reader_abort = reader.abort_handle();
-    tokio::select! {
-        w = &mut writer => {
-            if let Err(e) = w {
-                tracing::error!("writer stopped on error ({e}), local={local_addr}, peer={peer_addr}");
-            } else {
-                tracing::debug!("writer stopped local={local_addr}, peer={peer_addr}");
+    let _ = tokio::join!(
+        async {
+            match writer.await {
+                Ok(Ok(_)) => tracing::debug!("writer stopped local={local_addr}, peer={peer_addr}"),
+                Ok(Err(e)) => {
+                    tracing::error!(
+                        "writer stopped on error ({e}), local={local_addr}, peer={peer_addr}"
+                    );
+                    reader_abort.abort();
+                }
+                Err(e) => {
+                    tracing::error!(
+                        "writer aborted/paniced ({e}), local={local_addr}, peer={peer_addr}"
+                    );
+                    reader_abort.abort();
+                }
             }
-            reader_abort.abort();
-        }
-        r = &mut reader => {
-            if let Err(e) = r {
-                tracing::error!("reader stopped on error ({e}), local={local_addr}, peer={peer_addr}");
-            } else {
-                tracing::debug!("reader stopped local={local_addr}, peer={peer_addr}");
+        },
+        async {
+            match reader.await {
+                Ok(Ok(_)) => tracing::debug!("reader stopped local={local_addr}, peer={peer_addr}"),
+                Ok(Err(e)) => {
+                    tracing::error!(
+                        "reader stopped on error ({e}), local={local_addr}, peer={peer_addr}"
+                    );
+                    writer_abort.abort();
+                }
+                Err(e) => {
+                    tracing::error!(
+                        "reader aborted/paniced ({e}), local={local_addr}, peer={peer_addr}"
+                    );
+                    writer_abort.abort();
+                }
             }
-            writer_abort.abort();
         }
-    }
+    );
 }

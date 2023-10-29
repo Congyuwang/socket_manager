@@ -13,7 +13,7 @@ namespace socket_manager {
 /**
  * Use MsgSender to send messages to the peer.
  * <br /><br />
- * Drop the MsgSender object to close the connection.
+ * Drop the MsgSender object to close the `Write` side of the connection.
  */
 class MsgSender {
 

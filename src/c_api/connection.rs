@@ -1,6 +1,6 @@
 use crate::c_api::conn_events::Connection;
 use crate::c_api::on_msg::OnMsgObj;
-use crate::c_api::utils::write_error_c_str;
+use crate::c_api::utils::write_display_c_str;
 use crate::conn::ConnConfig;
 use libc::size_t;
 use std::ffi::{c_char, c_int};
@@ -63,16 +63,39 @@ pub unsafe extern "C" fn socket_manager_connection_start(
             0
         }
         Err(e) => {
-            write_error_c_str(e, err);
+            write_display_c_str(e, err);
             1
         }
     }
 }
 
-/// Close the connection without using it.
+/// Local address of the connection.
 ///
-/// Only one of `connection_start` or `connection_close` should be called,
-/// or it will result in runtime error.
+/// The returned string is malloced and should be freed by the caller.
+#[no_mangle]
+pub unsafe extern "C" fn socket_manager_connection_local_addr(
+    conn: *mut Connection,
+) -> *mut c_char {
+    let conn = &mut (*conn).conn;
+    let mut local: *mut c_char = null_mut();
+    write_display_c_str(conn.local_addr, &mut local);
+    local
+}
+
+/// Peer address of the connection.
+///
+/// The returned string is malloced and should be freed by the caller.
+#[no_mangle]
+pub unsafe extern "C" fn socket_manager_connection_peer_addr(conn: *mut Connection) -> *mut c_char {
+    let conn = &mut (*conn).conn;
+    let mut peer: *mut c_char = null_mut();
+    write_display_c_str(conn.peer_addr, &mut peer);
+    peer
+}
+
+/// The close API works either before `start_connection` is called
+/// or after the `on_connect` callback.
+/// It won't have effect between the two points.
 ///
 /// # Thread Safety
 /// Thread safe.
@@ -92,7 +115,7 @@ pub unsafe extern "C" fn socket_manager_connection_close(
             0
         }
         Err(e) => {
-            write_error_c_str(e, err);
+            write_display_c_str(e, err);
             1
         }
     }

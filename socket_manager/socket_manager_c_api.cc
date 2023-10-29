@@ -53,8 +53,6 @@ socket_manager_extern_on_conn(SOCKET_MANAGER_C_API_OnConnObj this_,
   switch (states.Code) {
   case SOCKET_MANAGER_C_API_ConnStateCode::Connect: {
     auto on_connect = states.Data.OnConnect;
-    auto local_addr = std::string(on_connect.Local);
-    auto peer_addr = std::string(on_connect.Peer);
 
     std::shared_ptr<socket_manager::Connection> conn(
         new socket_manager::Connection(on_connect.Conn));
@@ -64,11 +62,10 @@ socket_manager_extern_on_conn(SOCKET_MANAGER_C_API_OnConnObj this_,
     // keep the connection alive
     {
       std::unique_lock<std::mutex> const lock(conn_cb->lock);
-      conn_cb->conns[local_addr + peer_addr] = conn;
+      conn_cb->conns[conn->local_address() + conn->peer_address()] = conn;
     }
-    SOCKET_MANAGER_CATCH_ERROR(error, conn_cb->on_connect(local_addr, peer_addr,
-                                                          std::move(conn),
-                                                          std::move(sender)))
+    SOCKET_MANAGER_CATCH_ERROR(
+        error, conn_cb->on_connect(std::move(conn), std::move(sender)))
     break;
   }
   case SOCKET_MANAGER_C_API_ConnStateCode::ConnectionClose: {

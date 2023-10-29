@@ -7,6 +7,7 @@ use std::task::{ready, Context, Poll, Waker};
 use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, AsyncWrite, AsyncWriteExt, BufReader};
 use tokio::net::tcp::OwnedReadHalf;
+use tokio::sync::mpsc;
 use tokio::time::MissedTickBehavior;
 
 pub const MIN_MSG_BUFFER_SIZE: usize = 1024 * 8;
@@ -19,6 +20,7 @@ pub(crate) async fn handle_reader<
     read: OwnedReadHalf,
     on_msg: OnMsg,
     config: ConnConfig,
+    stop: mpsc::Sender<()>,
 ) -> std::io::Result<()> {
     if let Some(msg_buf_size) = config.msg_buffer_size {
         let msg_buf_size = msg_buf_size
@@ -27,12 +29,12 @@ pub(crate) async fn handle_reader<
             .max(MIN_MSG_BUFFER_SIZE);
         let duration = config.read_msg_flush_interval;
         if duration.is_zero() {
-            handle_reader_no_auto_flush(read, on_msg, msg_buf_size).await
+            handle_reader_no_auto_flush(read, on_msg, msg_buf_size, stop).await
         } else {
-            handle_reader_auto_flush(read, on_msg, duration, msg_buf_size).await
+            handle_reader_auto_flush(read, on_msg, duration, msg_buf_size, stop).await
         }
     } else {
-        handle_reader_no_buf(read, on_msg).await
+        handle_reader_no_buf(read, on_msg, stop).await
     }
 }
 
@@ -44,6 +46,7 @@ async fn handle_reader_auto_flush<
     on_msg: OnMsg,
     duration: Duration,
     msg_buf_size: usize,
+    stop: mpsc::Sender<()>,
 ) -> std::io::Result<()> {
     debug_assert!(!duration.is_zero());
     let writer = OnMsgWrite { on_msg };
@@ -67,6 +70,7 @@ async fn handle_reader_auto_flush<
                 // disable ticked flush when there is no data.
                 has_data = false;
             }
+            _ = stop.closed() => break,
         }
     }
 
@@ -82,13 +86,20 @@ async fn handle_reader_no_auto_flush<
     read: OwnedReadHalf,
     on_msg: OnMsg,
     msg_buf_size: usize,
+    stop: mpsc::Sender<()>,
 ) -> std::io::Result<()> {
     let writer = OnMsgWrite { on_msg };
     let mut read_write = BufReadWrite::new(read, writer, msg_buf_size);
     loop {
-        let n = read_write.fill_flush().await?;
-        if n == 0 {
-            break;
+        tokio::select! {
+            biased;
+            n = read_write.fill_flush() => {
+                let n = n?;
+                if n == 0 {
+                    break;
+                }
+            }
+            _ = stop.closed() => break,
         }
     }
     read_write.flush().await?;
@@ -101,19 +112,26 @@ async fn handle_reader_no_buf<
 >(
     read: OwnedReadHalf,
     on_msg: OnMsg,
+    stop: mpsc::Sender<()>,
 ) -> std::io::Result<()> {
     let recv_buffer_size = socket2::SockRef::from(read.as_ref()).recv_buffer_size()?;
     tracing::trace!("recv buffer size: {}", recv_buffer_size);
     let mut on_msg = OnMsgWrite { on_msg };
     let mut buf_reader = BufReader::with_capacity(recv_buffer_size, read);
     loop {
-        let bytes = buf_reader.fill_buf().await?;
-        let n = bytes.len();
-        if n == 0 {
-            break;
+        tokio::select! {
+            biased;
+            bytes = buf_reader.fill_buf() => {
+                let bytes = bytes?;
+                let n = bytes.len();
+                if n == 0 {
+                    break;
+                }
+                on_msg.write_all(bytes).await?;
+                buf_reader.consume(n);
+            }
+            _ = stop.closed() => break,
         }
-        on_msg.write_all(bytes).await?;
-        buf_reader.consume(n);
     }
     Ok(())
 }

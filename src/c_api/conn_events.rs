@@ -39,8 +39,6 @@ pub union ConnStateData {
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct OnConnect {
-    pub(crate) local: *const c_char,
-    pub(crate) peer: *const c_char,
     pub(crate) send: *mut MsgSender,
     pub(crate) conn: *mut Connection,
 }

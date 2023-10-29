@@ -153,8 +153,6 @@ struct SOCKET_MANAGER_C_API_OnConnObj {
 };
 
 struct SOCKET_MANAGER_C_API_OnConnect {
-  const char *Local;
-  const char *Peer;
   SOCKET_MANAGER_C_API_MsgSender *Send;
   SOCKET_MANAGER_C_API_Connection *Conn;
 };
@@ -275,10 +273,23 @@ int socket_manager_connection_start(SOCKET_MANAGER_C_API_Connection *conn,
                                     char **err);
 
 /**
- * Close the connection without using it.
+ * Local address of the connection.
  *
- * Only one of `connection_start` or `connection_close` should be called,
- * or it will result in runtime error.
+ * The returned string is malloced and should be freed by the caller.
+ */
+char *socket_manager_connection_local_addr(SOCKET_MANAGER_C_API_Connection *conn);
+
+/**
+ * Peer address of the connection.
+ *
+ * The returned string is malloced and should be freed by the caller.
+ */
+char *socket_manager_connection_peer_addr(SOCKET_MANAGER_C_API_Connection *conn);
+
+/**
+ * The close API works either before `start_connection` is called
+ * or after the `on_connect` callback.
+ * It won't have effect between the two points.
  *
  * # Thread Safety
  * Thread safe.
@@ -380,7 +391,7 @@ int socket_manager_msg_sender_flush(SOCKET_MANAGER_C_API_MsgSender *sender, char
 
 /**
  * Destructor of `MsgSender`.
- * Drop sender to actively close the connection.
+ * Drop sender to actively close the `Write` side of the connection.
  */
 void socket_manager_msg_sender_free(SOCKET_MANAGER_C_API_MsgSender *sender);
 

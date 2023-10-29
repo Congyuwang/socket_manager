@@ -8,16 +8,14 @@
 using namespace socket_manager;
 
 class OnConnectErrorBeforeStartCallback : public DoNothingConnCallback {
-  void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  std::shared_ptr<Connection> conn,
+  void on_connect(std::shared_ptr<Connection> conn,
                   std::shared_ptr<MsgSender> sender) override {
     throw std::runtime_error("throw some error before calling start");
   }
 };
 
 class OnConnectErrorAfterStartCallback : public DoNothingConnCallback {
-  void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  std::shared_ptr<Connection> conn,
+  void on_connect(std::shared_ptr<Connection> conn,
                   std::shared_ptr<MsgSender> sender) override {
     conn->start(std::make_unique<DoNothingReceiver>());
     throw std::runtime_error("throw some error after calling start");
@@ -31,8 +29,7 @@ class OnMsgErrorReceiver : public MsgReceiver {
 };
 
 class OnMsgErrorCallback : public ConnCallback {
-  void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  std::shared_ptr<Connection> conn,
+  void on_connect(std::shared_ptr<Connection> conn,
                   std::shared_ptr<MsgSender> send) override {
     conn->start(std::make_unique<OnMsgErrorReceiver>());
     this->sender = send;
@@ -52,11 +49,10 @@ class OnMsgErrorCallback : public ConnCallback {
 };
 
 class StoreAllEventsConnHelloCallback : public StoreAllEventsConnCallback {
-  void on_connect(const std::string &local_addr, const std::string &peer_addr,
-                  std::shared_ptr<Connection> conn,
+  void on_connect(std::shared_ptr<Connection> conn,
                   std::shared_ptr<MsgSender> sender) override {
     std::unique_lock<std::mutex> lock(*mutex);
-    auto conn_id = local_addr + "->" + peer_addr;
+    auto conn_id = conn->local_address() + "->" + conn->peer_address();
     events->emplace_back(CONNECTED, conn_id);
     auto msg_storer =
         std::make_unique<MsgStoreReceiver>(conn_id, mutex, cond, buffer);
@@ -68,7 +64,6 @@ class StoreAllEventsConnHelloCallback : public StoreAllEventsConnCallback {
       }
     });
     sender_t.detach();
-    senders.emplace(conn_id, sender);
     connected_count->fetch_add(1, std::memory_order_seq_cst);
     cond->notify_all();
   }
