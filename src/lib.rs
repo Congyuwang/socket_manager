@@ -312,7 +312,7 @@ fn connect_to_addr<
                 );
             }
             Err(error) => {
-                tracing::warn!("error connecting tp addr={addr}: {error}");
+                tracing::warn!("error connecting to addr={addr}: {error}");
                 let _ = on_conn(ConnState::OnConnectError { addr, error });
             }
         }
