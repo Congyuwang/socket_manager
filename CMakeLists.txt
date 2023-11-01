@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/toolchain.cmake)
 
 # define project
-project(socket_manager LANGUAGES C CXX VERSION 0.4.0)
+project(socket_manager LANGUAGES C CXX VERSION 0.5.0)
 
 # set default build type as shared
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
