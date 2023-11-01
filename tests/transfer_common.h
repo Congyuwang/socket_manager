@@ -36,14 +36,14 @@ public:
       : msg_size(msg_size), total_size(total_size) {}
 
   void on_connect(std::shared_ptr<Connection> conn,
-                  std::shared_ptr<MsgSender> sender) override {
+                  std::unique_ptr<MsgSender> sender) override {
     auto rcv = std::make_unique<DoNothingReceiver>();
 
     std::string data = transfer_private::make_test_message(msg_size);
     size_t msg_count = total_size / msg_size;
 
     conn->start(std::move(rcv));
-    std::thread([sender, data, conn, msg_count]() {
+    std::thread([sender = std::move(sender), data, conn, msg_count]() {
       for (int i = 0; i < msg_count; ++i) {
         sender->send_block(data);
       }
@@ -73,7 +73,7 @@ public:
       : msg_size(msg_size), total_size(total_size) {}
 
   void on_connect(std::shared_ptr<Connection> conn,
-                  std::shared_ptr<MsgSender> sender) override {
+                  std::unique_ptr<MsgSender> sender) override {
     auto rcv = std::make_unique<DoNothingReceiver>();
     auto sem = std::make_shared<moodycamel::LightweightSemaphore>();
     auto waker = std::make_shared<CondWaker>(sem);
@@ -82,7 +82,7 @@ public:
     size_t msg_count = total_size / msg_size;
 
     conn->start(std::move(rcv), waker);
-    std::thread([sender, conn, msg_count, data, sem]() {
+    std::thread([sender = std::move(sender), conn, msg_count, data, sem]() {
       int progress = 0;
       size_t offset = 0;
       std::string_view data_view(data);
@@ -112,7 +112,7 @@ public:
       : msg_size(msg_size), total_size(total_size) {}
 
   void on_connect(std::shared_ptr<Connection> conn,
-                  std::shared_ptr<MsgSender> sender) override {
+                  std::unique_ptr<MsgSender> sender) override {
     auto rcv = std::make_unique<DoNothingReceiver>();
 
     std::string data = transfer_private::make_test_message(msg_size);
@@ -120,7 +120,7 @@ public:
 
     conn->start(std::move(rcv), nullptr, DEFAULT_MSG_BUF_SIZE,
                 DEFAULT_READ_MSG_FLUSH_MILLI_SEC, 0);
-    std::thread([sender, data, msg_count, conn]() {
+    std::thread([sender = std::move(sender), data, msg_count, conn]() {
       for (int i = 0; i < msg_count; ++i) {
         sender->send_block(data);
       }
@@ -138,14 +138,14 @@ public:
       : msg_size(msg_size), total_size(total_size) {}
 
   void on_connect(std::shared_ptr<Connection> conn,
-                  std::shared_ptr<MsgSender> sender) override {
+                  std::unique_ptr<MsgSender> sender) override {
     auto rcv = std::make_unique<DoNothingReceiver>();
 
     std::string data = transfer_private::make_test_message(msg_size);
     size_t msg_count = total_size / msg_size;
 
     conn->start(std::move(rcv));
-    std::thread([sender, data, msg_count, conn]() {
+    std::thread([sender = std::move(sender), data, msg_count, conn]() {
       for (int i = 0; i < msg_count; ++i) {
         sender->send_nonblock(data);
       }
@@ -183,10 +183,10 @@ public:
         count(std::make_shared<size_t>(0)) {}
 
   void on_connect(std::shared_ptr<Connection> conn,
-                  std::shared_ptr<MsgSender> send) override {
+                  std::unique_ptr<MsgSender> send) override {
     auto rcv = std::make_unique<CountReceived>(add_data, count);
     conn->start(std::move(rcv));
-    this->sender = send;
+    this->sender = std::move(send);
   }
 
   void on_connection_close(const std::string &local_addr,
@@ -213,7 +213,7 @@ public:
   std::atomic_bool has_closed;
   std::shared_ptr<size_t> add_data;
   std::shared_ptr<size_t> count;
-  std::shared_ptr<MsgSender> sender;
+  std::unique_ptr<MsgSender> sender;
 };
 
 #endif // SOCKET_MANAGER_TEST_TRANSFER_COMMON_H

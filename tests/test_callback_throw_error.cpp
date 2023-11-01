@@ -1,3 +1,4 @@
+#include <memory>
 #undef NDEBUG
 
 #include "test_utils.h"
@@ -9,14 +10,14 @@ using namespace socket_manager;
 
 class OnConnectErrorBeforeStartCallback : public DoNothingConnCallback {
   void on_connect(std::shared_ptr<Connection> conn,
-                  std::shared_ptr<MsgSender> sender) override {
+                  std::unique_ptr<MsgSender> sender) override {
     throw std::runtime_error("throw some error before calling start");
   }
 };
 
 class OnConnectErrorAfterStartCallback : public DoNothingConnCallback {
   void on_connect(std::shared_ptr<Connection> conn,
-                  std::shared_ptr<MsgSender> sender) override {
+                  std::unique_ptr<MsgSender> sender) override {
     conn->start(std::make_unique<DoNothingReceiver>());
     throw std::runtime_error("throw some error after calling start");
   }
@@ -30,10 +31,9 @@ class OnMsgErrorReceiver : public MsgReceiver {
 
 class OnMsgErrorCallback : public ConnCallback {
   void on_connect(std::shared_ptr<Connection> conn,
-                  std::shared_ptr<MsgSender> send) override {
+                  std::unique_ptr<MsgSender> send) override {
     conn->start(std::make_unique<OnMsgErrorReceiver>());
-    this->sender = send;
-    sender.use_count();
+    this->sender = std::move(send);
   }
 
   void on_remote_close(const std::string &local_addr,
@@ -48,19 +48,19 @@ class OnMsgErrorCallback : public ConnCallback {
   void on_connect_error(const std::string &addr,
                         const std::string &err) override {}
 
-  std::shared_ptr<MsgSender> sender;
+  std::unique_ptr<MsgSender> sender;
 };
 
 class StoreAllEventsConnHelloCallback : public StoreAllEventsConnCallback {
   void on_connect(std::shared_ptr<Connection> conn,
-                  std::shared_ptr<MsgSender> sender) override {
+                  std::unique_ptr<MsgSender> sender) override {
     std::unique_lock<std::mutex> lock(*mutex);
     auto conn_id = conn->local_address() + "->" + conn->peer_address();
     events->emplace_back(CONNECTED, conn_id);
     auto msg_storer =
         std::make_unique<MsgStoreReceiver>(conn_id, mutex, cond, buffer);
     conn->start(std::move(msg_storer));
-    std::thread sender_t([sender]() {
+    std::thread sender_t([sender = std::move(sender)]() {
       try {
         sender->send_block("hello");
       } catch (std::runtime_error &e) { /* ignore */
