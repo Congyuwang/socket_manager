@@ -52,17 +52,18 @@ private:
 
 class HelloCallback : public ConnCallback {
   void on_connect(std::shared_ptr<Connection> conn,
-                  std::shared_ptr<MsgSender> sender) override {
+                  std::unique_ptr<MsgSender> sender) override {
     auto rcv = std::make_unique<FinalReceiver>(has_received, mutex, cond);
     // disable write auto flush
     conn->start(std::move(rcv), nullptr, DEFAULT_MSG_BUF_SIZE,
                 DEFAULT_READ_MSG_FLUSH_MILLI_SEC, 0);
-    std::thread sender_t([sender] {
-      sender->send_block("hello world");
-      sender->flush();
+    std::shared_ptr<MsgSender> sender_shared = std::move(sender);
+    std::thread sender_t([sender_shared] {
+      sender_shared->send_block("hello world");
+      sender_shared->flush();
     });
     sender_t.detach();
-    _sender = sender;
+    _sender = sender_shared;
     std::cout << "hello world sent" << std::endl;
   }
 
@@ -91,11 +92,11 @@ public:
 
 class EchoCallback : public ConnCallback {
   void on_connect(std::shared_ptr<Connection> conn,
-                  std::shared_ptr<MsgSender> sender) override {
+                  std::unique_ptr<MsgSender> sender) override {
     auto rcv = std::make_unique<EchoReceiver>(has_received, _data, mutex, cond);
     // disable write auto flush
     conn->start(std::move(rcv), nullptr, DEFAULT_MSG_BUF_SIZE, 1, 0);
-    std::thread sender_t([sender, this]() {
+    std::thread sender_t([sender = std::move(sender), this]() {
       std::unique_lock<std::mutex> lock(*mutex);
       cond->wait(lock, [this]() { return has_received; });
       sender->send_block(*_data);

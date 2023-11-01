@@ -56,7 +56,7 @@ socket_manager_extern_on_conn(SOCKET_MANAGER_C_API_OnConnObj this_,
 
     std::shared_ptr<socket_manager::Connection> conn(
         new socket_manager::Connection(on_connect.Conn));
-    std::shared_ptr<socket_manager::MsgSender> sender(
+    std::unique_ptr<socket_manager::MsgSender> sender(
         new socket_manager::MsgSender(on_connect.Send, conn));
 
     // keep the connection alive

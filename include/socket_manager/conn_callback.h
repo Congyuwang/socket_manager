@@ -47,7 +47,7 @@ private:
    * @param sender a `Sender` object for sending data.
    */
   virtual void on_connect(std::shared_ptr<Connection> conn,
-                          std::shared_ptr<MsgSender> sender) = 0;
+                          std::unique_ptr<MsgSender> sender) = 0;
 
   /**
    * Called when a connection is closed.

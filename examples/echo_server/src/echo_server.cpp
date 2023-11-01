@@ -29,7 +29,7 @@ private:
  */
 class EchoReceiver : public socket_manager::MsgReceiverAsync {
 public:
-  explicit EchoReceiver(std::shared_ptr<socket_manager::MsgSender> &&sender,
+  explicit EchoReceiver(std::unique_ptr<socket_manager::MsgSender> &&sender,
                         const std::shared_ptr<WrapWaker> &waker)
       : waker(waker), sender(std::move(sender)){};
 
@@ -48,7 +48,7 @@ private:
     return sender->send_async(data);
   };
   std::shared_ptr<WrapWaker> waker;
-  std::shared_ptr<socket_manager::MsgSender> sender;
+  std::unique_ptr<socket_manager::MsgSender> sender;
 };
 
 /**
@@ -57,7 +57,7 @@ private:
 class EchoCallback : public socket_manager::ConnCallback {
 private:
   void on_connect(std::shared_ptr<socket_manager::Connection> conn,
-                  std::shared_ptr<socket_manager::MsgSender> sender) override {
+                  std::unique_ptr<socket_manager::MsgSender> sender) override {
     auto waker = std::make_shared<WrapWaker>(socket_manager::Waker());
     auto recv = std::make_shared<EchoReceiver>(std::move(sender), waker);
     {

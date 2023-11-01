@@ -1,3 +1,4 @@
+#include <memory>
 #undef NDEBUG
 
 #include "test_utils.h"
@@ -32,33 +33,33 @@ public:
         received(std::make_shared<std::atomic_bool>(false)) {}
 
   void on_connect(std::shared_ptr<Connection> conn,
-                  std::shared_ptr<MsgSender> send) override {
+                  std::unique_ptr<MsgSender> send) override {
     auto do_nothing =
         std::make_unique<ReceiverHelloWorld>(mutex, cond, received);
     conn->start(std::move(do_nothing));
-    this->sender = send;
+    this->sender = std::move(send);
     sender->send_block("hello world");
   }
 
   std::shared_ptr<std::mutex> mutex;
   std::shared_ptr<std::condition_variable> cond;
   std::shared_ptr<std::atomic_bool> received;
-  std::shared_ptr<MsgSender> sender;
+  std::unique_ptr<MsgSender> sender;
 };
 
 class SendHelloWorldDoNotClose : public DoNothingConnCallback {
   void on_connect(std::shared_ptr<Connection> conn,
-                  std::shared_ptr<MsgSender> sender) override {
+                  std::unique_ptr<MsgSender> sender) override {
     auto do_nothing = std::make_unique<DoNothingReceiver>();
     conn->start(std::move(do_nothing));
-    this->sender = sender;
+    this->sender = std::move(sender);
     std::thread sender_t([this] { this->sender->send_block("hello world"); });
     sender_t.detach();
   }
 
 private:
   // store sender, do not close connection
-  std::shared_ptr<MsgSender> sender;
+  std::unique_ptr<MsgSender> sender;
 };
 
 int test_auto_flush(int argc, char **argv) {
