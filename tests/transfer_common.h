@@ -8,7 +8,8 @@
 #include "concurrentqueue/concurrentqueue.h"
 #include "concurrentqueue/lightweightsemaphore.h"
 #include "test_utils.h"
-#include <chrono>
+#include <socket_manager/common/notifier.h>
+#include <socket_manager/msg_sender.h>
 #include <thread>
 
 const int PRINT_INTERVAL = 100;

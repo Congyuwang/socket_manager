@@ -1,5 +1,5 @@
 #include "socket_manager/connection.h"
-#include "socket_manager/msg_sender.h"
+#include "socket_manager/common/notifier.h"
 #include "socket_manager_c_api.h"
 
 namespace socket_manager {

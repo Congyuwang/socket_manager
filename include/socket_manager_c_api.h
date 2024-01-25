@@ -1,12 +1,9 @@
 #ifndef SOCKET_MANAGER_C_API_H
 #define SOCKET_MANAGER_C_API_H
 
-#include <cstdarg>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
-#include <ostream>
-#include <new>
 
 enum class SOCKET_MANAGER_C_API_ConnStateCode {
   Connect = 0,
@@ -230,7 +227,8 @@ extern "C" {
 /**
  * Waker for the try_send method.
  */
-extern void socket_manager_extern_notifier_wake(SOCKET_MANAGER_C_API_Notifier this_);
+extern void
+socket_manager_extern_notifier_wake(SOCKET_MANAGER_C_API_Notifier this_);
 
 /**
  * Call the waker to wake the relevant task of context.
@@ -243,7 +241,8 @@ void socket_manager_waker_wake(const SOCKET_MANAGER_C_API_CWaker *waker);
 void socket_manager_waker_free(SOCKET_MANAGER_C_API_CWaker waker);
 
 /**
- * Start a connection with the given `OnMsgCallback`, and return a pointer to a `MsgSender`.
+ * Start a connection with the given `OnMsgCallback`, and return a pointer to a
+ * `MsgSender`.
  *
  * Only one of `connection_start` or `connection_close` should be called,
  * or it will result in runtime error.
@@ -256,17 +255,19 @@ void socket_manager_waker_free(SOCKET_MANAGER_C_API_CWaker waker);
  *
  * # Arguments
  * * `conn` - A pointer to a `CConnection`.
- * * `on_msg` - A callback function that will be called when a message is received.
+ * * `on_msg` - A callback function that will be called when a message is
+ * received.
  * * `msg_buffer_size` - The size of the message buffer in bytes.
  *    Set to 0 to use no buffer (i.e., call `on_msg` immediately on receiving
  *    any data). The minimum is 8KB, and the maximum is 8MB.
- * * `read_msg_flush_interval` - The interval in `milliseconds` of read message buffer
- *    auto flushing. The value is ignored when `msg_buffer_size` is 0.
- *    Set to 0 to disable auto flush (which is not recommended since there is no
- *    manual flush, and small messages might get stuck in buffer).
- * * `write_flush_interval` - The interval in `milliseconds` of write buffer auto flushing.
- *    Set to 0 to disable auto flush.
- * * `err` - A pointer to a pointer to a C string allocated by `malloc` on error.
+ * * `read_msg_flush_interval` - The interval in `milliseconds` of read message
+ * buffer auto flushing. The value is ignored when `msg_buffer_size` is 0. Set
+ * to 0 to disable auto flush (which is not recommended since there is no manual
+ * flush, and small messages might get stuck in buffer).
+ * * `write_flush_interval` - The interval in `milliseconds` of write buffer
+ * auto flushing. Set to 0 to disable auto flush.
+ * * `err` - A pointer to a pointer to a C string allocated by `malloc` on
+ * error.
  *
  * # Errors
  * Returns 1 on error, 0 on success.
@@ -284,14 +285,16 @@ int socket_manager_connection_start(SOCKET_MANAGER_C_API_Connection *conn,
  *
  * The returned string is malloced and should be freed by the caller.
  */
-char *socket_manager_connection_local_addr(SOCKET_MANAGER_C_API_Connection *conn);
+char *
+socket_manager_connection_local_addr(SOCKET_MANAGER_C_API_Connection *conn);
 
 /**
  * Peer address of the connection.
  *
  * The returned string is malloced and should be freed by the caller.
  */
-char *socket_manager_connection_peer_addr(SOCKET_MANAGER_C_API_Connection *conn);
+char *
+socket_manager_connection_peer_addr(SOCKET_MANAGER_C_API_Connection *conn);
 
 /**
  * The close API works either before `start_connection` is called
@@ -305,7 +308,8 @@ char *socket_manager_connection_peer_addr(SOCKET_MANAGER_C_API_Connection *conn)
  * Returns 1 on error, 0 on success.
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
  */
-int socket_manager_connection_close(SOCKET_MANAGER_C_API_Connection *conn, char **err);
+int socket_manager_connection_close(SOCKET_MANAGER_C_API_Connection *conn,
+                                    char **err);
 
 /**
  * Destructor of `Connection`.
@@ -319,19 +323,18 @@ void socket_manager_connection_free(SOCKET_MANAGER_C_API_Connection *conn);
  * # Thread Safety
  * Thread safe.
  *
- * This function should never be called within the context of the async callbacks
- * since it might block.
+ * This function should never be called within the context of the async
+ * callbacks since it might block.
  *
  * # Errors
- * If the connection is closed, the function will return 1 and set `err` to a pointer
- * with WriteZero error.
+ * If the connection is closed, the function will return 1 and set `err` to a
+ * pointer with WriteZero error.
  *
  * Returns 1 on error, 0 on success.
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
  */
 int socket_manager_msg_sender_send_block(SOCKET_MANAGER_C_API_MsgSender *sender,
-                                         const char *msg,
-                                         size_t len,
+                                         const char *msg, size_t len,
                                          char **err);
 
 /**
@@ -348,16 +351,15 @@ int socket_manager_msg_sender_send_block(SOCKET_MANAGER_C_API_MsgSender *sender,
  * This function can be called within the context of the async callbacks.
  *
  * # Errors
- * If the connection is closed, the function will return 1 and set `err` to a pointer
- * with WriteZero error.
+ * If the connection is closed, the function will return 1 and set `err` to a
+ * pointer with WriteZero error.
  *
  * Returns 1 on error, 0 on success.
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
  */
-int socket_manager_msg_sender_send_nonblock(SOCKET_MANAGER_C_API_MsgSender *sender,
-                                            const char *msg,
-                                            size_t len,
-                                            char **err);
+int socket_manager_msg_sender_send_nonblock(
+    SOCKET_MANAGER_C_API_MsgSender *sender, const char *msg, size_t len,
+    char **err);
 
 /**
  * Try to send a message via the given `MsgSender` asynchronously.
@@ -378,11 +380,9 @@ int socket_manager_msg_sender_send_nonblock(SOCKET_MANAGER_C_API_MsgSender *send
  * Use `err` pointer to check for error.
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
  */
-long socket_manager_msg_sender_send_async(SOCKET_MANAGER_C_API_MsgSender *sender,
-                                          const char *msg,
-                                          size_t len,
-                                          SOCKET_MANAGER_C_API_Notifier notifier,
-                                          char **err);
+long socket_manager_msg_sender_send_async(
+    SOCKET_MANAGER_C_API_MsgSender *sender, const char *msg, size_t len,
+    SOCKET_MANAGER_C_API_Notifier notifier, char **err);
 
 /**
  * Manually flush the message sender.
@@ -394,7 +394,8 @@ long socket_manager_msg_sender_send_async(SOCKET_MANAGER_C_API_MsgSender *sender
  * Returns 1 on error, 0 on success.
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
  */
-int socket_manager_msg_sender_flush(SOCKET_MANAGER_C_API_MsgSender *sender, char **err);
+int socket_manager_msg_sender_flush(SOCKET_MANAGER_C_API_MsgSender *sender,
+                                    char **err);
 
 /**
  * Destructor of `MsgSender`.
@@ -408,9 +409,10 @@ void socket_manager_msg_sender_free(SOCKET_MANAGER_C_API_MsgSender *sender);
  * pass error to `err` pointer.
  * Set `err` to null_ptr if there is no error.
  */
-extern void socket_manager_extern_on_conn(SOCKET_MANAGER_C_API_OnConnObj this_,
-                                          SOCKET_MANAGER_C_API_ConnStates states,
-                                          char **err);
+extern void
+socket_manager_extern_on_conn(SOCKET_MANAGER_C_API_OnConnObj this_,
+                              SOCKET_MANAGER_C_API_ConnStates states,
+                              char **err);
 
 /**
  * Rust calls this function to send `msg: ConnMsg`
@@ -441,15 +443,17 @@ extern long socket_manager_extern_on_msg(SOCKET_MANAGER_C_API_OnMsgObj this_,
  * Initialize a new `SocketManager` and return a pointer to it.
  *
  * # Number of workers
- * If `n_threads` is 0, the number of workers will be set to the number of logical cores.
- * If `n_threads` is 1, uses single-threaded runtime.
- * `n_threads` is capped at 256.
+ * If `n_threads` is 0, the number of workers will be set to the number of
+ * logical cores. If `n_threads` is 1, uses single-threaded runtime. `n_threads`
+ * is capped at 256.
  *
  * # connection callback
- * `on_conn_self` is passed to the callback function `on_conn` as the first argument.
+ * `on_conn_self` is passed to the callback function `on_conn` as the first
+ * argument.
  *
  * # Safety
- * The passed in callback pointers must live as long as the `SocketManager` does.
+ * The passed in callback pointers must live as long as the `SocketManager`
+ * does.
  *
  * # Non-blocking
  * Must ensure that the callback functions of `callback_obj` are non-blocking.
@@ -458,9 +462,9 @@ extern long socket_manager_extern_on_msg(SOCKET_MANAGER_C_API_OnMsgObj this_,
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`,
  * and the returned pointer will be null.
  */
-SOCKET_MANAGER_C_API_SocketManager *socket_manager_init(SOCKET_MANAGER_C_API_OnConnObj on_conn,
-                                                        size_t n_threads,
-                                                        char **err);
+SOCKET_MANAGER_C_API_SocketManager *
+socket_manager_init(SOCKET_MANAGER_C_API_OnConnObj on_conn, size_t n_threads,
+                    char **err);
 
 /**
  * Listen on the given address.
@@ -473,8 +477,7 @@ SOCKET_MANAGER_C_API_SocketManager *socket_manager_init(SOCKET_MANAGER_C_API_OnC
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
  */
 int socket_manager_listen_on_addr(SOCKET_MANAGER_C_API_SocketManager *manager,
-                                  const char *addr,
-                                  char **err);
+                                  const char *addr, char **err);
 
 /**
  * Connect to the given address.
@@ -490,8 +493,7 @@ int socket_manager_listen_on_addr(SOCKET_MANAGER_C_API_SocketManager *manager,
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
  */
 int socket_manager_connect_to_addr(SOCKET_MANAGER_C_API_SocketManager *manager,
-                                   const char *addr,
-                                   uint64_t delay,
+                                   const char *addr, uint64_t delay,
                                    char **err);
 
 /**
@@ -504,9 +506,8 @@ int socket_manager_connect_to_addr(SOCKET_MANAGER_C_API_SocketManager *manager,
  * Returns 1 on error, 0 on success.
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
  */
-int socket_manager_cancel_listen_on_addr(SOCKET_MANAGER_C_API_SocketManager *manager,
-                                         const char *addr,
-                                         char **err);
+int socket_manager_cancel_listen_on_addr(
+    SOCKET_MANAGER_C_API_SocketManager *manager, const char *addr, char **err);
 
 /**
  * Abort the `SocketManager`'s background runtime.
@@ -521,7 +522,8 @@ int socket_manager_cancel_listen_on_addr(SOCKET_MANAGER_C_API_SocketManager *man
  * Returns 1 on error, 0 on success.
  * On Error, `err` will be set to a pointer to a C string allocated by `malloc`.
  */
-int socket_manager_abort(SOCKET_MANAGER_C_API_SocketManager *manager, bool wait, char **err);
+int socket_manager_abort(SOCKET_MANAGER_C_API_SocketManager *manager, bool wait,
+                         char **err);
 
 /**
  * Join and wait on the `SocketManager`.
@@ -529,13 +531,14 @@ int socket_manager_abort(SOCKET_MANAGER_C_API_SocketManager *manager, bool wait,
  * # Thread Safety
  * Thread safe. Calling a second time will return immediately.
  *
- * This function will block until the `SocketManager`'s background runtime finishes,
- * (i.e., `abort` is called from another thread).
+ * This function will block until the `SocketManager`'s background runtime
+ * finishes, (i.e., `abort` is called from another thread).
  *
  * # Errors
  * Join returns error if the runtime panicked.
  */
-int socket_manager_join(SOCKET_MANAGER_C_API_SocketManager *manager, char **err);
+int socket_manager_join(SOCKET_MANAGER_C_API_SocketManager *manager,
+                        char **err);
 
 /**
  * Calling this function will abort all background runtime and join on them,
@@ -551,10 +554,10 @@ void socket_manager_free(SOCKET_MANAGER_C_API_SocketManager *manager);
  * - `tracer_max_level`: The max level of the tracer.
  * - `log_print_level`: The level of the log to print.
  */
-void socket_manager_logger_init(void (*tracer)(SOCKET_MANAGER_C_API_LogData),
-                                SOCKET_MANAGER_C_API_TraceLevel tracer_max_level,
-                                SOCKET_MANAGER_C_API_TraceLevel log_print_level,
-                                char **err);
+void socket_manager_logger_init(
+    void (*tracer)(SOCKET_MANAGER_C_API_LogData),
+    SOCKET_MANAGER_C_API_TraceLevel tracer_max_level,
+    SOCKET_MANAGER_C_API_TraceLevel log_print_level, char **err);
 
 } // extern "C"
 

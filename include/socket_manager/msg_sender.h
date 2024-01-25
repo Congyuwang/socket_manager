@@ -2,11 +2,9 @@
 #define SOCKET_MANAGER_MSG_SENDER_H
 
 #include "connection.h"
-#include "notifier.h"
 #include "socket_manager_c_api.h"
 #include <functional>
 #include <memory>
-#include <string>
 
 namespace socket_manager {
 

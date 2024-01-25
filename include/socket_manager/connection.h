@@ -3,10 +3,8 @@
 
 #include "msg_receiver.h"
 #include "socket_manager_c_api.h"
-#include <atomic>
 #include <functional>
 #include <memory>
-#include <stdexcept>
 #include <string>
 
 namespace socket_manager {
