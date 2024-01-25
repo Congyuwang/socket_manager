@@ -5,10 +5,10 @@
 
 #include "spdlog/spdlog.h"
 #include <atomic>
-#include <cassert>
 #include <condition_variable>
 #include <iostream>
 #include <mutex>
+#include <socket_manager/msg_sender.h>
 #include <socket_manager/socket_manager.h>
 #include <utility>
 #include <vector>

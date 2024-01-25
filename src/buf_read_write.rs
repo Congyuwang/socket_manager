@@ -94,7 +94,7 @@ impl<W: AsyncWrite + ?Sized + Unpin> Future for WriteAll<'_, W> {
                 Ready(Ok(n)) => {
                     // update local read progress
                     pos += n;
-                    if std::intrinsics::unlikely(n == 0) {
+                    if n == 0 {
                         // update read progress
                         *this.r_offset = pos;
                         return Ready(Err(std::io::ErrorKind::WriteZero.into()));

@@ -2,7 +2,6 @@
 #![feature(fn_traits)]
 #![feature(waker_getters)]
 #![allow(improper_ctypes)]
-#![feature(core_intrinsics)]
 
 mod buf_read_write;
 mod c_api;

@@ -3,10 +3,6 @@
 
 #include "socket_manager_c_api.h"
 #include "waker.h"
-#include <cstdlib>
-#include <cstring>
-#include <memory>
-#include <stdexcept>
 #include <string_view>
 
 namespace socket_manager {

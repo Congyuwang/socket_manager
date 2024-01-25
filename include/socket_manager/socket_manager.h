@@ -2,7 +2,6 @@
 #define SOCKET_MANAGER_H
 
 #include "conn_callback.h"
-#include "msg_sender.h"
 #include "socket_manager_c_api.h"
 #include <functional>
 #include <memory>

@@ -1,8 +1,10 @@
 #include "socket_manager_c_api.h"
+#include "socket_manager/common/notifier.h"
 #include "socket_manager/common/waker.h"
 #include "socket_manager/conn_callback.h"
 #include "socket_manager/msg_receiver.h"
 #include "socket_manager/msg_sender.h"
+#include <cstring>
 
 inline char *string_dup(const std::string &str) {
   auto size = str.size();

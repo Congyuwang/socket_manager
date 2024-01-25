@@ -3,11 +3,8 @@
 
 #include "connection.h"
 #include "socket_manager_c_api.h"
-#include <cstdlib>
-#include <cstring>
 #include <memory>
 #include <mutex>
-#include <stdexcept>
 #include <string>
 #include <unordered_map>
 
