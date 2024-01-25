@@ -1,9 +1,9 @@
 #include <iostream>
 #include <memory>
 #include <socket_manager.h>
-#include <thread>
+#include <socket_manager/common/notifier.h>
+#include <socket_manager/msg_sender.h>
 #include <unordered_map>
-#include <variant>
 
 /**
  * UniqueWaker is a wrapper of `socket_manager::Waker`
