@@ -1,8 +1,8 @@
 #include <iostream>
 #include <memory>
+#include <msg_sender.h>
 #include <mutex>
 #include <socket_manager.h>
-#include <socket_manager/msg_sender.h>
 #include <unordered_map>
 
 class HelloWorldReceiver : public socket_manager::MsgReceiver {

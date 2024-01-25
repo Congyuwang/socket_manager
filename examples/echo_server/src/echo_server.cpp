@@ -1,8 +1,8 @@
 #include <iostream>
 #include <memory>
+#include <msg_sender.h>
+#include <notifier.h>
 #include <socket_manager.h>
-#include <socket_manager/common/notifier.h>
-#include <socket_manager/msg_sender.h>
 #include <unordered_map>
 
 /**
