@@ -45,8 +45,6 @@ public:
    *    send buffer is ready. Pass nullptr to use a noop notifier.
    *    This parameter is needed only for async sending.
    * @param msg_buffer_size The size of the message buffer in bytes.
-   *    Set to 0 to use no buffer (i.e., call `on_msg` immediately on receiving
-   *    any data, expecting the user to implement buffer if needed).
    *    The minimum is 8KB, and the maximum is 8MB. Default to 64KB.
    * @param write_flush_interval The interval in `milliseconds`
    *    of write buffer auto flushing. Set to 0 to disable auto flush.
