@@ -258,8 +258,7 @@ void socket_manager_waker_free(SOCKET_MANAGER_C_API_CWaker waker);
  * * `on_msg` - A callback function that will be called when a message is
  * received.
  * * `msg_buffer_size` - The size of the message buffer in bytes.
- *    Set to 0 to use no buffer (i.e., call `on_msg` immediately on receiving
- *    any data). The minimum is 8KB, and the maximum is 8MB.
+ *    The minimum is 8KB, and the maximum is 8MB.
  * * `read_msg_flush_interval` - The interval in `milliseconds` of read message
  * buffer auto flushing. The value is ignored when `msg_buffer_size` is 0. Set
  * to 0 to disable auto flush (which is not recommended since there is no manual
