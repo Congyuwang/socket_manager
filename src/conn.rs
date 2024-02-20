@@ -1,6 +1,5 @@
 use crate::{ConnectionState, Msg};
 use std::net::SocketAddr;
-use std::num::NonZeroUsize;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::task::{Poll, Waker};
@@ -44,7 +43,7 @@ pub struct ConnConfig {
     pub write_flush_interval: Duration,
     /// zero represent no auto flush
     pub read_msg_flush_interval: Duration,
-    pub msg_buffer_size: Option<NonZeroUsize>,
+    pub msg_buffer_size: usize,
 }
 
 impl<OnMsg: Fn(Msg<'_>, Waker) -> Poll<Result<usize, String>> + Send + 'static> Conn<OnMsg> {

@@ -10,15 +10,21 @@ crate-type = ["staticlib"]
 [dependencies]
 dashmap = { version = "5.4.0", features = ["inline"] }
 libc = "0.2.146"
-socket2 = "0.5.3"
-
-[dependencies.async-ringbuf]
-git = "https://github.com/Congyuwang/ringbuf.git"
+async-ringbuf = "0.2.0-rc.5"
 
 [dependencies.tokio]
-version = "1.29.1"
+version = "1.36.0"
 default-features = false
-features = ["rt", "rt-multi-thread", "net", "time", "sync", "io-util", "macros", "parking_lot"]
+features = [
+    "rt",
+    "rt-multi-thread",
+    "net",
+    "time",
+    "sync",
+    "io-util",
+    "macros",
+    "parking_lot",
+]
 
 [dependencies.futures]
 version = "0.3.28"

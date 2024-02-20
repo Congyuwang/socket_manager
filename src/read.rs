@@ -5,7 +5,7 @@ use std::pin::Pin;
 use std::task::Poll::Ready;
 use std::task::{ready, Context, Poll, Waker};
 use std::time::Duration;
-use tokio::io::{AsyncBufReadExt, AsyncWrite, AsyncWriteExt, BufReader};
+use tokio::io::AsyncWrite;
 use tokio::net::tcp::OwnedReadHalf;
 use tokio::time::MissedTickBehavior;
 
@@ -20,19 +20,15 @@ pub(crate) async fn handle_reader<
     on_msg: OnMsg,
     config: ConnConfig,
 ) -> std::io::Result<()> {
-    if let Some(msg_buf_size) = config.msg_buffer_size {
-        let msg_buf_size = msg_buf_size
-            .get()
-            .min(MAX_MSG_BUFFER_SIZE)
-            .max(MIN_MSG_BUFFER_SIZE);
-        let duration = config.read_msg_flush_interval;
-        if duration.is_zero() {
-            handle_reader_no_auto_flush(read, on_msg, msg_buf_size).await
-        } else {
-            handle_reader_auto_flush(read, on_msg, duration, msg_buf_size).await
-        }
+    let msg_buf_size = config
+        .msg_buffer_size
+        .min(MAX_MSG_BUFFER_SIZE)
+        .max(MIN_MSG_BUFFER_SIZE);
+    let duration = config.read_msg_flush_interval;
+    if duration.is_zero() {
+        handle_reader_no_auto_flush(read, on_msg, msg_buf_size).await
     } else {
-        handle_reader_no_buf(read, on_msg).await
+        handle_reader_auto_flush(read, on_msg, duration, msg_buf_size).await
     }
 }
 
@@ -86,29 +82,6 @@ async fn handle_reader_no_auto_flush<
     let mut read_write = BufReadWrite::new(read, writer, msg_buf_size);
     while read_write.fill_flush().await? != 0 {}
     read_write.flush().await?;
-    Ok(())
-}
-
-/// Has no write buffer, received is sent immediately.
-async fn handle_reader_no_buf<
-    OnMsg: Fn(Msg<'_>, Waker) -> Poll<Result<usize, String>> + Send + Unpin + 'static,
->(
-    read: OwnedReadHalf,
-    on_msg: OnMsg,
-) -> std::io::Result<()> {
-    let recv_buffer_size = socket2::SockRef::from(read.as_ref()).recv_buffer_size()?;
-    tracing::trace!("recv buffer size: {}", recv_buffer_size);
-    let mut on_msg = OnMsgWrite { on_msg };
-    let mut buf_reader = BufReader::with_capacity(recv_buffer_size, read);
-    loop {
-        let bytes = buf_reader.fill_buf().await?;
-        let n = bytes.len();
-        if n == 0 {
-            break;
-        }
-        on_msg.write_all(bytes).await?;
-        buf_reader.consume(n);
-    }
     Ok(())
 }
 

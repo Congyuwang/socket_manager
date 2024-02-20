@@ -4,7 +4,6 @@ use crate::c_api::utils::write_display_c_str;
 use crate::conn::ConnConfig;
 use libc::size_t;
 use std::ffi::{c_char, c_int};
-use std::num::NonZeroUsize;
 use std::os::raw::c_ulonglong;
 use std::ptr::null_mut;
 use std::time::Duration;
@@ -24,8 +23,7 @@ use std::time::Duration;
 /// * `conn` - A pointer to a `CConnection`.
 /// * `on_msg` - A callback function that will be called when a message is received.
 /// * `msg_buffer_size` - The size of the message buffer in bytes.
-///    Set to 0 to use no buffer (i.e., call `on_msg` immediately on receiving
-///    any data). The minimum is 8KB, and the maximum is 8MB.
+///    The minimum is 8KB, and the maximum is 8MB.
 /// * `read_msg_flush_interval` - The interval in `milliseconds` of read message buffer
 ///    auto flushing. The value is ignored when `msg_buffer_size` is 0.
 ///    Set to 0 to disable auto flush (which is not recommended since there is no
@@ -49,7 +47,6 @@ pub unsafe extern "C" fn socket_manager_connection_start(
     let conn = &mut (*conn).conn;
     let write_flush_interval = Duration::from_millis(write_flush_interval);
     let read_msg_flush_interval = Duration::from_millis(read_msg_flush_interval);
-    let msg_buffer_size = NonZeroUsize::new(msg_buffer_size);
     match conn.start_connection(
         on_msg,
         ConnConfig {
