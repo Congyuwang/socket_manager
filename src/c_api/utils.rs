@@ -2,6 +2,16 @@ use std::ffi::{c_char, c_void, CStr, CString};
 use std::fmt::Display;
 use std::net::SocketAddr;
 
+/// cbindgen:ignore
+mod libc {
+    use super::*;
+    extern "C" {
+        pub fn free(p: *mut c_void);
+        pub fn malloc(size: usize) -> *mut c_void;
+        pub fn strcpy(dst: *mut c_char, src: *const c_char) -> *mut c_char;
+    }
+}
+
 /// Parse a C string into a `SocketAddr`.
 pub(crate) unsafe fn socket_addr(addr: *const c_char) -> std::io::Result<SocketAddr> {
     if addr.is_null() {

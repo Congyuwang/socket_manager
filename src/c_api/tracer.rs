@@ -1,7 +1,6 @@
 //! Define a layer to pass log message to foreign interface.
 use super::utils::write_display_c_str;
 use crate::init_logger;
-use libc::size_t;
 use std::{
     ffi::{c_char, c_int},
     fmt,
@@ -47,14 +46,14 @@ pub enum TraceLevel {
 pub struct LogData {
     pub level: TraceLevel,
     pub target: *const c_char,
-    pub target_n: size_t,
+    pub target_n: usize,
     pub file: *const c_char,
-    pub file_n: size_t,
+    pub file_n: usize,
     /// -1 if not available
     pub line: c_int,
     /// The `message` pointer is only valid for the duration of the callback.
     pub message: *const c_char,
-    pub message_n: size_t,
+    pub message_n: usize,
 }
 
 /// Init logger.

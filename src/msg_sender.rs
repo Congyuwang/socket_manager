@@ -1,7 +1,8 @@
 use async_ringbuf::traits::{AsyncProducer, Producer, Split};
 use async_ringbuf::wrap::{AsyncCons, AsyncProd};
 use async_ringbuf::AsyncHeapRb;
-use futures::AsyncWriteExt;
+use std::future::poll_fn;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::task::Poll::{Pending, Ready};
 use std::task::{Poll, Waker};
@@ -78,8 +79,17 @@ impl MsgSender {
             return Ok(());
         }
         // unfinished, enter into future
-        self.handle
-            .block_on(self.ring_buf.write_all(&bytes[offset..]))
+        let write_all = async {
+            while offset < bytes.len() {
+                offset += poll_fn(|cx| {
+                    let ring_buf = Pin::new(&mut self.ring_buf);
+                    ring_buf.poll_write(cx, &bytes[offset..])
+                })
+                .await?;
+            }
+            Ok(())
+        };
+        self.handle.block_on(write_all)
     }
 
     /// The non-blocking API for sending bytes.

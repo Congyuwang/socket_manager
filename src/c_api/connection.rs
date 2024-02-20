@@ -2,7 +2,6 @@ use crate::c_api::conn_events::Connection;
 use crate::c_api::on_msg::OnMsgObj;
 use crate::c_api::utils::write_display_c_str;
 use crate::conn::ConnConfig;
-use libc::size_t;
 use std::ffi::{c_char, c_int};
 use std::os::raw::c_ulonglong;
 use std::ptr::null_mut;
@@ -39,7 +38,7 @@ use std::time::Duration;
 pub unsafe extern "C" fn socket_manager_connection_start(
     conn: *mut Connection,
     on_msg: OnMsgObj,
-    msg_buffer_size: size_t,
+    msg_buffer_size: usize,
     read_msg_flush_interval: c_ulonglong,
     write_flush_interval: c_ulonglong,
     err: *mut *mut c_char,

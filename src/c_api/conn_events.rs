@@ -1,13 +1,12 @@
 use crate::c_api::on_msg::OnMsgObj;
 use crate::MsgSender;
-use libc::size_t;
 use std::ffi::c_char;
 
 /// The data pointer is only valid for the duration of the callback.
 #[repr(C)]
 pub struct ConnMsg {
     pub(crate) bytes: *const c_char,
-    pub(crate) len: size_t,
+    pub(crate) len: usize,
 }
 
 /// All data is only valid for the duration of the callback

@@ -1,7 +1,6 @@
 use crate::c_api::on_conn::OnConnObj;
 use crate::c_api::utils::{socket_addr, write_display_c_str};
 use crate::SocketManager;
-use libc::size_t;
 use std::ffi::{c_char, c_int};
 use std::ptr::null_mut;
 use std::time::Duration;
@@ -28,7 +27,7 @@ use std::time::Duration;
 #[no_mangle]
 pub unsafe extern "C" fn socket_manager_init(
     on_conn: OnConnObj,
-    n_threads: size_t,
+    n_threads: usize,
     err: *mut *mut c_char,
 ) -> *mut SocketManager {
     match SocketManager::init(on_conn, n_threads) {

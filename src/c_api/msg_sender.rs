@@ -1,7 +1,6 @@
 use crate::c_api::async_ffi::notifier::Notifier;
 use crate::c_api::utils::write_display_c_str;
 use crate::msg_sender::MsgSender;
-use libc::size_t;
 use std::ffi::{c_char, c_int, c_long};
 use std::ptr::null_mut;
 use std::task::Poll;
@@ -27,7 +26,7 @@ pub const PENDING: c_long = -1;
 pub unsafe extern "C" fn socket_manager_msg_sender_send_block(
     sender: *mut MsgSender,
     msg: *const c_char,
-    len: size_t,
+    len: usize,
     err: *mut *mut c_char,
 ) -> c_int {
     let sender = &mut (*sender);
@@ -66,7 +65,7 @@ pub unsafe extern "C" fn socket_manager_msg_sender_send_block(
 pub unsafe extern "C" fn socket_manager_msg_sender_send_nonblock(
     sender: *mut MsgSender,
     msg: *const c_char,
-    len: size_t,
+    len: usize,
     err: *mut *mut c_char,
 ) -> c_int {
     let sender = &mut (*sender);
@@ -104,7 +103,7 @@ pub unsafe extern "C" fn socket_manager_msg_sender_send_nonblock(
 pub unsafe extern "C" fn socket_manager_msg_sender_send_async(
     sender: *mut MsgSender,
     msg: *const c_char,
-    len: size_t,
+    len: usize,
     notifier: Notifier,
     err: *mut *mut c_char,
 ) -> c_long {
