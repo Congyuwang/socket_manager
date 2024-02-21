@@ -34,8 +34,6 @@ void MsgSender::flush() {
 
 MsgSender::MsgSender(SOCKET_MANAGER_C_API_MsgSender *inner,
                      const std::shared_ptr<Connection> &conn)
-    : conn(conn), inner(inner, [](SOCKET_MANAGER_C_API_MsgSender *ptr) {
-        socket_manager_msg_sender_free(ptr);
-      }) {}
+    : conn(conn), inner(inner, socket_manager_msg_sender_free) {}
 
 } // namespace socket_manager

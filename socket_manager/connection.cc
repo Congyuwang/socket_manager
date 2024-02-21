@@ -7,9 +7,7 @@ namespace socket_manager {
 
 Connection::Connection(SOCKET_MANAGER_C_API_Connection *inner)
     : notifier(std::make_shared<NoopNotifier>()),
-      inner(inner, [](SOCKET_MANAGER_C_API_Connection *ptr) {
-        socket_manager_connection_free(ptr);
-      }) {}
+      inner(inner, socket_manager_connection_free) {}
 
 void Connection::start(std::shared_ptr<MsgReceiverAsync> msg_receiver,
                        std::shared_ptr<Notifier> send_notifier,
