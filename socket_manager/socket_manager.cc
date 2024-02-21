@@ -1,6 +1,6 @@
 #include "socket_manager/socket_manager.h"
+#include "error.h"
 #include "socket_manager_c_api.h"
-#include <stdexcept>
 #include <string_view>
 
 namespace socket_manager {
@@ -20,11 +20,7 @@ void init_logger(void (*tracer)(SOCKET_MANAGER_C_API_LogData),
                  SOCKET_MANAGER_C_API_TraceLevel log_print_level) {
   char *err = nullptr;
   socket_manager_logger_init(tracer, tracer_max_level, log_print_level, &err);
-  if (err != nullptr) {
-    const std::string err_str(err);
-    free(err);
-    throw std::runtime_error(err_str);
-  }
+  CHECK_RET(err, err);
 }
 
 SocketManager::SocketManager(const std::shared_ptr<ConnCallback> &conn_cb,
@@ -36,61 +32,40 @@ SocketManager::SocketManager(const std::shared_ptr<ConnCallback> &conn_cb,
   inner = std::unique_ptr<
       SOCKET_MANAGER_C_API_SocketManager,
       std::function<void(SOCKET_MANAGER_C_API_SocketManager *)>>(
-      inner_ptr, [](SOCKET_MANAGER_C_API_SocketManager *ptr) {
-        socket_manager_free(ptr);
-      });
-  if (err != nullptr) {
-    const std::string err_str(err);
-    free(err);
-    throw std::runtime_error(err_str);
-  }
+      inner_ptr, socket_manager_free);
+  CHECK_RET(err, err);
 }
 
 void SocketManager::listen_on_addr(const std::string &addr) {
   char *err = nullptr;
-  if (0 != socket_manager_listen_on_addr(inner.get(), addr.c_str(), &err)) {
-    const std::string err_str(err);
-    free(err);
-    throw std::runtime_error(err_str);
-  }
+  int ret = socket_manager_listen_on_addr(inner.get(), addr.c_str(), &err);
+  CHECK_RET(ret, err);
 }
 
 void SocketManager::connect_to_addr(const std::string &addr, uint64_t delay) {
   char *err = nullptr;
-  if (0 !=
-      socket_manager_connect_to_addr(inner.get(), addr.c_str(), delay, &err)) {
-    const std::string err_str(err);
-    free(err);
-    throw std::runtime_error(err_str);
-  }
+  int ret =
+      socket_manager_connect_to_addr(inner.get(), addr.c_str(), delay, &err);
+  CHECK_RET(ret, err);
 }
 
 void SocketManager::cancel_listen_on_addr(const std::string &addr) {
   char *err = nullptr;
-  if (0 !=
-      socket_manager_cancel_listen_on_addr(inner.get(), addr.c_str(), &err)) {
-    const std::string err_str(err);
-    free(err);
-    throw std::runtime_error(err_str);
-  }
+  int ret =
+      socket_manager_cancel_listen_on_addr(inner.get(), addr.c_str(), &err);
+  CHECK_RET(ret, err);
 }
 
 void SocketManager::abort(bool wait) {
   char *err = nullptr;
-  if (0 != socket_manager_abort(inner.get(), wait, &err)) {
-    const std::string err_str(err);
-    free(err);
-    throw std::runtime_error(err_str);
-  }
+  int ret = socket_manager_abort(inner.get(), wait, &err);
+  CHECK_RET(ret, err);
 }
 
 void SocketManager::join() {
   char *err = nullptr;
-  if (0 != socket_manager_join(inner.get(), &err)) {
-    const std::string err_str(err);
-    free(err);
-    throw std::runtime_error(err_str);
-  }
+  int ret = socket_manager_join(inner.get(), &err);
+  CHECK_RET(ret, err);
 }
 
 } // namespace socket_manager

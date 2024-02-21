@@ -1,7 +1,7 @@
 #include "socket_manager/connection.h"
+#include "error.h"
 #include "socket_manager/common/notifier.h"
 #include "socket_manager_c_api.h"
-#include <stdexcept>
 
 namespace socket_manager {
 
@@ -17,7 +17,7 @@ void Connection::start(std::shared_ptr<MsgReceiverAsync> msg_receiver,
                        unsigned long long read_msg_flush_interval,
                        unsigned long long write_flush_interval) {
 
-  if (msg_receiver == nullptr) {
+  if (msg_receiver == nullptr) [[unlikely]] {
     throw std::runtime_error("msg_receiver should not be nullptr");
   }
   // keep the msg_receiver alive.
@@ -30,17 +30,13 @@ void Connection::start(std::shared_ptr<MsgReceiverAsync> msg_receiver,
   // start the connection.
   // calling twice `connection_start` will throw exception.
   char *err = nullptr;
-  if (0 != socket_manager_connection_start(inner.get(),
-                                           SOCKET_MANAGER_C_API_OnMsgObj{
-                                               this->receiver.get(),
-                                           },
-                                           msg_buffer_size,
-                                           read_msg_flush_interval,
-                                           write_flush_interval, &err)) {
-    const std::string err_str(err);
-    free(err);
-    throw std::runtime_error(err_str);
-  }
+  int ret = socket_manager_connection_start(
+      inner.get(),
+      SOCKET_MANAGER_C_API_OnMsgObj{
+          this->receiver.get(),
+      },
+      msg_buffer_size, read_msg_flush_interval, write_flush_interval, &err);
+  CHECK_RET(ret, err);
 }
 
 std::string Connection::peer_address() {
@@ -59,11 +55,8 @@ std::string Connection::local_address() {
 
 void Connection::close() {
   char *err = nullptr;
-  if (0 != socket_manager_connection_close(inner.get(), &err)) {
-    const std::string err_str(err);
-    free(err);
-    throw std::runtime_error(err_str);
-  }
+  int ret = socket_manager_connection_close(inner.get(), &err);
+  CHECK_RET(ret, err);
 }
 
 } // namespace socket_manager
