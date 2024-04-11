@@ -28,7 +28,7 @@ set_property(TARGET CommonCxxTests PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 # Add all the ADD_TEST for each test
 set(TestsToRun ${Tests})
-list(REMOVE_ITEM TestsToRun CommonCxxTests.cxx)
+list(FILTER TestsToRun EXCLUDE REGEX ".*CommonCxxTests\\.cxx$")
 foreach (test ${TestsToRun})
     get_filename_component(TName ${test} NAME_WE)
     add_test(NAME ${TName} COMMAND CommonCxxTests ${TName})
