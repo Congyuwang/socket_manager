@@ -8,11 +8,11 @@ edition = "2021"
 crate-type = ["staticlib"]
 
 [dependencies]
-dashmap = { version = "5.5.3", features = ["inline"] }
-async-ringbuf = "0.2.0-rc.5"
+dashmap = { version = "5", features = ["inline"] }
+async-ringbuf = "0.2.0"
 
 [dependencies.tokio]
-version = "1.36.0"
+version = "1.37"
 default-features = false
 features = [
     "rt",
@@ -26,11 +26,11 @@ features = [
 ]
 
 [dependencies.tracing]
-version = "0.1.40"
+version = "0.1"
 default-features = false
 features = ["std"]
 
 [dependencies.tracing-subscriber]
-version = "0.3.18"
+version = "0.3"
 default-features = false
 features = ["std", "fmt", "env-filter", "registry"]
