@@ -9,7 +9,7 @@ crate-type = ["staticlib"]
 
 [dependencies]
 dashmap = { version = "5", features = ["inline"] }
-async-ringbuf = "0.2.0"
+async-ringbuf = "0.3.1"
 
 [dependencies.tokio]
 version = "1.37"
